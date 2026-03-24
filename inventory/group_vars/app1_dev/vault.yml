@@ -1,0 +1,5 @@
+# ansible-vault encrypt this file
+vault_db_password: "app1-prod-db-secret"
+vault_app_secret_key: "app1-prod-flask-secret"
+vault_win_password: "app1-prod-win-admin-secret"
+vault_splunk_hec_token: "app1-prod-hec-token"

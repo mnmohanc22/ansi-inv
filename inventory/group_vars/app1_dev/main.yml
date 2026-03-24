@@ -1,0 +1,9 @@
+app_name: app1
+env: dev
+aws_account_id: "111111111111"
+aws_region: us-east-1
+ecr_registry: 111111111111.dkr.ecr.us-east-1.amazonaws.com
+artifact_bucket: app1-artifacts-dev
+ansible_user: ec2-user
+ansible_ssh_private_key_file: ~/.ssh/app1-dev.pem
+log_level: DEBUG

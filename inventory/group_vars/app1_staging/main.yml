@@ -1,0 +1,9 @@
+app_name: app1
+env: staging
+aws_account_id: "222222222222"
+aws_region: us-east-1
+ecr_registry: 222222222222.dkr.ecr.us-east-1.amazonaws.com
+artifact_bucket: app1-artifacts-staging
+ansible_user: ec2-user
+ansible_ssh_private_key_file: ~/.ssh/app1-staging.pem
+log_level: INFO

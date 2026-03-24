@@ -1,0 +1,7 @@
+ansible_connection: ssh
+ansible_user: ec2-user
+ansible_python_interpreter: /usr/bin/python3
+os_type: linux
+log_dir: /var/log/app1
+config_dir: /etc/app1
+tmp_dir: /tmp/app1

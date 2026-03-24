@@ -1,0 +1,11 @@
+ansible_connection: winrm
+ansible_user: Administrator
+ansible_winrm_transport: ntlm
+ansible_winrm_server_cert_validation: ignore
+ansible_port: 5986
+os_type: windows
+
+app_dir: 'C:\app1'
+log_dir: 'C:\app1\logs'
+config_dir: 'C:\app1\config'
+tmp_dir: 'C:\Windows\Temp\app1'
