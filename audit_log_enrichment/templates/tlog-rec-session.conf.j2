@@ -1,0 +1,30 @@
+{
+    "version": "1",
+    "writer": "{{ tlog_writer }}",
+    "shell": "/bin/bash",
+    "notice": "NOTICE: This session is being recorded for security and compliance purposes.\nIRS 1075 / NIST SP 800-53 Rev 5 AU-14: Session Audit.\nAll actions performed in this session are logged and may be reviewed.",
+{% if tlog_writer == "file" %}
+    "file": {
+        "path": "{{ tlog_log_dir }}/session-%u-%S-%p.log"
+    },
+{% elif tlog_writer == "journal" %}
+    "journal": {
+        "priority": "info"
+    },
+{% elif tlog_writer == "syslog" %}
+    "syslog": {
+        "facility": "authpriv",
+        "priority": "info"
+    },
+{% endif %}
+    "limit": {
+        "rate": 16384,
+        "burst": 32768,
+        "action": "drop"
+    },
+    "log": {
+        "input": true,
+        "output": true,
+        "window": true
+    }
+}

@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# Task File: rsyslog.yml
+#   - Injects EC2 metadata (instance-id, region, account, vpc) into every
+#     audit log line via a structured rsyslog template
+#   - Optionally forwards enriched JSON to a remote SIEM
+# =============================================================================
+
+- name: Configure rsyslog audit enrichment
+  block:
+    - name: Deploy rsyslog EC2 audit enrichment config
+      ansible.builtin.template:
+        src: rsyslog-audit-enrichment.conf.j2
+        dest: "{{ rsyslog_enrichment_conf }}"
+        owner: root
+        group: root
+        mode: "0644"
+        validate: "rsyslogd -N1 -f %s"
+        backup: true
+      notify: Restart rsyslog
+
+    - name: Enable and start rsyslog
+      ansible.builtin.service:
+        name: rsyslog
+        enabled: true
+        state: started
+
+    - name: Ensure /var/log/audit-enriched directory exists
+      ansible.builtin.file:
+        path: /var/log/audit-enriched
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Add logrotate config for enriched audit logs
+      ansible.builtin.template:
+        src: logrotate-audit-enriched.j2
+        dest: /etc/logrotate.d/audit-enriched
+        owner: root
+        group: root
+        mode: "0644"

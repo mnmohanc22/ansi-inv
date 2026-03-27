@@ -1,0 +1,30 @@
+---
+# =============================================================================
+# Task File: auditd.yml – Configure /etc/audit/auditd.conf
+# =============================================================================
+
+- name: Configure auditd
+  block:
+    - name: Configure auditd.conf
+      ansible.builtin.template:
+        src: auditd.conf.j2
+        dest: /etc/audit/auditd.conf
+        owner: root
+        group: root
+        mode: "0640"
+        backup: true
+      notify: Restart auditd
+
+    - name: Enable and start auditd service
+      ansible.builtin.service:
+        name: auditd
+        enabled: true
+        state: started
+
+    - name: Ensure /var/log/audit directory has correct permissions
+      ansible.builtin.file:
+        path: /var/log/audit
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"

@@ -1,0 +1,48 @@
+---
+# =============================================================================
+# Task File: cloudwatch.yml – Amazon CloudWatch Agent for enriched audit logs
+# =============================================================================
+
+- name: Check if amazon-cloudwatch-agent is installed
+  ansible.builtin.stat:
+    path: /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent
+  register: cw_agent_bin
+
+- name: Download CloudWatch Agent RPM (if not installed)
+  ansible.builtin.get_url:
+    url: "https://s3.{{ ec2_region }}.amazonaws.com/amazoncloudwatch-agent-{{ ec2_region }}/redhat/amd64/latest/amazon-cloudwatch-agent.rpm"
+    dest: /tmp/amazon-cloudwatch-agent.rpm
+    mode: "0644"
+  when: not cw_agent_bin.stat.exists
+
+- name: Install CloudWatch Agent
+  ansible.builtin.dnf:
+    name: /tmp/amazon-cloudwatch-agent.rpm
+    state: present
+    disable_gpg_check: true
+  when: not cw_agent_bin.stat.exists
+
+- name: Deploy CloudWatch agent config for audit logs
+  ansible.builtin.template:
+    src: cloudwatch-audit-log.json.j2
+    dest: "{{ cloudwatch_config_file }}"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart cloudwatch agent
+
+- name: Apply CloudWatch agent config
+  ansible.builtin.command: >
+    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+    -a fetch-config
+    -m ec2
+    -c file:{{ cloudwatch_config_file }}
+    -s
+  changed_when: true
+  notify: Restart cloudwatch agent
+
+- name: Enable and start amazon-cloudwatch-agent
+  ansible.builtin.service:
+    name: amazon-cloudwatch-agent
+    enabled: true
+    state: started

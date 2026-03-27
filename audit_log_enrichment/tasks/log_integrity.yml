@@ -1,0 +1,140 @@
+---
+# =============================================================================
+# Task File: log_integrity.yml
+# Controls : AU-9   – Protection of Audit Information
+#            AU-9(2) – Audit Backup to Separate Physical System  (S3 WORM)
+#            AU-9(3) – Cryptographic Protection of Audit Information
+#            AU-9(4) – Access by Subset of Privileged Users
+#            AU-10  – Non-Repudiation
+# IRS 1075 : §9.4.9 – Immutable log storage
+#            §9.4.10 – Log integrity verification
+# =============================================================================
+
+# ── AU-9(4): Restrict audit log read access to root + audit group ─────────────
+- name: Ensure 'audit' OS group exists (AU-9(4))
+  ansible.builtin.group:
+    name: audit
+    state: present
+    system: true
+
+- name: Add authorised auditor accounts to audit group (AU-9(4))
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: audit
+    append: true
+  loop: "{{ audit_group_members }}"
+  when: audit_group_members | length > 0
+
+- name: Restrict /var/log/audit ownership and permissions (AU-9)
+  ansible.builtin.file:
+    path: /var/log/audit
+    state: directory
+    owner: root
+    group: audit
+    mode: "0750"
+
+- name: Restrict audit.log file permissions (AU-9)
+  ansible.builtin.file:
+    path: "{{ auditd_log_file }}"
+    owner: root
+    group: audit
+    mode: "0640"
+  failed_when: false   # file may not exist yet on first run
+
+- name: Restrict enriched audit log directory (AU-9)
+  ansible.builtin.file:
+    path: /var/log/audit-enriched
+    state: directory
+    owner: root
+    group: audit
+    mode: "0750"
+
+# ── AU-9: Set append-only attribute on audit log files (immutable local) ──────
+- name: Set append-only attribute on audit.log (AU-9 – chattr +a)
+  ansible.builtin.command: chattr +a "{{ auditd_log_file }}"
+  failed_when: false    # non-fatal if filesystem doesn't support attrs
+  changed_when: false
+
+# ── AU-9(3): AIDE – File Integrity Monitoring  ────────────────────────────────
+- name: Install AIDE (AU-9(3))
+  ansible.builtin.dnf:
+    name: aide
+    state: present
+
+- name: Ensure AIDE directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /var/lib/aide
+    - /var/log/aide
+
+- name: Deploy AIDE configuration (AU-9(3))
+  ansible.builtin.template:
+    src: aide.conf.j2
+    dest: "{{ aide_conf_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+
+- name: Check if AIDE database already exists
+  ansible.builtin.stat:
+    path: "{{ aide_db_path }}"
+  register: aide_db_stat
+
+- name: Initialise AIDE database (AU-9(3) – first-run baseline)
+  ansible.builtin.command: aide --init --config={{ aide_conf_file }}
+  when: not aide_db_stat.stat.exists
+  register: aide_init
+  changed_when: aide_init.rc == 0
+
+- name: Promote new AIDE database to active (AU-9(3))
+  ansible.builtin.command: "mv {{ aide_db_new_path }} {{ aide_db_path }}"
+  when:
+    - not aide_db_stat.stat.exists
+    - aide_init.rc == 0
+  changed_when: true
+
+- name: Restrict AIDE database permissions (AU-9 – prevent tampering)
+  ansible.builtin.file:
+    path: "{{ aide_db_path }}"
+    owner: root
+    group: root
+    mode: "0400"
+  failed_when: false
+
+- name: Deploy AIDE integrity verification script (AU-9(3))
+  ansible.builtin.template:
+    src: audit-hmac-verify.sh.j2
+    dest: /usr/local/bin/audit-hmac-verify.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Schedule daily AIDE check (AU-9(3))
+  ansible.builtin.cron:
+    name: "AIDE daily integrity check (AU-9(3))"
+    minute: "{{ aide_cron_minute }}"
+    hour: "{{ aide_cron_hour }}"
+    job: >
+      aide --check --config={{ aide_conf_file }} >> {{ aide_log_path }} 2>&1
+      && /usr/local/bin/audit-hmac-verify.sh >> {{ aide_log_path }} 2>&1
+    user: root
+    state: present
+
+- name: Schedule daily AIDE database update (AU-9(3))
+  ansible.builtin.cron:
+    name: "AIDE weekly database update"
+    minute: "30"
+    hour: "4"
+    weekday: "0"      # Sunday
+    job: >
+      aide --update --config={{ aide_conf_file }}
+      && mv {{ aide_db_new_path }} {{ aide_db_path }}
+      && chmod 400 {{ aide_db_path }}
+    user: root
+    state: present

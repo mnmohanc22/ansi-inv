@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# Task File: ntp_sync.yml
+# Controls : AU-8  – Time Stamps
+#            AU-8(1) – Synchronization with Authoritative Time Source
+# IRS 1075 : §9.4.3 – Requires accurate timestamps for audit records
+# =============================================================================
+
+- name: Install chrony (AU-8)
+  ansible.builtin.dnf:
+    name: chrony
+    state: present
+
+- name: Deploy chrony.conf with AWS authoritative time source (AU-8(1))
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "{{ chrony_conf_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: Restart chronyd
+
+- name: Enable and start chronyd (AU-8)
+  ansible.builtin.service:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: Force immediate time synchronization (AU-8(1))
+  ansible.builtin.command: chronyc makestep
+  changed_when: false
+
+- name: Verify chrony synchronization status (AU-8(1) – assert authoritative source)
+  ansible.builtin.command: chronyc tracking
+  register: chrony_tracking
+  changed_when: false
+  failed_when:
+    - "'Not synchronised' in chrony_tracking.stdout"
+    - "chrony_tracking.rc != 0"
+
+- name: Display chrony tracking info
+  ansible.builtin.debug:
+    var: chrony_tracking.stdout_lines
+
+- name: Verify system clock is synchronized (AU-8)
+  ansible.builtin.command: timedatectl show --property=NTPSynchronized --value
+  register: ntp_sync_status
+  changed_when: false
+
+- name: Assert NTP synchronized (AU-8 – compensating control)
+  ansible.builtin.assert:
+    that: ntp_sync_status.stdout | trim == 'yes'
+    fail_msg: "AU-8 VIOLATION: System clock is NOT NTP-synchronized. Check chronyd."
+    success_msg: "AU-8 PASS: System clock is synchronized to authoritative time source."
+
+- name: Ensure hardware clock uses UTC (AU-8)
+  ansible.builtin.command: timedatectl set-local-rtc 0
+  changed_when: false
+
+- name: Set timezone to UTC for consistent audit timestamps (AU-8)
+  community.general.timezone:
+    name: UTC

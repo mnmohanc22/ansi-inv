@@ -1,0 +1,8 @@
+# Managed by Ansible – audit_log_enrichment role
+# Sends auditd events to rsyslog via syslog plugin
+active     = {{ audisp_syslog_active }}
+direction  = out
+path       = builtin_syslog
+type       = builtin
+args       = LOG_INFO {{ audisp_syslog_facility }}
+format     = string

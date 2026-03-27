@@ -1,0 +1,25 @@
+---
+# =============================================================================
+# Group Vars: audit_enrichment.yml
+# Override any default from roles/audit_log_enrichment/defaults/main.yml here
+# or pass as AAP extra vars at launch time.
+# =============================================================================
+
+# ── Target scope ──────────────────────────────────────────────────────────────
+target_hosts: rhel_ec2
+
+# ── S3 bucket for audit logs  (required if s3 shipping is desired) ────────────
+# audit_s3_bucket: "company-aap-patch-logs"
+
+# ── SIEM forwarding (leave blank to disable) ──────────────────────────────────
+# rsyslog_forward_host: "siem.corp.internal"
+# rsyslog_forward_port: 514
+# rsyslog_forward_protocol: tcp
+
+# ── CloudWatch Logs ───────────────────────────────────────────────────────────
+cloudwatch_enabled: true
+
+# ── auditd tuning overrides ───────────────────────────────────────────────────
+auditd_max_log_file: 100
+auditd_num_logs: 10
+auditd_log_format: ENRICHED

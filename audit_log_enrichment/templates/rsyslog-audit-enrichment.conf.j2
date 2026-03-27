@@ -1,0 +1,68 @@
+# =============================================================================
+# Managed by Ansible – audit_log_enrichment role
+# Enriches audit log lines with AWS EC2 metadata and writes structured JSON
+# =============================================================================
+
+# ── Load required modules ─────────────────────────────────────────────────────
+module(load="imuxsock")
+module(load="omfile")
+{% if rsyslog_forward_host | length > 0 %}
+module(load="omfwd")
+{% endif %}
+
+# ── EC2 Metadata properties (set at Ansible render time) ─────────────────────
+# These are baked in by Ansible so rsyslog does NOT need to call IMDS itself.
+set $!ec2_instance_id = "{{ ec2_instance_id }}";
+set $!ec2_region      = "{{ ec2_region }}";
+set $!ec2_account_id  = "{{ ec2_account_id }}";
+set $!ec2_vpc_id      = "{{ ec2_vpc_id }}";
+set $!ec2_hostname    = "{{ ec2_hostname }}";
+
+# ── JSON enrichment template ──────────────────────────────────────────────────
+template(name="AuditEnrichedJSON" type="list") {
+    constant(value="{")
+    constant(value="\"timestamp\":\"")      property(name="timereported" dateFormat="rfc3339")
+    constant(value="\",\"severity\":\"")    property(name="syslogseverity-text")
+    constant(value="\",\"facility\":\"")    property(name="syslogfacility-text")
+    constant(value="\",\"hostname\":\"")    property(name="hostname")
+    constant(value="\",\"program\":\"")     property(name="programname")
+    constant(value="\",\"message\":\"")     property(name="msg" format="json")
+    constant(value="\",\"ec2_instance_id\":\"{{ ec2_instance_id }}")
+    constant(value="\",\"ec2_region\":\"{{ ec2_region }}")
+    constant(value="\",\"ec2_account_id\":\"{{ ec2_account_id }}")
+    constant(value="\",\"ec2_vpc_id\":\"{{ ec2_vpc_id }}")
+    constant(value="\"}\n")
+}
+
+# ── Receive audit events from LOCAL3 (audisp-syslog plugin) ──────────────────
+if $syslogfacility-text == 'local3' then {
+
+    # Write enriched JSON to local file
+    action(
+        type="omfile"
+        file="/var/log/audit-enriched/audit-enriched.json"
+        template="AuditEnrichedJSON"
+        fileCreateMode="0640"
+        dirCreateMode="0750"
+        fileOwner="root"
+        fileGroup="root"
+    )
+
+{% if rsyslog_forward_host | length > 0 %}
+    # Forward enriched events to SIEM
+    action(
+        type="omfwd"
+        target="{{ rsyslog_forward_host }}"
+        port="{{ rsyslog_forward_port }}"
+        protocol="{{ rsyslog_forward_protocol }}"
+        template="AuditEnrichedJSON"
+        queue.type="linkedList"
+        queue.size="10000"
+        queue.filename="audit_fwd"
+        action.resumeRetryCount="-1"
+    )
+{% endif %}
+
+    # Stop – do not process through default rules
+    stop
+}

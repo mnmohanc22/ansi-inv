@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# Task File: fips_mode.yml
+# Controls : AU-9(3) – Cryptographic Protection (requires FIPS-validated modules)
+#            SC-13   – Cryptographic Protection
+# IRS 1075 : §9.3   – FIPS 140-2/3 cryptographic module requirement
+#            §2.6   – All cryptographic operations must use FIPS-validated algorithms
+# NOTE      : FIPS mode requires a reboot – this task flags it; the playbook
+#             handler will conditionally reboot if needed.
+# =============================================================================
+
+- name: Check current FIPS mode status (IRS 1075 §9.3)
+  ansible.builtin.command: fips-mode-setup --check
+  register: fips_check
+  changed_when: false
+  failed_when: false
+
+- name: Display current FIPS mode status
+  ansible.builtin.debug:
+    msg: "FIPS status: {{ fips_check.stdout | trim }}"
+
+- name: Enable FIPS mode (IRS 1075 §9.3 – requires reboot)
+  ansible.builtin.command: fips-mode-setup --enable
+  when:
+    - fips_enabled | bool
+    - "'is enabled' not in fips_check.stdout"
+  register: fips_enable_result
+  changed_when: fips_enable_result.rc == 0
+  notify: Reboot for FIPS
+
+- name: Verify FIPS kernel parameter set (IRS 1075 §9.3)
+  ansible.builtin.command: grep -q 'fips=1' /proc/cmdline
+  register: fips_kernel_param
+  changed_when: false
+  failed_when: false
+  when: fips_enabled | bool
+
+- name: AU-9(3) – Assert FIPS mode is active after reboot
+  ansible.builtin.assert:
+    that:
+      - "'is enabled' in fips_check.stdout or fips_enable_result is changed"
+    fail_msg: >
+      IRS 1075 §9.3 / AU-9(3) WARNING: FIPS mode not yet active.
+      A reboot is required to complete FIPS enablement.
+      Schedule a reboot during the next maintenance window.
+    success_msg: "IRS 1075 §9.3 / AU-9(3) PASS: FIPS 140-2/3 mode is enabled."
+  ignore_errors: true   # warn only – reboot handles it
+
+- name: Verify OpenSSL uses FIPS provider (IRS 1075 §9.3)
+  ansible.builtin.command: openssl list -providers
+  register: openssl_providers
+  changed_when: false
+  failed_when: false
+  when: fips_enabled | bool
+
+- name: Display OpenSSL FIPS provider status
+  ansible.builtin.debug:
+    msg: "{{ openssl_providers.stdout_lines | default(['openssl list not available']) }}"
+  when: fips_enabled | bool

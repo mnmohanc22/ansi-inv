@@ -1,0 +1,33 @@
+---
+# =============================================================================
+# Task File: audisp.yml – Configure audit dispatcher (audisp-syslog plugin)
+#   Routes auditd events → rsyslog LOCAL3 for EC2 metadata enrichment
+# =============================================================================
+
+- name: Configure audisp
+  block:
+    - name: Detect audisp plugin directory (RHEL 8 vs 9)
+      ansible.builtin.set_fact:
+        audisp_plugin_dir: >-
+          {{ '/etc/audit/plugins.d'
+             if ansible_distribution_major_version | int >= 9
+             else '/etc/audisp/plugins.d' }}
+
+    - name: Configure audisp syslog plugin
+      ansible.builtin.template:
+        src: audisp-syslog.conf.j2
+        dest: "{{ audisp_plugin_dir }}/syslog.conf"
+        owner: root
+        group: root
+        mode: "0640"
+        backup: true
+      notify: Restart auditd
+
+    - name: Ensure /etc/audit/auditd.conf has dispatcher configured (RHEL 8)
+      ansible.builtin.lineinfile:
+        path: /etc/audit/auditd.conf
+        regexp: '^dispatcher\s*='
+        line: "dispatcher = /sbin/audispd"
+        state: present
+      when: ansible_distribution_major_version | int == 8
+      notify: Restart auditd

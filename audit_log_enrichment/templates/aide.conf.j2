@@ -1,0 +1,90 @@
+# =============================================================================
+# Managed by Ansible – audit_log_enrichment role
+# Controls : AU-9(3) – Cryptographic Protection of Audit Information
+#            AU-10   – Non-Repudiation
+# IRS 1075 : §9.4.10 – Integrity verification of audit logs
+# =============================================================================
+
+# ── Database locations  (AU-9: protect from tampering) ───────────────────────
+database=file:{{ aide_db_path }}
+database_out=file:{{ aide_db_new_path }}
+database_new=file:{{ aide_db_new_path }}
+
+# ── Report output ─────────────────────────────────────────────────────────────
+report_url=file:{{ aide_log_path }}
+report_url=syslog:LOG_AUTH
+
+# ── Verbose level (0-255) ─────────────────────────────────────────────────────
+verbose=5
+
+# ── FIPS-compatible hash algorithms  (IRS 1075 §9.3, AU-9(3)) ────────────────
+# Use SHA-512 (FIPS 140-2/3 validated); disable MD5/SHA1
+Checksums = sha512+sha256
+
+# ── AIDE attribute macros ─────────────────────────────────────────────────────
+# p=permissions, i=inode, n=nlink, u=uid, g=gid, s=size
+# m=mtime, c=ctime, a=atime, S=sizegrow, b=block count
+# sha256=SHA-256 checksum (FIPS), sha512=SHA-512 (FIPS)
+
+AUDIT_LOG  = p+i+n+u+g+s+sha512
+BINLIB     = p+i+n+u+g+s+sha512+acl+xattrs
+DATAONLY   = p+n+u+g+s+sha512
+NORMAL     = p+i+n+u+g+s+sha256
+LOGFILE    = p+i+n+u+g+S+sha512
+
+# ── Monitored paths  (AU-9: protect audit subsystem files) ───────────────────
+
+# Audit subsystem – highest protection
+/var/log/audit         AUDIT_LOG
+/var/log/audit-enriched AUDIT_LOG
+/etc/audit             BINLIB
+/etc/audisp            BINLIB
+/etc/rsyslog.conf      BINLIB
+/etc/rsyslog.d         BINLIB
+
+# System binaries
+/bin       BINLIB
+/sbin      BINLIB
+/usr/bin   BINLIB
+/usr/sbin  BINLIB
+/usr/lib   BINLIB
+/usr/lib64 BINLIB
+
+# Authentication & identity
+/etc/passwd   BINLIB
+/etc/shadow   BINLIB
+/etc/group    BINLIB
+/etc/gshadow  BINLIB
+/etc/sudoers  BINLIB
+/etc/sudoers.d BINLIB
+/etc/pam.d    BINLIB
+/etc/ssh      BINLIB
+
+# Boot & kernel
+/boot        BINLIB
+/lib/modules BINLIB
+
+# Cron
+/etc/cron.d       BINLIB
+/etc/cron.daily   BINLIB
+/etc/cron.hourly  BINLIB
+/var/spool/cron   BINLIB
+
+# SELinux policy
+/etc/selinux   BINLIB
+
+{% if fti_data_path is defined and fti_data_path | length > 0 %}
+# IRS 1075 §9.4.10 – FTI data directory integrity
+{{ fti_data_path }} AUDIT_LOG
+{% endif %}
+
+# ── Exclusions (dynamic content – do not alert on normal changes) ─────────────
+!/var/log/audit/audit.log.?
+!/var/log/chrony
+!/proc
+!/sys
+!/run
+!/dev
+!/tmp
+!/var/tmp
+!/var/cache

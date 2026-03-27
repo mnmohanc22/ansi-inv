@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Managed by Ansible – audit_log_enrichment role
+# Ships enriched audit JSON logs to S3 hourly via cron
+# =============================================================================
+set -euo pipefail
+
+BUCKET="{{ audit_s3_bucket }}"
+PREFIX="{{ audit_s3_prefix }}"
+REGION="{{ ec2_region }}"
+INSTANCE_ID="{{ ec2_instance_id }}"
+ACCOUNT_ID="{{ ec2_account_id }}"
+LOG_DIR="/var/log/audit-enriched"
+DATE_HOUR=$(date -u +"%Y/%m/%d/%H")
+DEST_KEY="${PREFIX}/${ACCOUNT_ID}/${INSTANCE_ID}/${DATE_HOUR}/audit-enriched.json"
+
+if [[ ! -f "${LOG_DIR}/audit-enriched.json" ]]; then
+    echo "[$(date -u +%FT%TZ)] No enriched log file found – skipping."
+    exit 0
+fi
+
+echo "[$(date -u +%FT%TZ)] Shipping ${LOG_DIR}/audit-enriched.json → s3://${BUCKET}/${DEST_KEY}"
+
+aws s3 cp "${LOG_DIR}/audit-enriched.json" \
+    "s3://${BUCKET}/${DEST_KEY}" \
+    --region "${REGION}" \
+    --sse aws:kms \
+    --metadata "instance-id=${INSTANCE_ID},account-id=${ACCOUNT_ID},shipped-at=$(date -u +%FT%TZ)"
+
+echo "[$(date -u +%FT%TZ)] Upload complete."

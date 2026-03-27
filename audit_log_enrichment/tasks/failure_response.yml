@@ -1,0 +1,96 @@
+---
+# =============================================================================
+# Task File: failure_response.yml
+# Controls : AU-5   – Response to Audit Logging Process Failures
+#            AU-5(1) – Storage Capacity Warning (SNS / CloudWatch alarm)
+#            AU-5(2) – Real-Time Alerts
+# IRS 1075 : §9.4.4 – Alert personnel when audit process fails
+# =============================================================================
+
+# ── AU-5 – auditd already configured with halt on disk-full (see defaults) ────
+- name: AU-5 – Confirm auditd failure actions in auditd.conf
+  ansible.builtin.assert:
+    that:
+      - auditd_admin_space_left_action in ['halt', 'single', 'suspend', 'syslog']
+      - auditd_disk_full_action        in ['halt', 'single', 'suspend', 'syslog']
+    fail_msg: "AU-5 VIOLATION: auditd failure action must be halt/single/suspend/syslog."
+    success_msg: "AU-5 PASS: auditd failure actions are configured."
+
+# ── AU-5(1) – Deploy audit failure alert script ───────────────────────────────
+- name: Deploy audit failure alert script (AU-5(1))
+  ansible.builtin.template:
+    src: au5-failure-alert.sh.j2
+    dest: "{{ audit_failure_alert_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+# ── AU-5(1) – CloudWatch metric alarm: auditd not running ─────────────────────
+- name: Create CloudWatch metric filter for auditd failure events (AU-5(1))
+  ansible.builtin.command: >
+    aws logs put-metric-filter
+    --log-group-name /aws/ec2/audit/{{ ec2_account_id }}
+    --filter-name "auditd-failure-{{ ec2_instance_id }}"
+    --filter-pattern '[timestamp, severity="CRIT", ..., msg="*auditd*"]'
+    --metric-transformations
+      metricName=AuditdFailures,metricNamespace={{ audit_cw_alarm_namespace }},metricValue=1,defaultValue=0
+    --region {{ ec2_region }}
+  changed_when: true
+  failed_when: false
+  when: cloudwatch_enabled | bool
+
+- name: Create CloudWatch alarm for auditd failure (AU-5(1))
+  ansible.builtin.command: >
+    aws cloudwatch put-metric-alarm
+    --alarm-name "auditd-failure-{{ ec2_instance_id }}"
+    --alarm-description "AU-5(1): auditd process failure on {{ ec2_instance_id }}"
+    --metric-name AuditdFailures
+    --namespace {{ audit_cw_alarm_namespace }}
+    --statistic Sum
+    --period 300
+    --evaluation-periods 1
+    --threshold 1
+    --comparison-operator GreaterThanOrEqualToThreshold
+    --treat-missing-data notBreaching
+    {% if audit_failure_sns_topic_arn | length > 0 %}
+    --alarm-actions {{ audit_failure_sns_topic_arn }}
+    --ok-actions {{ audit_failure_sns_topic_arn }}
+    {% endif %}
+    --region {{ ec2_region }}
+  changed_when: true
+  failed_when: false
+  when: cloudwatch_enabled | bool
+
+# ── AU-5(1) – CloudWatch alarm: audit log disk space low ──────────────────────
+- name: Create CloudWatch alarm for audit log disk space (AU-5(1))
+  ansible.builtin.command: >
+    aws cloudwatch put-metric-alarm
+    --alarm-name "audit-disk-space-low-{{ ec2_instance_id }}"
+    --alarm-description "AU-5(1): Audit log partition disk space low on {{ ec2_instance_id }}"
+    --metric-name DiskSpaceAvailable
+    --namespace CWAgent
+    --dimensions Name=InstanceId,Value={{ ec2_instance_id }} Name=path,Value=/var/log/audit Name=fstype,Value=xfs
+    --statistic Average
+    --period 300
+    --evaluation-periods 2
+    --threshold {{ auditd_space_left | int * 1048576 }}
+    --comparison-operator LessThanThreshold
+    --treat-missing-data missing
+    {% if audit_failure_sns_topic_arn | length > 0 %}
+    --alarm-actions {{ audit_failure_sns_topic_arn }}
+    {% endif %}
+    --region {{ ec2_region }}
+  changed_when: true
+  failed_when: false
+  when: cloudwatch_enabled | bool
+
+# ── AU-5(2) – Cron-based heartbeat: verify auditd is running every 5 min ─────
+- name: Deploy auditd health-check via cron (AU-5(2) real-time alert)
+  ansible.builtin.cron:
+    name: "AU-5(2): auditd health check and alert"
+    minute: "*/5"
+    job: >
+      systemctl is-active auditd > /dev/null 2>&1
+      || {{ audit_failure_alert_script }} "auditd stopped on {{ ec2_instance_id }}" >> /var/log/audit-enriched/au5-alerts.log 2>&1
+    user: root
+    state: present

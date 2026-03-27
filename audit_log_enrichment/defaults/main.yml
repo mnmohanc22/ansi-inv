@@ -1,0 +1,328 @@
+---
+# =============================================================================
+# Defaults: audit_log_enrichment role
+# Controls: NIST SP 800-53 Rev 5 (AU-2 – AU-16) | IRS 1075 §9.4
+# Override via group_vars/audit_enrichment.yml or AAP extra vars
+# =============================================================================
+
+# ── Packages ──────────────────────────────────────────────────────────────────
+audit_packages:
+  - audit                  # auditd core
+  - audispd-plugins        # audisp syslog dispatcher
+  - rsyslog                # log enrichment + forwarding
+  - aide                   # AU-9(3) – file integrity monitoring
+  - tlog                   # AU-14  – session recording
+  - chrony                 # AU-8   – authoritative time sync
+  - aws-cli                # S3 shipping + CloudWatch alarms
+
+# ── auditd tuning  (AU-4, AU-5) ───────────────────────────────────────────────
+auditd_max_log_file: 512           # MB per log file (AU-4)
+auditd_num_logs: 20                # rotated copies (AU-4: sufficient capacity)
+auditd_max_log_file_action: rotate
+auditd_space_left: 1024            # MB – trigger warning (AU-5)
+auditd_space_left_action: syslog
+auditd_admin_space_left: 512       # MB – last-resort action (AU-5)
+auditd_admin_space_left_action: halt   # AU-5: halt system if audit cannot continue
+auditd_disk_full_action: halt          # AU-5: halt on disk full
+auditd_disk_error_action: syslog
+auditd_log_format: ENRICHED        # RHEL 8+ – uid/gid name resolution (AU-3)
+auditd_log_file: /var/log/audit/audit.log
+
+# ── Audit rule files  (AU-2, AU-12) ──────────────────────────────────────────
+# Numbered to control merge order via augenrules
+audit_rule_files:
+
+  # 10 – Base configuration
+  - file: /etc/audit/rules.d/10-base.rules
+    rules:
+      - "-D"                          # flush existing rules
+      - "-b 32768"                    # buffer size (AU-4: handle burst)
+      - "--backlog_wait_time 60000"
+      - "-f 2"                        # panic on rule failure (AU-5)
+
+  # 30 – Identity / account management  (AU-2(a), AU-12)
+  - file: /etc/audit/rules.d/30-identity.rules
+    rules:
+      - "-w /etc/passwd        -p wa -k identity"
+      - "-w /etc/shadow        -p wa -k identity"
+      - "-w /etc/group         -p wa -k identity"
+      - "-w /etc/gshadow       -p wa -k identity"
+      - "-w /etc/sudoers       -p wa -k sudoers"
+      - "-w /etc/sudoers.d/    -p wa -k sudoers"
+      - "-w /etc/security/     -p wa -k security_config"
+      - "-w /etc/pki/          -p wa -k pki_config"
+
+  # 31 – Login / logout events  (AU-2(b), AU-12)
+  - file: /etc/audit/rules.d/31-login.rules
+    rules:
+      - "-w /var/log/lastlog   -p wa -k logins"
+      - "-w /var/run/faillock  -p wa -k logins"
+      - "-w /var/log/btmp      -p wa -k logins"
+      - "-w /var/log/tallylog  -p wa -k logins"
+
+  # 32 – Session initiation  (AU-2(c), AU-12)
+  - file: /etc/audit/rules.d/32-session.rules
+    rules:
+      - "-w /var/run/utmp -p wa -k session"
+      - "-w /var/log/wtmp -p wa -k session"
+
+  # 40 – Privileged command execution  (AU-2(d), AU-10, AU-12)
+  - file: /etc/audit/rules.d/40-privileged.rules
+    rules:
+      - "-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=unset -k priv_exec"
+      - "-a always,exit -F arch=b32 -S execve -F euid=0 -F auid>=1000 -F auid!=unset -k priv_exec"
+      - "-a always,exit -F path=/usr/bin/sudo    -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/bin/su      -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/bin/newgrp  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/bin/chsh    -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/bin/passwd  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/bin/gpasswd -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/sbin/useradd  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/sbin/userdel  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/sbin/usermod  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/sbin/groupadd -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F path=/usr/sbin/groupmod -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+
+  # 41 – Unsuccessful file access attempts  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/41-file-access.rules
+    rules:
+      - "-a always,exit -F arch=b64 -S open,openat,creat,truncate -F exit=-EACCES -F auid>=1000 -F auid!=unset -k access"
+      - "-a always,exit -F arch=b64 -S open,openat,creat,truncate -F exit=-EPERM  -F auid>=1000 -F auid!=unset -k access"
+      - "-a always,exit -F arch=b32 -S open,openat,creat,truncate -F exit=-EACCES -F auid>=1000 -F auid!=unset -k access"
+      - "-a always,exit -F arch=b32 -S open,openat,creat,truncate -F exit=-EPERM  -F auid>=1000 -F auid!=unset -k access"
+      - "-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat       -F auid>=1000 -F auid!=unset -k perm_mod"
+      - "-a always,exit -F arch=b64 -S chown,fchown,fchownat,lchown -F auid>=1000 -F auid!=unset -k perm_mod"
+      - "-a always,exit -F arch=b32 -S chmod,fchmod,fchmodat       -F auid>=1000 -F auid!=unset -k perm_mod"
+      - "-a always,exit -F arch=b32 -S chown,fchown,fchownat,lchown -F auid>=1000 -F auid!=unset -k perm_mod"
+
+  # 42 – Filesystem mounts  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/42-mount.rules
+    rules:
+      - "-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=unset -k mounts"
+      - "-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=unset -k mounts"
+      - "-a always,exit -F arch=b64 -S umount2 -F auid>=1000 -F auid!=unset -k mounts"
+
+  # 43 – File deletions  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/43-delete.rules
+    rules:
+      - "-a always,exit -F arch=b64 -S unlink,unlinkat,rename,renameat -F auid>=1000 -F auid!=unset -k delete"
+      - "-a always,exit -F arch=b32 -S unlink,unlinkat,rename,renameat -F auid>=1000 -F auid!=unset -k delete"
+
+  # 44 – Time-change events  (AU-8, AU-12)
+  - file: /etc/audit/rules.d/44-time-change.rules
+    rules:
+      - "## AU-8 / AU-12: All attempts to alter system time"
+      - "-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time_change"
+      - "-a always,exit -F arch=b32 -S adjtimex,settimeofday,stime,clock_settime -k time_change"
+      - "-w /etc/localtime -p wa -k time_change"
+      - "-w /etc/chrony.conf -p wa -k time_change"
+      - "-w /etc/chrony.d/   -p wa -k time_change"
+
+  # 45 – Kernel module operations  (AU-2(f), AU-12)
+  - file: /etc/audit/rules.d/45-kernel-modules.rules
+    rules:
+      - "## AU-12: Kernel module load / unload"
+      - "-a always,exit -F arch=b64 -S init_module,finit_module,delete_module -k kernel_modules"
+      - "-a always,exit -F arch=b32 -S init_module,finit_module,delete_module -k kernel_modules"
+      - "-w /usr/bin/kmod    -p x -k kernel_modules"
+      - "-w /usr/sbin/insmod -p x -k kernel_modules"
+      - "-w /usr/sbin/rmmod  -p x -k kernel_modules"
+      - "-w /usr/sbin/modprobe -p x -k kernel_modules"
+
+  # 46 – Sysadmin / hostname actions  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/46-sysadmin.rules
+    rules:
+      - "## AU-12: Hostname, domain, chroot changes"
+      - "-a always,exit -F arch=b64 -S sethostname,setdomainname -k sysadmin"
+      - "-a always,exit -F arch=b32 -S sethostname,setdomainname -k sysadmin"
+      - "-a always,exit -F arch=b64 -S chroot -F auid>=1000 -F auid!=unset -k sysadmin"
+      - "-a always,exit -F arch=b32 -S chroot -F auid>=1000 -F auid!=unset -k sysadmin"
+      - "-w /etc/hostname    -p wa -k sysadmin"
+      - "-w /etc/hosts       -p wa -k sysadmin"
+
+  # 47 – Scheduled task modifications  (AU-2, IRS 1075 §9.4.2)
+  - file: /etc/audit/rules.d/47-cron-at.rules
+    rules:
+      - "## IRS 1075: Cron/at job creation or modification"
+      - "-w /etc/cron.allow  -p wa -k cron"
+      - "-w /etc/cron.deny   -p wa -k cron"
+      - "-w /etc/cron.d/     -p wa -k cron"
+      - "-w /etc/cron.daily/ -p wa -k cron"
+      - "-w /etc/cron.hourly/ -p wa -k cron"
+      - "-w /etc/cron.monthly/ -p wa -k cron"
+      - "-w /etc/cron.weekly/ -p wa -k cron"
+      - "-w /etc/crontab     -p wa -k cron"
+      - "-w /var/spool/cron/ -p wa -k cron"
+      - "-w /etc/at.allow    -p wa -k at_jobs"
+      - "-w /etc/at.deny     -p wa -k at_jobs"
+      - "-w /var/spool/at/   -p wa -k at_jobs"
+
+  # 48 – PAM / authentication configuration  (AU-2, IRS 1075)
+  - file: /etc/audit/rules.d/48-pam-auth.rules
+    rules:
+      - "## IRS 1075 / AU-12: PAM and NSS configuration changes"
+      - "-w /etc/pam.d/       -p wa -k pam"
+      - "-w /etc/nsswitch.conf -p wa -k pam"
+      - "-w /etc/pam_faillock.conf -p wa -k pam"
+      - "-w /lib64/security/  -p wa -k pam_modules"
+      - "-w /usr/lib64/security/ -p wa -k pam_modules"
+
+  # 49 – SSH configuration & key changes  (AU-2, IRS 1075)
+  - file: /etc/audit/rules.d/49-ssh-keys.rules
+    rules:
+      - "## IRS 1075 / AU-12: SSH configuration and authorized key changes"
+      - "-w /etc/ssh/sshd_config     -p wa -k ssh_config"
+      - "-w /etc/ssh/sshd_config.d/  -p wa -k ssh_config"
+      - "-a always,exit -F arch=b64 -S open,openat -F path=/root/.ssh/authorized_keys -F perm=wa -k ssh_keys"
+      - "-a always,exit -F arch=b64 -S open,openat -F dir=/home/ -F name=authorized_keys -F perm=wa -k ssh_keys"
+
+  # 50 – Network access / socket operations  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/50-network.rules
+    rules:
+      - "-a always,exit -F arch=b64 -S connect,bind,accept,listen -k network"
+      - "-a always,exit -F arch=b32 -S connect,bind,accept,listen -k network"
+
+  # 51 – Systemd unit file changes  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/51-systemd.rules
+    rules:
+      - "## AU-12: Systemd service unit modifications"
+      - "-w /etc/systemd/system/    -p wa -k systemd"
+      - "-w /usr/lib/systemd/system/ -p wa -k systemd"
+      - "-w /run/systemd/           -p wa -k systemd"
+      - "-w /etc/rc.d/init.d/       -p wa -k init"
+      - "-w /etc/rc.local           -p wa -k init"
+
+  # 52 – MAC / SELinux policy  (AU-2, IRS 1075)
+  - file: /etc/audit/rules.d/52-mac-policy.rules
+    rules:
+      - "## IRS 1075 / AU-12: MAC and SELinux policy modifications"
+      - "-w /etc/selinux/           -p wa -k mac_policy"
+      - "-w /usr/share/selinux/     -p wa -k mac_policy"
+      - "-a always,exit -F arch=b64 -S setxattr,fsetxattr,lsetxattr -F auid>=1000 -F auid!=unset -k mac_policy"
+      - "-a always,exit -F arch=b32 -S setxattr,fsetxattr,lsetxattr -F auid>=1000 -F auid!=unset -k mac_policy"
+      - "-a always,exit -F arch=b64 -S removexattr,fremovexattr,lremovexattr -F auid>=1000 -F auid!=unset -k mac_policy"
+
+  # 53 – FTI file access  (IRS 1075 §9.4.2)
+  - file: /etc/audit/rules.d/53-fti-access.rules
+    rules:
+      - "## IRS 1075 §9.4.2: Federal Tax Information (FTI) file access"
+      - "## Override fti_data_paths in group_vars to match your FTI mount points"
+      - "-a always,exit -F arch=b64 -S open,openat,read,write,creat,truncate -F dir={{ fti_data_path | default('/data/fti') }} -F auid>=500 -k fti_access"
+      - "-a always,exit -F arch=b64 -S open,openat,read,write,creat,truncate -F dir={{ fti_data_path | default('/data/fti') }} -F auid=0 -k fti_root_access"
+
+  # 54 – Anti-injection / ptrace  (AU-10, IRS 1075)
+  - file: /etc/audit/rules.d/54-ptrace.rules
+    rules:
+      - "## AU-10 / IRS 1075: Detect process injection attempts"
+      - "-a always,exit -F arch=b64 -S ptrace -k injection"
+      - "-a always,exit -F arch=b32 -S ptrace -k injection"
+      - "-a always,exit -F arch=b64 -S personality -k injection"
+
+  # 55 – Network / firewall configuration changes  (AU-2, AU-12)
+  - file: /etc/audit/rules.d/55-network-config.rules
+    rules:
+      - "## AU-12: Network and firewall configuration changes"
+      - "-w /etc/sysconfig/network          -p wa -k network_config"
+      - "-w /etc/sysconfig/network-scripts/ -p wa -k network_config"
+      - "-w /etc/NetworkManager/            -p wa -k network_config"
+      - "-w /etc/firewalld/                 -p wa -k firewall_config"
+      - "-w /etc/sysctl.conf                -p wa -k sysctl"
+      - "-w /etc/sysctl.d/                  -p wa -k sysctl"
+
+  # 60 – AWS EC2 credential access  (IRS 1075, AU-12)
+  - file: /etc/audit/rules.d/60-aws-creds.rules
+    rules:
+      - "## IRS 1075: AWS credential and metadata access monitoring"
+      - "-a always,exit -F arch=b64 -S open,openat -F path=/run/credentials/ -k aws_creds"
+      - "-w /root/.aws/      -p rwa -k aws_creds"
+      - "-w /home/           -p rwa -k aws_home_creds"
+      - "-w /etc/aws/        -p wa  -k aws_config"
+
+  # 99 – Lock rules  (AU-9: protect audit configuration)
+  - file: /etc/audit/rules.d/99-finalize.rules
+    rules:
+      - "-e 2"   # lock rules after load – require reboot to change (AU-9)
+
+# ── audisp syslog plugin  (AU-3) ──────────────────────────────────────────────
+audisp_syslog_active: yes
+audisp_syslog_facility: LOG_LOCAL3
+
+# ── rsyslog enrichment  (AU-3, AU-3(1)) ──────────────────────────────────────
+rsyslog_enrichment_conf: /etc/rsyslog.d/10-audit-enrichment.conf
+rsyslog_forward_host: ""           # SIEM host – leave blank to disable
+rsyslog_forward_port: 514
+rsyslog_forward_protocol: tcp
+
+# ── CloudWatch Logs  (AU-6, AU-11) ───────────────────────────────────────────
+cloudwatch_enabled: true
+cloudwatch_config_file: /opt/aws/amazon-cloudwatch-agent/etc/audit-log.json
+# IRS 1075 §9.4.8: minimum 3-year retention (1095 days)
+cloudwatch_retention_days: 1095
+
+# ── S3 audit log shipping  (AU-9(2), AU-11) ───────────────────────────────────
+audit_s3_bucket: ""                        # override in group_vars / AAP
+audit_s3_prefix: "audit-logs"
+# IRS 1075 §9.4.8 / AU-11: retention tiers (days)
+audit_s3_retention_standard_days: 365     # S3 Standard → Standard-IA
+audit_s3_retention_ia_days: 730           # Standard-IA → Glacier
+audit_s3_retention_glacier_days: 1095     # Glacier (3-year minimum)
+audit_s3_retention_expire_days: 2557      # Expire after 7 years (IRS FTI recommendation)
+audit_s3_object_lock_enabled: true        # AU-9(2): WORM immutability
+audit_s3_object_lock_days: 1095           # Object Lock governance-mode retention
+
+# ── NTP / Time synchronization  (AU-8, AU-8(1)) ───────────────────────────────
+chrony_enabled: true
+chrony_conf_file: /etc/chrony.conf
+# AWS authoritative time source (AU-8(1))
+chrony_servers:
+  - "169.254.169.123 iburst prefer"       # AWS Time Sync Service (EC2-local, highest accuracy)
+  - "time.aws.com iburst"                 # AWS public NTP
+  - "0.rhel.pool.ntp.org iburst"
+  - "1.rhel.pool.ntp.org iburst"
+chrony_makestep: "1.0 3"
+chrony_rtcsync: true
+chrony_maxdistance: 1.5
+
+# ── AIDE file integrity  (AU-9(3), AU-10) ─────────────────────────────────────
+aide_enabled: true
+aide_conf_file: /etc/aide.conf
+aide_db_path: /var/lib/aide/aide.db.gz
+aide_db_new_path: /var/lib/aide/aide.db.new.gz
+aide_log_path: /var/log/aide/aide.log
+aide_cron_hour: "3"
+aide_cron_minute: "15"
+# HMAC key for AU-9(3) – override with vault-encrypted value
+aide_hmac_key: ""                          # set via AAP credential or vault
+
+# ── Session recording  (AU-14) ────────────────────────────────────────────────
+tlog_enabled: true
+tlog_conf_dir: /etc/tlog
+tlog_rec_session_conf: /etc/tlog/tlog-rec-session.conf
+tlog_log_dir: /var/log/tlog
+# Sessions to record: all interactive SSH and sudo sessions
+tlog_shell: /usr/bin/tlog-rec-session
+tlog_writer: file                          # 'file' or 'journal' or 'syslog'
+
+# ── AU-5(1) – Audit failure alerting  ────────────────────────────────────────
+audit_failure_sns_topic_arn: ""            # e.g. arn:aws:sns:us-east-1:123:audit-alert
+audit_failure_alert_script: /usr/local/bin/audit-failure-alert.sh
+audit_cw_alarm_namespace: "AuditCompliance"
+
+# ── AU-6 / AU-7 – Compliance reporting  ──────────────────────────────────────
+aureport_enabled: true
+aureport_script: /usr/local/bin/aureport-daily.sh
+aureport_output_dir: /var/log/audit-reports
+aureport_s3_prefix: "audit-reports"
+aureport_cron_hour: "6"
+aureport_cron_minute: "0"
+
+# ── FIPS 140-2/3  (IRS 1075 §9.3) ────────────────────────────────────────────
+fips_enabled: true                         # enforce FIPS mode on RHEL 8/9
+
+# ── IRS 1075 – FTI access paths ───────────────────────────────────────────────
+fti_data_path: "/data/fti"                 # override to actual FTI mount path
+fti_audit_key: "fti_access"               # audit key for FTI events
+
+# ── AU-9(4) – Audit access restriction ────────────────────────────────────────
+audit_group_members: []                    # list of users allowed read access to audit logs
+                                           # root always has access; add auditors here

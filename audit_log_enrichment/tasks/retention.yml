@@ -1,0 +1,122 @@
+---
+# =============================================================================
+# Task File: retention.yml
+# Controls : AU-11  – Audit Record Retention
+#            AU-11(1) – Long-Term Retrieval Capability
+#            AU-9(2) – Audit Backup to Separate Physical System (S3 WORM)
+# IRS 1075 : §9.4.8 – Minimum 3-year (IRS FTI recommendation: 7-year) retention
+#            §9.4.9 – Immutable/WORM storage for audit logs
+# =============================================================================
+
+- name: AU-11 – S3 bucket lifecycle policy (standard → IA → Glacier → expire)
+  block:
+    - name: Deploy S3 lifecycle policy document
+      ansible.builtin.template:
+        src: s3-lifecycle.json.j2
+        dest: /tmp/audit-s3-lifecycle.json
+        mode: "0600"
+
+    - name: Apply S3 lifecycle policy to audit bucket (AU-11)
+      ansible.builtin.command: >
+        aws s3api put-bucket-lifecycle-configuration
+        --bucket {{ audit_s3_bucket }}
+        --lifecycle-configuration file:///tmp/audit-s3-lifecycle.json
+        --region {{ ec2_region }}
+      changed_when: true
+      register: lifecycle_result
+      failed_when:
+        - lifecycle_result.rc != 0
+        - "'NoSuchBucket' not in (lifecycle_result.stderr | default(''))"
+
+    - name: Remove temporary lifecycle JSON
+      ansible.builtin.file:
+        path: /tmp/audit-s3-lifecycle.json
+        state: absent
+
+  when: audit_s3_bucket | length > 0
+
+- name: AU-9(2) – Enable S3 Object Lock (WORM) on audit bucket
+  block:
+    - name: Apply S3 Object Lock governance retention (AU-9(2), IRS 1075 §9.4.9)
+      ansible.builtin.command: >
+        aws s3api put-object-lock-configuration
+        --bucket {{ audit_s3_bucket }}
+        --object-lock-configuration '{
+          "ObjectLockEnabled": "Enabled",
+          "Rule": {
+            "DefaultRetention": {
+              "Mode": "GOVERNANCE",
+              "Days": {{ audit_s3_object_lock_days }}
+            }
+          }
+        }'
+        --region {{ ec2_region }}
+      changed_when: true
+      register: object_lock_result
+      failed_when:
+        - object_lock_result.rc != 0
+        - "'ObjectLockConfigurationNotFoundError' not in (object_lock_result.stderr | default(''))"
+        - "'NoSuchBucket' not in (object_lock_result.stderr | default(''))"
+
+  when:
+    - audit_s3_bucket | length > 0
+    - audit_s3_object_lock_enabled | bool
+
+- name: AU-9(2) – Enable S3 bucket versioning (prerequisite for Object Lock)
+  ansible.builtin.command: >
+    aws s3api put-bucket-versioning
+    --bucket {{ audit_s3_bucket }}
+    --versioning-configuration Status=Enabled
+    --region {{ ec2_region }}
+  changed_when: true
+  when: audit_s3_bucket | length > 0
+  failed_when: false   # may already be enabled
+
+- name: AU-9(2) – Block public access on audit S3 bucket
+  ansible.builtin.command: >
+    aws s3api put-public-access-block
+    --bucket {{ audit_s3_bucket }}
+    --public-access-block-configuration
+      BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+    --region {{ ec2_region }}
+  changed_when: true
+  when: audit_s3_bucket | length > 0
+  failed_when: false
+
+# ── CloudWatch Logs retention  (AU-11) ────────────────────────────────────────
+- name: AU-11 – Set CloudWatch log group retention for enriched audit logs
+  ansible.builtin.command: >
+    aws logs put-retention-policy
+    --log-group-name /aws/ec2/audit/{{ ec2_account_id }}
+    --retention-in-days {{ cloudwatch_retention_days }}
+    --region {{ ec2_region }}
+  changed_when: true
+  failed_when: false
+
+- name: AU-11 – Set CloudWatch log group retention for raw audit logs
+  ansible.builtin.command: >
+    aws logs put-retention-policy
+    --log-group-name /aws/ec2/audit-raw/{{ ec2_account_id }}
+    --retention-in-days {{ cloudwatch_retention_days }}
+    --region {{ ec2_region }}
+  changed_when: true
+  failed_when: false
+
+- name: AU-11 – Set CloudWatch log group retention for FTI access logs
+  ansible.builtin.command: >
+    aws logs put-retention-policy
+    --log-group-name /aws/ec2/audit-fti/{{ ec2_account_id }}
+    --retention-in-days {{ cloudwatch_retention_days }}
+    --region {{ ec2_region }}
+  changed_when: true
+  failed_when: false
+
+# ── Local audit log retention via auditd num_logs ────────────────────────────
+- name: AU-11 – Confirm auditd local retention (num_logs × max_log_file)
+  ansible.builtin.debug:
+    msg: >
+      Local audit retention:
+      {{ auditd_num_logs }} files × {{ auditd_max_log_file }} MB =
+      {{ auditd_num_logs | int * auditd_max_log_file | int }} MB on-disk.
+      Remote retention: {{ cloudwatch_retention_days }} days in CloudWatch,
+      {{ audit_s3_retention_expire_days }} days in S3.

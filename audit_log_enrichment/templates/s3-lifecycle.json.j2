@@ -1,0 +1,74 @@
+{
+  "Rules": [
+    {
+      "ID": "audit-logs-lifecycle-AU-11-IRS1075",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "{{ audit_s3_prefix }}/"
+      },
+      "Transitions": [
+        {
+          "Days": {{ audit_s3_retention_standard_days }},
+          "StorageClass": "STANDARD_IA"
+        },
+        {
+          "Days": {{ audit_s3_retention_ia_days }},
+          "StorageClass": "GLACIER"
+        },
+        {
+          "Days": {{ audit_s3_retention_glacier_days }},
+          "StorageClass": "DEEP_ARCHIVE"
+        }
+      ],
+      "Expiration": {
+        "Days": {{ audit_s3_retention_expire_days }}
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": {{ audit_s3_retention_expire_days }}
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+      }
+    },
+    {
+      "ID": "session-recordings-lifecycle-AU-14",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "session-recordings/"
+      },
+      "Transitions": [
+        {
+          "Days": 365,
+          "StorageClass": "STANDARD_IA"
+        },
+        {
+          "Days": 730,
+          "StorageClass": "GLACIER"
+        }
+      ],
+      "Expiration": {
+        "Days": {{ audit_s3_retention_expire_days }}
+      }
+    },
+    {
+      "ID": "audit-reports-lifecycle-AU-6",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "{{ aureport_s3_prefix }}/"
+      },
+      "Transitions": [
+        {
+          "Days": 180,
+          "StorageClass": "STANDARD_IA"
+        },
+        {
+          "Days": 365,
+          "StorageClass": "GLACIER"
+        }
+      ],
+      "Expiration": {
+        "Days": {{ audit_s3_retention_expire_days }}
+      }
+    }
+  ]
+}

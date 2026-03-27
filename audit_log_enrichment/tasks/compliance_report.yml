@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# Task File: compliance_report.yml
+# Controls : AU-6   – Audit Record Review, Analysis, and Reporting
+#            AU-6(1) – Automated Process Integration (SIEM)
+#            AU-7   – Audit Record Reduction and Report Generation
+#            AU-7(1) – Automatic Processing
+# IRS 1075 : §9.4.5 – Periodic review of audit records
+#            §9.4.6 – Reporting to appropriate personnel
+# =============================================================================
+
+- name: Ensure audit reports directory exists (AU-6, AU-7)
+  ansible.builtin.file:
+    path: "{{ aureport_output_dir }}"
+    state: directory
+    owner: root
+    group: audit
+    mode: "0750"
+
+- name: Deploy aureport daily compliance script (AU-6, AU-7)
+  ansible.builtin.template:
+    src: aureport-daily.sh.j2
+    dest: "{{ aureport_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Schedule daily aureport compliance run (AU-6(1), AU-7(1))
+  ansible.builtin.cron:
+    name: "AU-6/AU-7: Daily aureport compliance report"
+    minute: "{{ aureport_cron_minute }}"
+    hour: "{{ aureport_cron_hour }}"
+    job: "{{ aureport_script }} >> {{ aureport_output_dir }}/cron.log 2>&1"
+    user: root
+    state: present
+
+# ── AU-6(1) – Confirm SIEM forwarding is configured ───────────────────────────
+- name: AU-6(1) – Assert SIEM or CloudWatch integration is active
+  ansible.builtin.assert:
+    that: >
+      (rsyslog_forward_host | length > 0) or (cloudwatch_enabled | bool)
+    fail_msg: >
+      AU-6(1) VIOLATION: No automated log integration configured.
+      Set rsyslog_forward_host (SIEM) or cloudwatch_enabled=true.
+    success_msg: >
+      AU-6(1) PASS: Automated log integration active via
+      {% if cloudwatch_enabled | bool %}CloudWatch{% endif %}
+      {% if rsyslog_forward_host | length > 0 %}/ SIEM ({{ rsyslog_forward_host }}){% endif %}.
+
+# ── Run aureport immediately and display summary ──────────────────────────────
+- name: Generate current aureport summary (AU-6, AU-7)
+  ansible.builtin.command: >
+    aureport --start today --summary
+  register: aureport_summary
+  changed_when: false
+  failed_when: false
+
+- name: Display aureport summary
+  ansible.builtin.debug:
+    var: aureport_summary.stdout_lines

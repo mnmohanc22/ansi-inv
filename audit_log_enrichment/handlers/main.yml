@@ -1,0 +1,27 @@
+---
+# =============================================================================
+# Handlers: audit_log_enrichment role
+# =============================================================================
+
+- name: Restart auditd
+  # auditd must be restarted via service command (systemd reload is insufficient)
+  ansible.builtin.command: service auditd restart
+  become: true
+  listen: Restart auditd
+
+- name: Reload audit rules
+  ansible.builtin.command: augenrules --load
+  become: true
+  listen: Reload audit rules
+
+- name: Restart rsyslog
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted
+  listen: Restart rsyslog
+
+- name: Restart cloudwatch agent
+  ansible.builtin.service:
+    name: amazon-cloudwatch-agent
+    state: restarted
+  listen: Restart cloudwatch agent

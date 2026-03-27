@@ -1,0 +1,44 @@
+---
+# =============================================================================
+# Task File: audit_rules.yml – Write audit rule files and reload
+# =============================================================================
+
+- name: Configure audit rules
+  block:
+    - name: Ensure /etc/audit/rules.d exists
+      ansible.builtin.file:
+        path: /etc/audit/rules.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Remove stale audit rule files not managed by this role
+      ansible.builtin.find:
+        paths: /etc/audit/rules.d
+        patterns: "*.rules"
+      register: existing_rule_files
+
+    - name: Write each audit rule file
+      ansible.builtin.template:
+        src: audit_rule_file.j2
+        dest: "{{ item.file }}"
+        owner: root
+        group: root
+        mode: "0640"
+        backup: true
+      loop: "{{ audit_rule_files }}"
+      loop_control:
+        label: "{{ item.file | basename }}"
+      notify: Reload audit rules
+
+    - name: Generate merged audit.rules from rules.d
+      ansible.builtin.command: augenrules --check
+      register: augenrules_check
+      changed_when: "'No change' not in augenrules_check.stdout"
+      notify: Reload audit rules
+
+    - name: Force augenrules merge
+      ansible.builtin.command: augenrules --load
+      when: augenrules_check.changed
+      changed_when: true

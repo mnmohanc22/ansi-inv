@@ -1,0 +1,12 @@
+---
+# =============================================================================
+# Task File: packages.yml – Install required packages
+# =============================================================================
+
+- name: Install audit and enrichment packages
+  ansible.builtin.dnf:
+    name: "{{ audit_packages }}"
+    state: present
+  notify:
+    - Restart auditd
+    - Restart rsyslog

@@ -1,0 +1,13 @@
+# Managed by Ansible – audit_log_enrichment role
+/var/log/audit-enriched/audit-enriched.json {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    postrotate
+        /bin/systemctl kill -s HUP rsyslog.service 2>/dev/null || true
+    endscript
+}

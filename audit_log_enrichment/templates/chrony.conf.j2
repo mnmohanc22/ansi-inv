@@ -1,0 +1,40 @@
+# =============================================================================
+# Managed by Ansible – audit_log_enrichment role
+# Controls : AU-8 – Time Stamps | AU-8(1) – Authoritative Time Source
+# IRS 1075 : §9.4.3 – Accurate timestamps required for audit records
+# =============================================================================
+
+# ── Authoritative time sources  (AU-8(1)) ─────────────────────────────────────
+{% for server in chrony_servers %}
+server {{ server }}
+{% endfor %}
+
+# ── Drift file (persists clock corrections across reboots) ────────────────────
+driftfile /var/lib/chrony/drift
+
+# ── Panic threshold: step clock if offset > 1s on first 3 updates ─────────────
+# AU-8(1): Allow immediate correction on boot
+makestep {{ chrony_makestep }}
+
+# ── Sync hardware real-time clock (AU-8) ──────────────────────────────────────
+{% if chrony_rtcsync %}
+rtcsync
+{% endif %}
+
+# ── Maximum acceptable distance from reference (AU-8(1)) ─────────────────────
+maxdistance {{ chrony_maxdistance }}
+
+# ── Log tracking and statistics to syslog ─────────────────────────────────────
+logdir /var/log/chrony
+log tracking measurements statistics
+
+# ── Lock memory to prevent swap (accuracy)  ──────────────────────────────────
+lock_all
+
+# ── Require at least 2 sources to agree before trusting time  ────────────────
+minsources 2
+
+# ── Restrict chronyc access to localhost only  ────────────────────────────────
+bindcmdaddress 127.0.0.1
+bindcmdaddress ::1
+cmdallow 127.0.0.1

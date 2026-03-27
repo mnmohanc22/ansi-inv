@@ -1,0 +1,106 @@
+---
+# =============================================================================
+# Task File: session_recording.yml
+# Controls : AU-14  – Session Audit
+#            AU-14(1) – System Start-up
+#            AU-14(2) – Capture/Record and Log Content
+# IRS 1075 : §9.4.2 – All privileged sessions accessing FTI must be recorded
+# =============================================================================
+
+- name: Install tlog session recording package (AU-14)
+  ansible.builtin.dnf:
+    name: tlog
+    state: present
+
+- name: Ensure tlog log directory exists (AU-14)
+  ansible.builtin.file:
+    path: "{{ tlog_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy tlog-rec-session configuration (AU-14)
+  ansible.builtin.template:
+    src: tlog-rec-session.conf.j2
+    dest: "{{ tlog_rec_session_conf }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+
+# ── Configure SSSD to invoke tlog as the login shell for SSH sessions ─────────
+- name: Check if /etc/sssd/sssd.conf exists (session recording via SSSD)
+  ansible.builtin.stat:
+    path: /etc/sssd/sssd.conf
+  register: sssd_conf_stat
+
+- name: Configure SSSD session recording for all users (AU-14(2))
+  ansible.builtin.blockinfile:
+    path: /etc/sssd/sssd.conf
+    marker: "# {mark} ANSIBLE MANAGED – tlog session recording (AU-14)"
+    block: |
+      [session_recording]
+      scope = all
+      users =
+      groups =
+  when: sssd_conf_stat.stat.exists
+  notify: Restart sssd
+
+# ── PAM-based session recording fallback (when SSSD unavailable) ──────────────
+- name: Configure PAM to invoke tlog for SSH sessions (AU-14 fallback)
+  ansible.builtin.blockinfile:
+    path: /etc/pam.d/sshd
+    marker: "# {mark} ANSIBLE MANAGED – tlog session recording (AU-14)"
+    insertafter: "^session.*required.*pam_loginuid"
+    block: |
+      # AU-14: Session recording via tlog
+      session  optional  pam_exec.so  /usr/bin/tlog-rec-session
+  when: not sssd_conf_stat.stat.exists
+
+# ── sudoers: wrap interactive sudo shells with tlog ───────────────────────────
+- name: Deploy sudoers tlog wrapper (AU-14 – privilege escalation recording)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/99-tlog-session-recording
+    content: |
+      ## Managed by Ansible – AU-14: tlog session recording for sudo
+      ## IRS 1075 §9.4.2: Record all privileged access sessions
+      Defaults  log_output
+      Defaults  use_pty
+      Defaults  iolog_dir=/var/log/sudo-io/%{user}
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -csf %s
+
+# ── Logrotate for tlog session files ─────────────────────────────────────────
+- name: Configure logrotate for tlog (AU-11 retention)
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/tlog-sessions
+    content: |
+      # Managed by Ansible – AU-14 session recording retention (AU-11)
+      {{ tlog_log_dir }}/*.log {
+          daily
+          rotate 90
+          compress
+          delaycompress
+          missingok
+          notifempty
+          create 0640 root root
+      }
+    owner: root
+    group: root
+    mode: "0644"
+
+# ── Ship tlog sessions to S3  (AU-9(2), AU-11) ────────────────────────────────
+- name: Add tlog S3 shipping to cron (AU-9(2))
+  ansible.builtin.cron:
+    name: "Ship tlog session recordings to S3 (AU-14, AU-9(2))"
+    minute: "15"
+    hour: "*"
+    job: >
+      aws s3 sync {{ tlog_log_dir }}/ s3://{{ audit_s3_bucket }}/session-recordings/{{ ec2_instance_id }}/
+      --region {{ ec2_region }} --sse aws:kms --storage-class STANDARD_IA
+      >> /var/log/audit-enriched/tlog-s3-ship.log 2>&1
+    user: root
+    state: "{{ 'present' if audit_s3_bucket | length > 0 else 'absent' }}"

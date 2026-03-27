@@ -1,0 +1,21 @@
+---
+# =============================================================================
+# Task File: s3_ship.yml – Cron-based hourly S3 log shipping
+# =============================================================================
+
+- name: Deploy S3 audit log shipping script
+  ansible.builtin.template:
+    src: ship-audit-to-s3.sh.j2
+    dest: /usr/local/bin/ship-audit-to-s3.sh
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Create cron job – ship enriched audit logs to S3 every hour
+  ansible.builtin.cron:
+    name: "Ship enriched audit logs to S3"
+    minute: "5"
+    hour: "*"
+    job: "/usr/local/bin/ship-audit-to-s3.sh >> /var/log/audit-enriched/s3-ship.log 2>&1"
+    user: root
+    state: present
