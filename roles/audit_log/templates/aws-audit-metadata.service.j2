@@ -1,0 +1,17 @@
+# Systemd unit file to run ec2-metadata.sh on boot
+[Unit]
+Description=Fetch and store EC2 instance metadata for audit enrichment
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ec2-metadata.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+

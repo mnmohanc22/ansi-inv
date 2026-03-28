@@ -5,6 +5,15 @@
 
 - name: Configure auditd
   block:
+
+   - name: set fact fqdn
+     ansible.builtin.set_fact:
+       fqdn: "{{ ansible_fqdn | default(ansible_hostname) }}"
+       
+   - name: Debug FQDN fact
+     ansible.builtin.debug:
+       msg: "FQDN fact value: {{ fqdn }}"    
+
     - name: Configure auditd.conf
       ansible.builtin.template:
         src: auditd.conf.j2

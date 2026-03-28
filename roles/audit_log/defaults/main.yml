@@ -10,10 +10,10 @@ audit_packages:
   - audit                  # auditd core
   - audispd-plugins        # audisp syslog dispatcher
   - rsyslog                # log enrichment + forwarding
-  - aide                   # AU-9(3) – file integrity monitoring
-  - tlog                   # AU-14  – session recording
-  - chrony                 # AU-8   – authoritative time sync
-  - aws-cli                # S3 shipping + CloudWatch alarms
+  # - aide                   # AU-9(3) – file integrity monitoring
+  # - tlog                   # AU-14  – session recording
+  # - chrony                 # AU-8   – authoritative time sync
+  # - aws-cli                # S3 shipping + CloudWatch alarms
 
 # ── auditd tuning  (AU-4, AU-5) ───────────────────────────────────────────────
 auditd_max_log_file: 512           # MB per log file (AU-4)
@@ -43,45 +43,45 @@ audit_rule_files:
   # 30 – Identity / account management  (AU-2(a), AU-12)
   - file: /etc/audit/rules.d/30-identity.rules
     rules:
-      - "-w /etc/passwd        -p wa -k identity"
-      - "-w /etc/shadow        -p wa -k identity"
-      - "-w /etc/group         -p wa -k identity"
-      - "-w /etc/gshadow       -p wa -k identity"
-      - "-w /etc/sudoers       -p wa -k sudoers"
-      - "-w /etc/sudoers.d/    -p wa -k sudoers"
-      - "-w /etc/security/     -p wa -k security_config"
-      - "-w /etc/pki/          -p wa -k pki_config"
+      - "-a always,exit -F arch=b64 -F path=/etc/passwd     -F perm=wa -k identity"
+      - "-a always,exit -F arch=b64 -F path=/etc/shadow     -F perm=wa -k identity"
+      - "-a always,exit -F arch=b64 -F path=/etc/group      -F perm=wa -k identity"
+      - "-a always,exit -F arch=b64 -F path=/etc/gshadow    -F perm=wa -k identity"
+      - "-a always,exit -F arch=b64 -F path=/etc/sudoers    -F perm=wa -k sudoers"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/sudoers.d   -F perm=wa -k sudoers"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/security    -F perm=wa -k security_config"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/pki         -F perm=wa -k pki_config"
 
   # 31 – Login / logout events  (AU-2(b), AU-12)
   - file: /etc/audit/rules.d/31-login.rules
     rules:
-      - "-w /var/log/lastlog   -p wa -k logins"
-      - "-w /var/run/faillock  -p wa -k logins"
-      - "-w /var/log/btmp      -p wa -k logins"
-      - "-w /var/log/tallylog  -p wa -k logins"
+      - "-a always,exit -F arch=b64 -F path=/var/log/lastlog  -F perm=wa -k logins"
+      - "-a always,exit -F arch=b64 -F path=/var/run/faillock -F perm=wa -k logins"
+      - "-a always,exit -F arch=b64 -F path=/var/log/btmp     -F perm=wa -k logins"
+      - "-a always,exit -F arch=b64 -F path=/var/log/tallylog -F perm=wa -k logins"
 
   # 32 – Session initiation  (AU-2(c), AU-12)
   - file: /etc/audit/rules.d/32-session.rules
     rules:
-      - "-w /var/run/utmp -p wa -k session"
-      - "-w /var/log/wtmp -p wa -k session"
+      - "-a always,exit -F arch=b64 -F path=/var/run/utmp -F perm=wa -k session"
+      - "-a always,exit -F arch=b64 -F path=/var/log/wtmp -F perm=wa -k session"
 
   # 40 – Privileged command execution  (AU-2(d), AU-10, AU-12)
   - file: /etc/audit/rules.d/40-privileged.rules
     rules:
       - "-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=unset -k priv_exec"
       - "-a always,exit -F arch=b32 -S execve -F euid=0 -F auid>=1000 -F auid!=unset -k priv_exec"
-      - "-a always,exit -F path=/usr/bin/sudo    -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/bin/su      -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/bin/newgrp  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/bin/chsh    -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/bin/passwd  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/bin/gpasswd -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/sbin/useradd  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/sbin/userdel  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/sbin/usermod  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/sbin/groupadd -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
-      - "-a always,exit -F path=/usr/sbin/groupmod -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/sudo    -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/su      -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/newgrp  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/chsh    -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/passwd  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/gpasswd -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/useradd  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/userdel  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/usermod  -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/groupadd -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/groupmod -F perm=x -F auid>=1000 -F auid!=unset -k priv_cmd"
 
   # 41 – Unsuccessful file access attempts  (AU-2, AU-12)
   - file: /etc/audit/rules.d/41-file-access.rules
@@ -114,9 +114,9 @@ audit_rule_files:
       - "## AU-8 / AU-12: All attempts to alter system time"
       - "-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time_change"
       - "-a always,exit -F arch=b32 -S adjtimex,settimeofday,stime,clock_settime -k time_change"
-      - "-w /etc/localtime -p wa -k time_change"
-      - "-w /etc/chrony.conf -p wa -k time_change"
-      - "-w /etc/chrony.d/   -p wa -k time_change"
+      - "-a always,exit -F arch=b64 -F path=/etc/localtime  -F perm=wa -k time_change"
+      - "-a always,exit -F arch=b64 -F path=/etc/chrony.conf -F perm=wa -k time_change"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/chrony.d     -F perm=wa -k time_change"
 
   # 45 – Kernel module operations  (AU-2(f), AU-12)
   - file: /etc/audit/rules.d/45-kernel-modules.rules
@@ -124,10 +124,10 @@ audit_rule_files:
       - "## AU-12: Kernel module load / unload"
       - "-a always,exit -F arch=b64 -S init_module,finit_module,delete_module -k kernel_modules"
       - "-a always,exit -F arch=b32 -S init_module,finit_module,delete_module -k kernel_modules"
-      - "-w /usr/bin/kmod    -p x -k kernel_modules"
-      - "-w /usr/sbin/insmod -p x -k kernel_modules"
-      - "-w /usr/sbin/rmmod  -p x -k kernel_modules"
-      - "-w /usr/sbin/modprobe -p x -k kernel_modules"
+      - "-a always,exit -F arch=b64 -F path=/usr/bin/kmod      -F perm=x -k kernel_modules"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/insmod   -F perm=x -k kernel_modules"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/rmmod    -F perm=x -k kernel_modules"
+      - "-a always,exit -F arch=b64 -F path=/usr/sbin/modprobe -F perm=x -k kernel_modules"
 
   # 46 – Sysadmin / hostname actions  (AU-2, AU-12)
   - file: /etc/audit/rules.d/46-sysadmin.rules
@@ -137,44 +137,44 @@ audit_rule_files:
       - "-a always,exit -F arch=b32 -S sethostname,setdomainname -k sysadmin"
       - "-a always,exit -F arch=b64 -S chroot -F auid>=1000 -F auid!=unset -k sysadmin"
       - "-a always,exit -F arch=b32 -S chroot -F auid>=1000 -F auid!=unset -k sysadmin"
-      - "-w /etc/hostname    -p wa -k sysadmin"
-      - "-w /etc/hosts       -p wa -k sysadmin"
+      - "-a always,exit -F arch=b64 -F path=/etc/hostname -F perm=wa -k sysadmin"
+      - "-a always,exit -F arch=b64 -F path=/etc/hosts    -F perm=wa -k sysadmin"
 
   # 47 – Scheduled task modifications  (AU-2, IRS 1075 §9.4.2)
   - file: /etc/audit/rules.d/47-cron-at.rules
     rules:
       - "## IRS 1075: Cron/at job creation or modification"
-      - "-w /etc/cron.allow  -p wa -k cron"
-      - "-w /etc/cron.deny   -p wa -k cron"
-      - "-w /etc/cron.d/     -p wa -k cron"
-      - "-w /etc/cron.daily/ -p wa -k cron"
-      - "-w /etc/cron.hourly/ -p wa -k cron"
-      - "-w /etc/cron.monthly/ -p wa -k cron"
-      - "-w /etc/cron.weekly/ -p wa -k cron"
-      - "-w /etc/crontab     -p wa -k cron"
-      - "-w /var/spool/cron/ -p wa -k cron"
-      - "-w /etc/at.allow    -p wa -k at_jobs"
-      - "-w /etc/at.deny     -p wa -k at_jobs"
-      - "-w /var/spool/at/   -p wa -k at_jobs"
+      - "-a always,exit -F arch=b64 -F path=/etc/cron.allow    -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -F path=/etc/cron.deny     -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/cron.d          -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/cron.daily      -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/cron.hourly     -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/cron.monthly    -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/cron.weekly     -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -F path=/etc/crontab        -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/var/spool/cron      -F perm=wa -k cron"
+      - "-a always,exit -F arch=b64 -F path=/etc/at.allow       -F perm=wa -k at_jobs"
+      - "-a always,exit -F arch=b64 -F path=/etc/at.deny        -F perm=wa -k at_jobs"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/var/spool/at        -F perm=wa -k at_jobs"
 
   # 48 – PAM / authentication configuration  (AU-2, IRS 1075)
   - file: /etc/audit/rules.d/48-pam-auth.rules
     rules:
       - "## IRS 1075 / AU-12: PAM and NSS configuration changes"
-      - "-w /etc/pam.d/       -p wa -k pam"
-      - "-w /etc/nsswitch.conf -p wa -k pam"
-      - "-w /etc/pam_faillock.conf -p wa -k pam"
-      - "-w /lib64/security/  -p wa -k pam_modules"
-      - "-w /usr/lib64/security/ -p wa -k pam_modules"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/pam.d             -F perm=wa -k pam"
+      - "-a always,exit -F arch=b64 -F path=/etc/nsswitch.conf    -F perm=wa -k pam"
+      - "-a always,exit -F arch=b64 -F path=/etc/pam_faillock.conf -F perm=wa -k pam"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/lib64/security         -F perm=wa -k pam_modules"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/usr/lib64/security     -F perm=wa -k pam_modules"
 
   # 49 – SSH configuration & key changes  (AU-2, IRS 1075)
   - file: /etc/audit/rules.d/49-ssh-keys.rules
     rules:
       - "## IRS 1075 / AU-12: SSH configuration and authorized key changes"
-      - "-w /etc/ssh/sshd_config     -p wa -k ssh_config"
-      - "-w /etc/ssh/sshd_config.d/  -p wa -k ssh_config"
+      - "-a always,exit -F arch=b64 -F path=/etc/ssh/sshd_config    -F perm=wa -k ssh_config"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/ssh/sshd_config.d  -F perm=wa -k ssh_config"
       - "-a always,exit -F arch=b64 -S open,openat -F path=/root/.ssh/authorized_keys -F perm=wa -k ssh_keys"
-      - "-a always,exit -F arch=b64 -S open,openat -F dir=/home/ -F name=authorized_keys -F perm=wa -k ssh_keys"
+      - "-a always,exit -F arch=b64 -S open,openat -F dir=/home -F name=authorized_keys -F perm=wa -k ssh_keys"
 
   # 50 – Network access / socket operations  (AU-2, AU-12)
   - file: /etc/audit/rules.d/50-network.rules
@@ -186,18 +186,18 @@ audit_rule_files:
   - file: /etc/audit/rules.d/51-systemd.rules
     rules:
       - "## AU-12: Systemd service unit modifications"
-      - "-w /etc/systemd/system/    -p wa -k systemd"
-      - "-w /usr/lib/systemd/system/ -p wa -k systemd"
-      - "-w /run/systemd/           -p wa -k systemd"
-      - "-w /etc/rc.d/init.d/       -p wa -k init"
-      - "-w /etc/rc.local           -p wa -k init"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/systemd/system      -F perm=wa -k systemd"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/usr/lib/systemd/system -F perm=wa -k systemd"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/run/systemd            -F perm=wa -k systemd"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/rc.d/init.d        -F perm=wa -k init"
+      - "-a always,exit -F arch=b64 -F path=/etc/rc.local          -F perm=wa -k init"
 
   # 52 – MAC / SELinux policy  (AU-2, IRS 1075)
   - file: /etc/audit/rules.d/52-mac-policy.rules
     rules:
       - "## IRS 1075 / AU-12: MAC and SELinux policy modifications"
-      - "-w /etc/selinux/           -p wa -k mac_policy"
-      - "-w /usr/share/selinux/     -p wa -k mac_policy"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/selinux        -F perm=wa -k mac_policy"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/usr/share/selinux -F perm=wa -k mac_policy"
       - "-a always,exit -F arch=b64 -S setxattr,fsetxattr,lsetxattr -F auid>=1000 -F auid!=unset -k mac_policy"
       - "-a always,exit -F arch=b32 -S setxattr,fsetxattr,lsetxattr -F auid>=1000 -F auid!=unset -k mac_policy"
       - "-a always,exit -F arch=b64 -S removexattr,fremovexattr,lremovexattr -F auid>=1000 -F auid!=unset -k mac_policy"
@@ -222,21 +222,21 @@ audit_rule_files:
   - file: /etc/audit/rules.d/55-network-config.rules
     rules:
       - "## AU-12: Network and firewall configuration changes"
-      - "-w /etc/sysconfig/network          -p wa -k network_config"
-      - "-w /etc/sysconfig/network-scripts/ -p wa -k network_config"
-      - "-w /etc/NetworkManager/            -p wa -k network_config"
-      - "-w /etc/firewalld/                 -p wa -k firewall_config"
-      - "-w /etc/sysctl.conf                -p wa -k sysctl"
-      - "-w /etc/sysctl.d/                  -p wa -k sysctl"
+      - "-a always,exit -F arch=b64 -F path=/etc/sysconfig/network          -F perm=wa -k network_config"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/sysconfig/network-scripts  -F perm=wa -k network_config"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/NetworkManager             -F perm=wa -k network_config"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/firewalld                  -F perm=wa -k firewall_config"
+      - "-a always,exit -F arch=b64 -F path=/etc/sysctl.conf               -F perm=wa -k sysctl"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/sysctl.d                   -F perm=wa -k sysctl"
 
   # 60 – AWS EC2 credential access  (IRS 1075, AU-12)
   - file: /etc/audit/rules.d/60-aws-creds.rules
     rules:
       - "## IRS 1075: AWS credential and metadata access monitoring"
-      - "-a always,exit -F arch=b64 -S open,openat -F path=/run/credentials/ -k aws_creds"
-      - "-w /root/.aws/      -p rwa -k aws_creds"
-      - "-w /home/           -p rwa -k aws_home_creds"
-      - "-w /etc/aws/        -p wa  -k aws_config"
+      - "-a always,exit -F arch=b64 -S open,openat -F dir=/run/credentials -k aws_creds"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/root/.aws  -F perm=rwa -k aws_creds"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/home       -F perm=rwa -k aws_home_creds"
+      - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/aws    -F perm=wa  -k aws_config"
 
   # 99 – Lock rules  (AU-9: protect audit configuration)
   - file: /etc/audit/rules.d/99-finalize.rules

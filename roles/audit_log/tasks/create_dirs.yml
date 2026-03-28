@@ -1,0 +1,21 @@
+---
+## check for audit_backup_dir and create if not exists
+
+- name: Ensure audit backup directory exists
+  block:
+    - name: Stat audit backup directory
+      ansible.builtin.stat:
+        path: "{{ audit_backup_dir }}"
+      register: audit_backup_dir_stat
+
+    - name: Debug audit backup directory stat
+      ansible.builtin.debug:
+        msg: "Audit backup directory exists"
+      when: audit_backup_dir_stat.stat.exists
+
+    - name: Create audit backup directory
+      ansible.builtin.file:
+        path: "{{ audit_backup_dir }}"
+        state: directory
+        mode: '0755'
+      when: not audit_backup_dir_stat.stat.exists  

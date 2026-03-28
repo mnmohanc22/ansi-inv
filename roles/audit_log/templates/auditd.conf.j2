@@ -1,6 +1,8 @@
 # Managed by Ansible – audit_log_enrichment role
 # DO NOT EDIT MANUALLY
 
+
+
 log_file             = {{ auditd_log_file }}
 log_format           = {{ auditd_log_format }}
 log_group            = root
@@ -10,8 +12,9 @@ freq                 = 50
 num_logs             = {{ auditd_num_logs }}
 disp_qos             = lossy
 dispatcher           = /sbin/audispd
-name_format          = hostname
-max_log_file         = {{ auditd_max_log_file }}
+name_format          = HOSTNAME
+name:                =  {{ fqdn }}
+max_log_file        = {{ auditd_max_log_file }}
 max_log_file_action  = {{ auditd_max_log_file_action }}
 space_left           = {{ auditd_space_left }}
 space_left_action    = {{ auditd_space_left_action }}
@@ -28,3 +31,4 @@ tcp_client_max_idle  = 0
 enable_krb5          = no
 krb5_principal       = auditd
 distribute_network   = no
+

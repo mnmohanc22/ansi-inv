@@ -25,3 +25,8 @@
     name: amazon-cloudwatch-agent
     state: restarted
   listen: Restart cloudwatch agent
+
+- name: Reload polkit
+  ansible.builtin.systemd:
+    name: polkit
+    state: restarted

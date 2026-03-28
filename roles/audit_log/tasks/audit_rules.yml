@@ -5,6 +5,18 @@
 
 - name: Configure audit rules
   block:
+    - name: Check if audit.rules dir exists
+      ansible.builtin.stat:
+        path: /etc/audit/rules.d
+      register: audit_rules_dir_stat
+
+    - name: Copy existing audit.rules to backup directory if it exists
+      ansible.builtin.copy:
+        src: /etc/audit/audit.rules
+        dest: "{{ audit_backup_dir }}/audit.rules"
+        remote_src: true
+      when: audit_rules_dir_stat.stat.exists
+
     - name: Ensure /etc/audit/rules.d exists
       ansible.builtin.file:
         path: /etc/audit/rules.d
@@ -18,6 +30,22 @@
         paths: /etc/audit/rules.d
         patterns: "*.rules"
       register: existing_rule_files
+
+    - name: Determine audit rule files to remove
+      ansible.builtin.set_fact:
+        rule_files_to_remove: "{{ existing_rule_files.files | map(attribute='path') | difference(audit_rule_files | map(attribute='file')) }}"
+
+    - name: list files to be removed
+      ansible.builtin.debug:
+        msg: "Stale audit rule files to remove: {{ rule_files_to_remove }}"
+      when: rule_files_to_remove | length > 0
+
+    - name: Remove stale audit rule files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ rule_files_to_remove }}"
+      when: rule_files_to_remove | length > 0
 
     - name: Write each audit rule file
       ansible.builtin.template:

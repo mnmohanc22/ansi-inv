@@ -1,0 +1,30 @@
+#capture sudo coomands and log to syslog
+- name: Configure sudo logging to syslog
+  block:
+    - name: Configure sudoers for syslog logging
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "%sudo   ALL=(ALL:ALL) ALL"
+        state: present
+    - name: Configure sudoers to log to syslog
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "Defaults log_output"
+        state: present
+    - name: Configure sudoers to log to syslog
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "Defaults syslog=auth"
+        state: present   
+    - name: Configure sudoers to log command output to syslog
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "Defaults log_output"
+        state: present
+
+    - name: json output for sudo logs
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "Defaults log_output_format=json"
+        state: present
+        

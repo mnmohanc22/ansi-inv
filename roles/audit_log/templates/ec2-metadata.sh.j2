@@ -1,0 +1,64 @@
+#!/bin/bash
+## EC2 Metadata Script
+set -e
+
+METADATA_FILE="/tmp/ec2_metadata.txt"
+IMDS_BASE_URL="http://169.254.169.254/latest/meta-data"
+IMDS_DYNAMIC_URL="http://169.254.169.254/latest/dynamic"
+TOKEN_URL="http://169.254.169.254/latest/api/token"
+
+# GET IMDSv2 token
+TOKEN=$(curl -s -X PUT "$TOKEN_URL" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+if [ -z "$TOKEN" ]; then
+    echo "Failed to retrieve IMDSv2 token. Exiting."
+    exit 1
+fi
+
+HDR="X-aws-ec2-metadata-token: $TOKEN"
+
+
+# Fetch EC2 metadata
+instance_id=$(curl -s -H "$HDR" "$IMDS_BASE_URL/instance-id")
+ami_id=$(curl -s -H "$HDR" "$IMDS_BASE_URL/ami-id")
+instance_type=$(curl -s -H "$HDR" "$IMDS_BASE_URL/instance-type")
+region=$(curl -s -H "$HDR" "$IMDS_BASE_URL/placement/region")
+private_ip=$(curl -s -H "$HDR" "$IMDS_BASE_URL/local-ipv4")
+public_hostname=$(curl -s -H "$HDR" "$IMDS_BASE_URL/public-hostname" || echo "N/A")
+hostname=$(curl -s -H "$HDR" "$IMDS_BASE_URL/hostname")
+mac=$(curl -s -H "$HDR" "$IMDS_BASE_URL/mac")
+vpc=$(curl -s -H "$HDR" "$IMDS_BASE_URL/network/interfaces/macs/${mac}/vpc-id")
+subnet=$(curl -s -H "$HDR" "$IMDS_BASE_URL/network/interfaces/macs/${mac}/subnet-id")
+iam_role=$(curl -s -H "$HDR" "$IMDS_BASE_URL/iam/security-credentials/" || echo "")
+
+# Get Account ID from instance identity document
+account_id=$(curl -s -H "$HDR" "$IMDS_DYNAMIC_URL/instance-identity/document" | jq -r '.accountId')   
+
+
+# Get full ARN if IAM role is present
+role_arn="N/A"
+if [ -n "$iam_role" ] && [ "$iam_role" != "N/A" ]; then
+    role_arn="arn:aws:iam::${account_id}:role/${iam_role}"
+fi
+
+
+# Write metadata to file
+cat <<EOF > "$METADATA_FILE"
+Instance ID: $instance_id
+AMI ID: $ami_id
+Instance Type: $instance_type
+Region: $region
+Private IP: $private_ip
+Public Hostname: $public_hostname
+Hostname: $hostname
+MAC: $mac
+VPC: $vpc
+Subnet: $subnet
+IAM Role: $iam_role
+Account ID: $account_id
+Role ARN: $role_arn
+EOF
+
+chmod 600 "$METADATA_FILE"
+echo "EC2 metadata written to $METADATA_FILE"
+

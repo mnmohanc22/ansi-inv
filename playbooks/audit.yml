@@ -1,0 +1,6 @@
+---
+- name: RHEL server Splunk UF installation
+  hosts: rhel9
+  become: true
+  roles:
+    - audit_log

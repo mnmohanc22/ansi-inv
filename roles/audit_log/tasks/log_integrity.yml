@@ -31,14 +31,14 @@
     state: directory
     owner: root
     group: audit
-    mode: "0750"
+    mode: "0700"
 
 - name: Restrict audit.log file permissions (AU-9)
   ansible.builtin.file:
     path: "{{ auditd_log_file }}"
     owner: root
     group: audit
-    mode: "0640"
+    mode: "0600"
   failed_when: false   # file may not exist yet on first run
 
 - name: Restrict enriched audit log directory (AU-9)
@@ -54,6 +54,13 @@
   ansible.builtin.command: chattr +a "{{ auditd_log_file }}"
   failed_when: false    # non-fatal if filesystem doesn't support attrs
   changed_when: false
+
+- name: Set lsattr attribute on audit.log (AU-9 – chattr +a)
+  ansible.builtin.command: lsattr "{{ auditd_log_file }}"
+  failed_when: false    # non-fatal if filesystem doesn't support attrs
+  changed_when: false
+
+  
 
 # ── AU-9(3): AIDE – File Integrity Monitoring  ────────────────────────────────
 - name: Install AIDE (AU-9(3))

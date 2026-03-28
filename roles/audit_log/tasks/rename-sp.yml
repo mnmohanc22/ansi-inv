@@ -1,0 +1,18 @@
+---
+# Remove 90-splunkforwarder.rules file if exists to avoid conflict with splunk universal forwarder
+- name: Remove Splunk forwarder rsyslog rules
+  block:
+    - name: Remove 90-splunkforwarder.rules if it exists
+      ansible.builtin.file:
+        path: /etc/rsyslog.d/90-splunkforwarder.rules
+        state: absent
+      register: remove_splunk_forwarder_rules
+      ignore_errors: true
+      notify: Reload polkit
+
+    - name: Debug removal of 90-splunkforwarder.rules
+      ansible.builtin.debug:
+        msg: "Removed 90-splunkforwarder.rules: {{ remove_splunk_forwarder_rules.changed }}"  
+
+
+        

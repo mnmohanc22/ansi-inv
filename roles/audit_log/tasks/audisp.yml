@@ -4,6 +4,21 @@
 #   Routes auditd events → rsyslog LOCAL3 for EC2 metadata enrichment
 # =============================================================================
 
+
+## enable auditsp-remote plugin for RHEL8 & auditspd for RHEL 9
+
+
+- name: Ensure auditspd plugin is enabled (RHEL 9)
+  ansible.builtin.lineinfile:
+    path: /etc/audit/plugins.d/au-remote.conf
+    regexp: '^disable\s*=\s*yes'
+    line: "active = no"
+    state: present
+  when: ansible_distribution_major_version | int == 9
+  notify: Restart auditd
+
+
+
 - name: Configure audisp
   block:
     - name: Detect audisp plugin directory (RHEL 8 vs 9)
@@ -12,6 +27,8 @@
           {{ '/etc/audit/plugins.d'
              if ansible_distribution_major_version | int >= 9
              else '/etc/audisp/plugins.d' }}
+
+ 
 
     - name: Configure audisp syslog plugin
       ansible.builtin.template:
@@ -22,6 +39,17 @@
         mode: "0640"
         backup: true
       notify: Restart auditd
+
+    - name: copy python scope script for EC2 metadata enrichment
+      ansible.builtin.template:
+        src: audisp-scope-ec2.py.j2
+        dest: /usr/local/bin/audisp-scope-ec2.py
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart auditd
+
+
 
     - name: Ensure /etc/audit/auditd.conf has dispatcher configured (RHEL 8)
       ansible.builtin.lineinfile:

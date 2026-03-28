@@ -1,0 +1,148 @@
+---
+# =============================================================================
+# Task File: ec2-metadata.yml – Verify OS and fetch EC2 instance metadata
+# =============================================================================
+
+- name: Fetch and store EC2 instance metadata
+  block:
+    - name: Copy ec2-metadata.sh script to /usr/local/bin
+      ansible.builtin.template:
+        src: ec2-metadata.sh.j2
+        dest: /usr/local/bin/ec2-metadata.sh
+        owner: root
+        group: root
+        mode: "0755"
+        backup: true
+      register: copy_script_result
+
+    - name: Debug copy_script_result
+      ansible.builtin.debug:
+        msg: "{{ copy_script_result }}"
+
+    - name: Run ec2-metadata.sh to fetch and store EC2 metadata
+      ansible.builtin.command: /usr/local/bin/ec2-metadata.sh
+      register: metadata_script_result
+      changed_when: false
+      failed_when: metadata_script_result.rc != 0
+
+    - name: Debug metadata_script_result
+      ansible.builtin.debug:
+        msg: "{{ metadata_script_result }}"
+
+    - name: copy systemd service file for metadata enrichment
+      ansible.builtin.template:
+        src: aws-audit-metadata.service.j2
+        dest: /etc/systemd/system/ec2-metadata.service
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      register: copy_service_result
+
+    - name : Debug copy_service_result
+      ansible.builtin.debug:
+        msg: "{{ copy_service_result }}"
+
+    - name: Reload systemd daemon to recognize new service
+      ansible.builtin.systemd:
+        daemon_reload: true
+      register: daemon_reload_result    
+
+    - name: Enable and start ec2-metadata.service
+      ansible.builtin.service:
+        name: ec2-metadata
+        enabled: true
+        state: started
+      register: service_result          
+
+    - name: Debug service_result
+      ansible.builtin.debug:
+        msg: "{{ service_result }}"
+
+
+# - name: Verify OS and fetch EC2 metadata
+#   block:
+#     # ── Verify OS ──────────────────────────────────────────────────────────────
+#     - name: Assert Red Hat family OS
+#       ansible.builtin.assert:
+#         that:
+#           - ansible_os_family == "RedHat"
+#           - ansible_distribution_major_version | int >= 8
+#         fail_msg: "This playbook supports RHEL 8/9 only. Found: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+#         success_msg: "OS check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+
+#     # ── Fetch EC2 Instance Metadata (IMDSv2) ──────────────────────────────────
+#     - name: Get IMDSv2 token
+#       ansible.builtin.uri:
+#         url: http://169.254.169.254/latest/api/token
+#         method: PUT
+#         headers:
+#           X-aws-ec2-metadata-token-ttl-seconds: "21600"
+#         return_content: true
+#         status_code: 200
+#         timeout: 5
+#       register: imds_token
+#       no_log: true
+
+#     - name: Fetch EC2 instance-id
+#       ansible.builtin.uri:
+#         url: http://169.254.169.254/latest/meta-data/instance-id
+#         headers:
+#           X-aws-ec2-metadata-token: "{{ imds_token.content | trim }}"
+#         return_content: true
+#         timeout: 5
+#       register: _ec2_instance_id
+
+#     - name: Fetch EC2 region
+#       ansible.builtin.uri:
+#         url: http://169.254.169.254/latest/meta-data/placement/region
+#         headers:
+#           X-aws-ec2-metadata-token: "{{ imds_token.content | trim }}"
+#         return_content: true
+#         timeout: 5
+#       register: _ec2_region
+
+#     - name: Fetch EC2 account-id from identity document
+#       ansible.builtin.uri:
+#         url: http://169.254.169.254/latest/dynamic/instance-identity/document
+#         headers:
+#           X-aws-ec2-metadata-token: "{{ imds_token.content | trim }}"
+#         return_content: true
+#         timeout: 5
+#       register: _ec2_identity_doc
+
+#     - name: Fetch EC2 VPC-id
+#       ansible.builtin.uri:
+#         url: http://169.254.169.254/latest/meta-data/network/interfaces/macs/
+#         headers:
+#           X-aws-ec2-metadata-token: "{{ imds_token.content | trim }}"
+#         return_content: true
+#         timeout: 5
+#       register: _ec2_mac
+
+#     - name: Fetch VPC-id using first MAC
+#       ansible.builtin.uri:
+#         url: "http://169.254.169.254/latest/meta-data/network/interfaces/macs/{{ _ec2_mac.content | trim | split('\n') | first | trim }}/vpc-id"
+#         headers:
+#           X-aws-ec2-metadata-token: "{{ imds_token.content | trim }}"
+#         return_content: true
+#         timeout: 5
+#       register: _ec2_vpc_id
+
+#     # ── Set clean facts (strip \n and whitespace) ─────────────────────────────
+#     - name: Set EC2 metadata facts
+#       ansible.builtin.set_fact:
+#         ec2_instance_id: "{{ _ec2_instance_id.content | trim | replace('\\n', '') }}"
+#         ec2_region:      "{{ _ec2_region.content      | trim | replace('\\n', '') }}"
+#         ec2_account_id:  "{{ (_ec2_identity_doc.content | from_json).accountId }}"
+#         ec2_vpc_id:      "{{ _ec2_vpc_id.content      | trim | replace('\\n', '') }}"
+#         ec2_hostname:    "{{ ansible_hostname | trim }}"
+
+#     - name: Display EC2 metadata
+#       ansible.builtin.debug:
+#         msg:
+#           - "Instance ID : {{ ec2_instance_id }}"
+#           - "Region      : {{ ec2_region }}"
+#           - "Account ID  : {{ ec2_account_id }}"
+#           - "VPC ID      : {{ ec2_vpc_id }}"
+#           - "Hostname    : {{ ec2_hostname }}"

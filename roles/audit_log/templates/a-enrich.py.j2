@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+## read from metadata file
+
+import json
+import os       
+    
+metadata_file = '/etc/audit/metadata.json'            
+
+def load_metadata():
+    if os.path.exists(metadata_file):
+        with open(metadata_file) as f:
+            metadata = json.load(f)     
+
+        # extract required fields
+        instance_id = metadata.get('instanceId', 'unknown')
+        region = metadata.get('region', 'unknown')
+        account_id = metadata.get('accountId', 'unknown')               
+
+        return {
+            'instance_id': instance_id,
+            'region': region,
+            'account_id': account_id
+        }
+    else:
+        return {
+            'instance_id': 'unknown',
+            'region': 'unknown',
+            'account_id': 'unknown'
+        }
