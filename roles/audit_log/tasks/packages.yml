@@ -4,9 +4,34 @@
 # =============================================================================
 
 - name: Install audit and enrichment packages
-  ansible.builtin.dnf:
-    name: "{{ audit_packages }}"
-    state: present
-  notify:
-    - Restart auditd
-    - Restart rsyslog
+  block:
+    - name: Install audit and enrichment packages via dnf
+      ansible.builtin.dnf:
+        name: "{{ audit_packages }}"
+        state: present
+      register: package_install
+      notify:
+        - Restart auditd
+        - Restart rsyslog
+
+    - name: Debug package installation result
+      ansible.builtin.debug:
+        msg: "Package installation result: {{ package_install }}"
+
+    - name: Download AWS CLI v2
+      ansible.builtin.get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Unzip AWS CLI
+      ansible.builtin.unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: true
+
+    - name: Install AWS CLI v2
+      ansible.builtin.command: /tmp/aws/install
+      args:
+        creates: /usr/local/bin/aws
+      become: true
