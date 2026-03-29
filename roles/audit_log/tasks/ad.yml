@@ -1,8 +1,10 @@
+---
 - name: Set status fact
-  set_fact:
+  ansible.builtin.set_fact:
     rfc_status: "{{ (rfc_result.stdout | trim | from_json).Status.Name }}"
 
-- debug:
+- name: Debug RFC status
+  ansible.builtin.debug:
     msg: "RFC Status = {{ rfc_status }}"
 
 - name: Parse RFC JSON
@@ -15,14 +17,14 @@
 
 - name: Show RFC status
   ansible.builtin.debug:
-    msg: "RFC Status = {{ rfc_status }}"    
+    msg: "RFC Status = {{ rfc_status }}"
 
 - name: Extract other RFC fields
   ansible.builtin.set_fact:
     rfc_status: "{{ rfc_json.get('Rfc', {}).get('Status', {}).get('Name', 'UNKNOWN') }}"
     rfc_status_reason: "{{ rfc_json.get('Rfc', {}).get('StatusReason', '') }}"
     rfc_action_state: "{{ rfc_json.get('Rfc', {}).get('ActionState', {}).get('Name', '') }}"
-    rfc_automation_status: "{{ rfc_json.get('Rfc', {}).get('AutomationStatus', {}).get('Name', '') }}"    
+    rfc_automation_status: "{{ rfc_json.get('Rfc', {}).get('AutomationStatus', {}).get('Name', '') }}"
 
 - name: Wait for RFC completion
   ansible.builtin.command: >
@@ -35,11 +37,62 @@
   retries: 60
   delay: 60
   until: >
-    (rfc_poll.stdout | trim | from_json).Rfc.Status.Name in ['Success', 'Failure', 'Canceled', 'Rejected']    
+    (rfc_poll.stdout | trim | from_json).Rfc.Status.Name in ['Success', 'Failure', 'Canceled', 'Rejected']
 
-- debug:
+- name: Debug RFC poll result
+  ansible.builtin.debug:
     msg:
       - "Status: {{ rfc.Rfc.Status.Name }}"
       - "Approval: {{ rfc.Rfc.ApprovalState.Name }}"
       - "Action: {{ rfc.Rfc.ActionState.Name }}"
-      - "Automation: {{ rfc.Rfc.AutomationStatus.Name }}"    
+      - "Automation: {{ rfc.Rfc.AutomationStatus.Name }}"
+
+- name: Parse submit response
+  ansible.builtin.set_fact:
+    submit_json: "{{ submit_result.stdout | default('{}') | trim | from_json }}"
+
+- name: Submit RFC only if in Editing state
+  ansible.builtin.command: >
+    aws amscm submit-rfc --rfc-id {{ rfc_id }}
+  when: rfc_status == "Editing"
+
+- name: Parse final RFC response
+  ansible.builtin.set_fact:
+    final_rfc_json: "{{ poll_rfc_result.stdout | trim | from_json }}"
+
+- name: Extract final RFC fields
+  ansible.builtin.set_fact:
+    final_status: "{{ final_rfc_json.get('Rfc', {}).get('Status', {}).get('Name', 'UNKNOWN') }}"
+    final_status_reason: "{{ final_rfc_json.get('Rfc', {}).get('StatusReason', '') }}"
+    final_approval_state: "{{ final_rfc_json.get('Rfc', {}).get('ApprovalState', {}).get('Name', '') }}"
+    final_action_state: "{{ final_rfc_json.get('Rfc', {}).get('ActionState', {}).get('Name', '') }}"
+    final_automation_status: "{{ final_rfc_json.get('Rfc', {}).get('AutomationStatus', {}).get('Name', '') }}"
+
+- name: Show final RFC summary
+  ansible.builtin.debug:
+    msg:
+      - "RFC ID: {{ rfc_id }}"
+      - "Status: {{ final_status }}"
+      - "Status Reason: {{ final_status_reason }}"
+      - "Approval State: {{ final_approval_state }}"
+      - "Action State: {{ final_action_state }}"
+      - "Automation Status: {{ final_automation_status }}"
+
+- name: Fail if RFC did not complete successfully
+  ansible.builtin.fail:
+    msg: >-
+      RFC {{ rfc_id }} failed.
+      Status={{ final_status }},
+      ApprovalState={{ final_approval_state }},
+      ActionState={{ final_action_state }},
+      AutomationStatus={{ final_automation_status }},
+      Reason={{ final_status_reason }}
+  when: not (
+          final_status == 'Success'
+          and
+          (final_automation_status in ['', 'Success'])
+        )
+
+- name: Success message
+  ansible.builtin.debug:
+    msg: "RFC {{ rfc_id }} completed successfully."
