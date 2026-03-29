@@ -60,9 +60,30 @@
         msg: "{{ service_result }}"
 
 
-# - name: Verify OS and fetch EC2 metadata
-#   block:
-#     # ── Verify OS ──────────────────────────────────────────────────────────────
+## read metata.env file and print values to debug (can be removed later)
+- name: Read metadata.env file and display contents
+  block:
+    - name: Check if metadata.env file exists
+      ansible.builtin.stat:
+        path: /etc/audit/metadata.env
+      register: metadata_env_stat
+
+    - name: Debug metadata.env stat result
+      ansible.builtin.debug:
+        msg: "metadata.env file exists: {{ metadata_env_stat.stat.exists }}"  
+
+    - name: Read metadata.env
+      ansible.builtin.slurp:
+        src: /etc/audit/metadata.env
+      register: metadata_env_content
+      when: metadata_env_stat.stat.exists
+
+    - name: Display metadata.env contents
+      ansible.builtin.debug:
+        msg: "{{ metadata_env_content.content | b64decode }}"
+      when: metadata_env_stat.stat.exists
+
+
 #     - name: Assert Red Hat family OS
 #       ansible.builtin.assert:
 #         that:
