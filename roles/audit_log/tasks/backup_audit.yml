@@ -31,3 +31,16 @@
         dest: "{{ audit_backup_dir }}/plugins.d"
         remote_src: true
       when: audit_plugins_dir_stat.stat.exists
+
+    - name: take backup of sudoers.d
+      ansible.builtin.copy:
+        src: /etc/sudoers.d
+        dest: "{{ audit_backup_dir }}/sudoers.d"
+        remote_src: true
+    
+    - name: take backup of rsyslog directory
+      ansible.builtin.copy:
+        src: /etc/rsyslog.d
+        dest: "{{ audit_backup_dir }}/rsyslog.d"
+        remote_src: true
+

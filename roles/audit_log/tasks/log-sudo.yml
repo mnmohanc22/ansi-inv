@@ -1,0 +1,43 @@
+# ## loop through sudoers_audit_rules and ensure each line is present in /etc/sudoers
+
+# - name: Update multiple sudo settings
+#   ansible.builtin.lineinfile:
+#     path: /etc/sudoers.d/10-custom
+#     line: "{{ item.line }}"
+#     create: yes
+#     mode: '0440'
+#     validate: '/usr/sbin/visudo -cf %s'
+#   loop: sudoers_audit_rules
+#   loop_control:
+#     label: "{{ item.line }}"
+#   become: yes
+#   register: sudoers_update
+
+
+# - name: Debug sudoers update results
+#   ansible.builtin.debug:
+#     msg: "Updated sudoers with line: {{ item.item.line }}"
+#   loop: "{{ sudoers_update.results }}"
+#   when: item.changed  
+
+
+- name: Update sudo configuration safely
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/10-custom
+    content: |
+      Defaults logfile="/var/log/sudo.log"
+      Defaults log_input,log_output
+      Defaults syslog=auth
+      Defaults logformat=json
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
+  register: sudoers_update
+  become: yes
+
+- name: Debug sudoers update results
+  ansible.builtin.debug:
+    msg: "Updated sudoers configuration"
+  when: sudoers_update.changed    
+  

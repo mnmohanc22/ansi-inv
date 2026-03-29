@@ -1,2 +1,8 @@
 
 audit_backup_dir: "/opt/ansible_backups/audit-{{ ansible_date_time.date }}-{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}"
+
+sudoers_audit_rules:
+  - "Defaults        logfile=/var/log/sudo.log"
+  - "Defaults        log_input,log_output"
+  - "Defaults         logformat=json"
+  - "Defaults        syslog=auth"
