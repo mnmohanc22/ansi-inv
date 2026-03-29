@@ -1,0 +1,6 @@
+- name: Set status fact
+  set_fact:
+    rfc_status: "{{ (rfc_result.stdout | trim | from_json).Status.Name }}"
+
+- debug:
+    msg: "RFC Status = {{ rfc_status }}"

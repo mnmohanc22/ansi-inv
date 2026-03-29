@@ -15,12 +15,18 @@
       when: pam_loginuid_check.rc != 0
       notify: Restart auditd
 
-    - name: add for logout as well
+    - name: Check if pam_lastlog is already configured in /etc/pam.d/system-auth
+      ansible.builtin.command: "grep -E '^session\\s+required\\s+pam_lastlog\\.so' /etc/pam.d/system-auth"
+      register: pam_lastlog_check
+      ignore_errors: true
+
+    - name: Configure pam_lastlog.so in /etc/pam.d/system-auth
       ansible.builtin.lineinfile:
         path: /etc/pam.d/system-auth
-        line: "session required pam_loginuid.so showfailed"
+        line: "session required pam_lastlog.so showfailed"
         state: present
-      notify: Restart auditd  
+      when: pam_lastlog_check.rc != 0
+      notify: Restart auditd
 
 #check ausearch -k logins and tail -20
 
