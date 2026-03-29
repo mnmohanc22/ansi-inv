@@ -4,3 +4,42 @@
 
 - debug:
     msg: "RFC Status = {{ rfc_status }}"
+
+- name: Parse RFC JSON
+  ansible.builtin.set_fact:
+    rfc_json: "{{ rfc_result.stdout | trim | from_json }}"
+
+- name: Extract RFC status
+  ansible.builtin.set_fact:
+    rfc_status: "{{ rfc_json.Rfc.Status.Name }}"
+
+- name: Show RFC status
+  ansible.builtin.debug:
+    msg: "RFC Status = {{ rfc_status }}"    
+
+- name: Extract other RFC fields
+  ansible.builtin.set_fact:
+    rfc_status: "{{ rfc_json.get('Rfc', {}).get('Status', {}).get('Name', 'UNKNOWN') }}"
+    rfc_status_reason: "{{ rfc_json.get('Rfc', {}).get('StatusReason', '') }}"
+    rfc_action_state: "{{ rfc_json.get('Rfc', {}).get('ActionState', {}).get('Name', '') }}"
+    rfc_automation_status: "{{ rfc_json.get('Rfc', {}).get('AutomationStatus', {}).get('Name', '') }}"    
+
+- name: Wait for RFC completion
+  ansible.builtin.command: >
+    aws amscm get-rfc
+    --rfc-id {{ rfc_id }}
+    --output json
+    --region us-east-1
+  register: rfc_poll
+  changed_when: false
+  retries: 60
+  delay: 60
+  until: >
+    (rfc_poll.stdout | trim | from_json).Rfc.Status.Name in ['Success', 'Failure', 'Canceled', 'Rejected']    
+
+- debug:
+    msg:
+      - "Status: {{ rfc.Rfc.Status.Name }}"
+      - "Approval: {{ rfc.Rfc.ApprovalState.Name }}"
+      - "Action: {{ rfc.Rfc.ActionState.Name }}"
+      - "Automation: {{ rfc.Rfc.AutomationStatus.Name }}"    
