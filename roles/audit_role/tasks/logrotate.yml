@@ -1,0 +1,12 @@
+---
+# =============================================================================
+# tasks/logrotate.yml — rotate the metadata refresh log
+# =============================================================================
+
+- name: Deploy logrotate config from template
+  ansible.builtin.template:
+    src: aws-audit-enrich.logrotate.j2
+    dest: /etc/logrotate.d/aws-audit-enrich
+    owner: root
+    group: root
+    mode: "0644"

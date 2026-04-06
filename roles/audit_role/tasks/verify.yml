@@ -1,0 +1,52 @@
+---
+# =============================================================================
+# tasks/verify.yml — post-deployment smoke tests
+# =============================================================================
+
+- name: Verify JSON cache exists and is non-empty
+  ansible.builtin.stat:
+    path: "{{ audit_enrich_json_cache }}"
+  register: _json_cache_stat
+
+- name: Assert JSON cache was written
+  ansible.builtin.assert:
+    that:
+      - _json_cache_stat.stat.exists
+      - _json_cache_stat.stat.size > 0
+    fail_msg: "JSON cache file is missing or empty: {{ audit_enrich_json_cache }}"
+    success_msg: "JSON cache OK ({{ _json_cache_stat.stat.size }} bytes)"
+
+- name: Verify env file exists
+  ansible.builtin.stat:
+    path: "{{ audit_enrich_env_file }}"
+  register: _env_stat
+
+- name: Assert env file was written
+  ansible.builtin.assert:
+    that: _env_stat.stat.exists
+    fail_msg: "Env file missing: {{ audit_enrich_env_file }}"
+    success_msg: "Env file OK"
+
+- name: Run --show via audit_log_enrich.py to confirm end-to-end
+  ansible.builtin.command: >
+    {{ audit_enrich_python_bin }} {{ audit_enrich_enrich_script }}
+    --show
+    --json-cache {{ audit_enrich_json_cache }}
+  register: _enrich_show
+  changed_when: false
+
+- name: Display enrichment banner from target host
+  ansible.builtin.debug:
+    msg: "{{ _enrich_show.stdout_lines }}"
+
+- name: Verify systemd unit is active
+  ansible.builtin.systemd:
+    name: "{{ audit_enrich_service_name }}.service"
+  register: _svc_state
+
+- name: Report service state
+  ansible.builtin.debug:
+    msg: >
+      {{ audit_enrich_service_name }}:
+      active={{ _svc_state.status.ActiveState }}
+      enabled={{ _svc_state.status.UnitFileState }}

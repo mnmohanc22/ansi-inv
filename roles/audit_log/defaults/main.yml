@@ -174,13 +174,12 @@ audit_rule_files:
       - "-a always,exit -F arch=b64 -F path=/etc/ssh/sshd_config    -F perm=wa -k ssh_config"
       - "-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/ssh/sshd_config.d  -F perm=wa -k ssh_config"
       - "-a always,exit -F arch=b64 -S open,openat -F path=/root/.ssh/authorized_keys -F perm=wa -k ssh_keys"
-      - "-a always,exit -F arch=b64 -S open,openat -F dir=/home -F name=authorized_keys -F perm=wa -k ssh_keys"
 
   # 50 – Network access / socket operations  (AU-2, AU-12)
   - file: /etc/audit/rules.d/50-network.rules
     rules:
-      - "-a always,exit -F arch=b64 -S connect,bind,accept,listen -k network"
-      - "-a always,exit -F arch=b32 -S connect,bind,accept,listen -k network"
+      - "-a always,exit -F arch=b64 -S connect,bind,accept4,listen -k network"
+      - "-a always,exit -F arch=b32 -S connect,bind,accept4,listen -k network"
 
   # 51 – Systemd unit file changes  (AU-2, AU-12)
   - file: /etc/audit/rules.d/51-systemd.rules

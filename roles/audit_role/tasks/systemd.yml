@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# tasks/systemd.yml — systemd oneshot unit for boot-time metadata refresh
+# =============================================================================
+
+- name: Deploy systemd unit from template
+  ansible.builtin.template:
+    src: audit-enrich-aws.service.j2
+    dest: "/etc/systemd/system/{{ audit_enrich_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+    - Restart audit-enrich-aws service
+
+- name: Reload systemd daemon immediately (flush handlers)
+  ansible.builtin.systemd:
+    daemon_reload: true
+  # Needed so the new unit is visible before enable/start below
+
+- name: Enable and start audit-enrich-aws.service
+  ansible.builtin.systemd:
+    name: "{{ audit_enrich_service_name }}.service"
+    enabled: true
+    state: started

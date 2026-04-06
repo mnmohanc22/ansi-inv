@@ -1,0 +1,31 @@
+---
+# =============================================================================
+# tasks/deploy_scripts.yml — copy and syntax-check both Python scripts
+# =============================================================================
+
+- name: Deploy aws_metadata_fetch.py
+  ansible.builtin.copy:
+    src: aws_metadata_fetch.py
+    dest: "{{ audit_enrich_fetch_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+  notify: Run initial metadata fetch
+
+- name: Deploy audit_log_enrich.py
+  ansible.builtin.copy:
+    src: audit_log_enrich.py
+    dest: "{{ audit_enrich_enrich_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Syntax-check aws_metadata_fetch.py
+  ansible.builtin.command: >
+    {{ audit_enrich_python_bin }} -m py_compile {{ audit_enrich_fetch_script }}
+  changed_when: false
+
+- name: Syntax-check audit_log_enrich.py
+  ansible.builtin.command: >
+    {{ audit_enrich_python_bin }} -m py_compile {{ audit_enrich_enrich_script }}
+  changed_when: false

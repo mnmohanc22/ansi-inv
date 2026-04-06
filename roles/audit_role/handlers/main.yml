@@ -1,0 +1,37 @@
+---
+# =============================================================================
+# handlers/main.yml — audit_enrich_aws role
+# =============================================================================
+
+- name: Run initial metadata fetch
+  ansible.builtin.command: >
+    {{ audit_enrich_python_bin }} {{ audit_enrich_fetch_script }}
+    --env-file {{ audit_enrich_env_file }}
+    --json-cache {{ audit_enrich_json_cache }}
+  listen: "Run initial metadata fetch"
+  register: _initial_fetch
+  changed_when: true
+  failed_when: _initial_fetch.rc != 0
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: "Reload systemd daemon"
+
+- name: Restart audit-enrich-aws service
+  ansible.builtin.systemd:
+    name: "{{ audit_enrich_service_name }}.service"
+    state: restarted
+  listen: "Restart audit-enrich-aws service"
+
+- name: Reload auditd rules
+  ansible.builtin.command: augenrules --load
+  listen: "Reload auditd rules"
+  register: _augenrules
+  changed_when: "'No change' not in _augenrules.stdout"
+
+- name: Restart auditd
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+  listen: "Restart auditd"

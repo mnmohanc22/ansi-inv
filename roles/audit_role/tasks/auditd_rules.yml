@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# tasks/auditd_rules.yml — drop AWS-tagged auditd rules from template
+# =============================================================================
+
+- name: Ensure auditd rules directory exists
+  ansible.builtin.file:
+    path: "{{ audit_enrich_rules_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Ensure watched paths exist before loading audit rules
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    owner: root
+    group: root
+    mode: "0640"
+    modification_time: preserve
+    access_time: preserve
+  loop:
+    - "{{ audit_enrich_fetch_script }}"
+    - "{{ audit_enrich_enrich_script }}"
+    - "{{ audit_enrich_env_file }}"
+    - "{{ audit_enrich_json_cache }}"
+
+- name: Ensure watched directories exist before loading audit rules
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - /root/.ssh
+    - /root/.aws
+    - /etc/chrony.d
+    - /etc/aws
+    - /var/spool/at
+    - "{{ fti_data_path | default('/data/fti') }}"
+
+- name: Deploy AWS auditd rules from template
+  ansible.builtin.template:
+    src: 99-aws-metadata.rules.j2
+    dest: "{{ audit_enrich_rules_file }}"
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Reload auditd rules
+
+- name: Verify audit rules syntax
+  ansible.builtin.command: augenrules --check
+  changed_when: false

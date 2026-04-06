@@ -1,0 +1,76 @@
+# {{ ansible_managed }}
+# =============================================================================
+# 99-aws-metadata.rules
+# auditd rules with AWS EC2 context tagging
+# Managed by Ansible role: audit_enrich_aws
+# Host     : {{ inventory_hostname }}
+# Deployed : {{ ansible_date_time.iso8601 }}
+# =============================================================================
+
+## ----------------------------------------------------------------------------
+## Privileged execution — tag all root-level execve calls
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S execve -F euid=0 -k aws-privileged-exec
+-a always,exit -F arch=b32 -S execve -F euid=0 -k aws-privileged-exec
+
+## ----------------------------------------------------------------------------
+## Protect enrichment scripts and metadata files from tampering
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F path={{ audit_enrich_fetch_script }}  -F perm=wa -k aws-enrich-script-modify
+-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F path={{ audit_enrich_enrich_script }} -F perm=wa -k aws-enrich-script-modify
+-a always,exit -F arch=b64 -S open,openat,read,write,execve -F path={{ audit_enrich_env_file }}      -F perm=rwxa -k aws-metadata-access
+-a always,exit -F arch=b64 -S open,openat,read,write,execve -F path={{ audit_enrich_json_cache }}    -F perm=rwxa -k aws-metadata-access
+
+## ----------------------------------------------------------------------------
+## Protect the systemd unit from tampering
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F path=/etc/systemd/system/{{ audit_enrich_service_name }}.service -F perm=wa -k aws-systemd-modify
+
+## ----------------------------------------------------------------------------
+## IAM / AWS credential access (optional — controlled by variable)
+## ----------------------------------------------------------------------------
+{% if audit_enrich_watch_aws_creds | length > 0 %}
+-a always,exit -F arch=b64 -S open,openat,read,write,execve -F dir={{ audit_enrich_watch_aws_creds }} -F perm=rwxa -k aws-credential-access
+{% endif %}
+
+## ----------------------------------------------------------------------------
+## Network configuration changes (relevant on EC2 — EIP attach, hostname set)
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S sethostname -S setdomainname -k aws-network-config
+-a always,exit -F arch=b64 -S bind        -k aws-net-socket
+-a always,exit -F arch=b64 -S connect     -k aws-net-socket
+
+## ----------------------------------------------------------------------------
+## Cron tampering — protects the hourly metadata refresh job
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/var/spool/cron -F perm=wa -k aws-cron-modify
+-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/cron.d    -F perm=wa -k aws-crond-modify
+
+## ----------------------------------------------------------------------------
+## Sudoers changes — track privilege escalation path modifications
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -F path=/etc/sudoers   -F perm=wa -k aws-sudoers-modify
+-a always,exit -F arch=b64 -S open,openat,write,truncate,rename,unlink,creat -F dir=/etc/sudoers.d -F perm=wa -k aws-sudoers-modify
+
+## ----------------------------------------------------------------------------
+## SSH authorised keys — track lateral movement risk on EC2
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S open,openat -F dir=/root/.ssh -F perm=wa -k aws-ssh-key-modify
+
+## ----------------------------------------------------------------------------
+## User and group management
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -F path=/etc/passwd  -F perm=wa -k aws-identity-modify
+-a always,exit -F arch=b64 -F path=/etc/shadow  -F perm=wa -k aws-identity-modify
+-a always,exit -F arch=b64 -F path=/etc/group   -F perm=wa -k aws-identity-modify
+-a always,exit -F arch=b64 -F path=/etc/gshadow -F perm=wa -k aws-identity-modify
+
+## ----------------------------------------------------------------------------
+## Kernel module loading — detect rootkit or driver injection
+## ----------------------------------------------------------------------------
+-a always,exit -F arch=b64 -S init_module -S finit_module -S delete_module -k aws-kmod-load
+
+## ----------------------------------------------------------------------------
+## Make the rule set immutable at runtime (comment out during initial tuning)
+## ----------------------------------------------------------------------------
+## -e 2

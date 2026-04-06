@@ -1,0 +1,12 @@
+---
+# =============================================================================
+# tasks/wrapper.yml — deploy ausearch-aws convenience wrapper
+# =============================================================================
+
+- name: Deploy ausearch-aws wrapper script from template
+  ansible.builtin.template:
+    src: ausearch-aws.j2
+    dest: "{{ audit_enrich_wrapper_bin }}"
+    owner: root
+    group: root
+    mode: "0755"

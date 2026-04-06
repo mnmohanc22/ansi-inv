@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: audit_enrich_aws
+  description: >
+    Deploy Python-based AWS EC2 metadata enrichment for auditd on RHEL 8.
+    Fetches IMDSv2 metadata, writes env and JSON cache files, configures
+    systemd boot refresh, cron, auditd rules, and an ausearch wrapper.
+  company: L.A. Care Health Plan
+  license: MIT
+  min_ansible_version: "2.12"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+  galaxy_tags:
+    - aws
+    - auditd
+    - security
+    - compliance
+    - nist
+    - ec2
+    - rhel
+
+dependencies: []

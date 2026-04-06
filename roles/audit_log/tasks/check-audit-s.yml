@@ -1,0 +1,128 @@
+---
+# Check auditd is running and enabled
+- name: Verify auditd service status
+  block:
+    - name: Check if auditd service is running
+      ansible.builtin.command: systemctl is-active auditd
+      register: auditd_status
+      failed_when: auditd_status.rc != 0
+      changed_when: false
+
+    - name: Show auditd status
+      ansible.builtin.debug:
+        msg: "auditd service is {{ 'active' if 'active' in auditd_status.stdout else 'inactive' }}"
+
+    - name: Check if auditd service is enabled
+      ansible.builtin.command: systemctl is-enabled auditd
+      register: auditd_enabled_status
+      failed_when: auditd_enabled_status.rc != 0
+      changed_when: false
+
+    - name: Show if auditd is enabled
+      ansible.builtin.debug:
+        msg: "auditd service is {{ 'enabled' if 'enabled' in auditd_enabled_status.stdout else 'disabled' }}"
+
+
+
+## verify audit rules are loaded
+- name: Verify audit rules are loaded
+  block:
+    - name: Check if audit rules are loaded
+      ansible.builtin.command: auditctl -l
+      register: auditctl_rules
+      failed_when: auditctl_rules.rc != 0
+      changed_when: false
+
+    - name: Show loaded audit rules
+      ansible.builtin.debug:
+        msg: "Loaded audit rules:\n{{ auditctl_rules.stdout }}" 
+
+# check audit log format includes hostname - tail last 5 lines of audit log and check if hostname is included in the log format
+- name: Check audit log format includes hostname
+  block:
+    - name: Check if audit log format includes hostname
+      ansible.builtin.command: "ausearch -m USER_LOGIN -sv no | tail -n 5"
+      register: ausearch_output
+      failed_when: ausearch_output.rc != 0
+      changed_when: false          
+
+## generate sudo test event and check if it is logged in the audit log
+- name: Generate sudo test event and check if it is logged in the audit log
+  block:
+    - name: Generate sudo test event
+      ansible.builtin.command: "sudo -l"
+      register: sudo_test
+      failed_when: sudo_test.rc != 0
+      changed_when: false 
+
+    - name: Check if sudo test event is logged in audit log
+      ansible.builtin.command: "ausearch -m USER_CMD -sv no | tail -n 5"
+      register: sudo_ausearch
+      failed_when: sudo_ausearch.rc != 0
+      changed_when: false
+
+## look for login events in the audit log
+
+- name: Check for login events in audit log
+  block:
+    - name: Check for login events in audit log
+      ansible.builtin.command: "ausearch -m USER_LOGIN -sv no | tail -n 5"
+      register: login_ausearch
+      failed_when: login_ausearch.rc != 0
+      changed_when: false
+
+    - name: Show recent login events
+      ansible.builtin.debug:
+        msg: "Recent login events:\n{{ login_ausearch.stdout }}"
+
+
+#check for enriched logs in syslog
+- name: Check for enriched logs in syslog
+  block:
+    - name: Check for enriched logs in syslog
+      ansible.builtin.command: "grep 'audittd' /var/log/syslog | tail -n 5 | python3 -m json.tool"
+      register: syslog_auditd
+      failed_when: syslog_auditd.rc != 0
+      changed_when: false 
+
+    - name: Show recent auditd logs in syslog
+      ansible.builtin.debug:
+        msg: "Recent auditd logs in syslog:\n{{ syslog_auditd.stdout }}"  
+
+## validate enrichment fields are present in the enriched audit logs
+- name: Validate enrichment fields are present in enriched logs in auditd logs 
+  block:
+    - name: touch file to test enrichment fields
+      ansible.builtin.command: "touch /etc/cron.d/auditd_enrichment_test && sleep 1 && rm /etc/cron.d/auditd_enrichment_test"
+      register: touch_test
+      failed_when: touch_test.rc != 0
+      changed_when: false
+
+    - name: Check for test event in auditd logs
+      ansible.builtin.command: "ausearch -k cron -ts recent | grep -E 'auditd_enrichment_test|auditd'"
+      register: auditd_test_event
+      failed_when: auditd_test_event.rc != 0
+      changed_when: false
+
+    - name: Show auditd enrichment test event
+      ansible.builtin.debug:
+        msg: "Auditd enrichment test event:\n{{ auditd_test_event.stdout }}"  
+
+## verify enriched JSON in ysslog ctonains all required fields
+- name: Verify enriched JSON in syslog contains all required fields
+  block:
+    - name: Check for enriched logs in syslog
+      ansible.builtin.command: "sudo journalctl -u auditd --since '5 minutes ago' -o json | tail -n 5 | python3 -m json.tool"
+      register: journalctl_auditd
+      failed_when: journalctl_auditd.rc != 0
+      changed_when: false
+
+    - name: run python script to check for required fields in enriched JSON logs
+      ansible.builtin.command: "sudo journalctl -u auditd --since '5 minutes ago' -o json | python3 check_enrichment_fields.py"
+      register: enrichment_check
+      failed_when: enrichment_check.rc != 0
+      changed_when: false  
+
+    - name: Show enrichment check results
+      ansible.builtin.debug:
+        msg: "Enrichment check results:\n{{ enrichment_check.stdout }}"   

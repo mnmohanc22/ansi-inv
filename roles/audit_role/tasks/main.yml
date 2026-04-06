@@ -1,0 +1,50 @@
+---
+# =============================================================================
+# tasks/main.yml — audit_enrich_aws role
+# Orchestrates all sub-task files in order.
+# =============================================================================
+
+- name: print debug message about role execution
+  ansible.builtin.debug:
+    msg: "Starting audit enrichment tasks on {{ inventory_hostname }}"
+  tags: 
+    - always
+
+- name: Include preflight checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [audit_enrich, preflight]
+
+- name: Include script deployment tasks
+  ansible.builtin.import_tasks: deploy_scripts.yml
+  tags: [audit_enrich, scripts]
+
+- name: Include systemd unit tasks
+  ansible.builtin.import_tasks: systemd.yml
+  tags: [audit_enrich, systemd]
+
+- name: Include cron tasks
+  ansible.builtin.import_tasks: cron.yml
+  tags: [audit_enrich, cron]
+
+- name: Include auditd rules tasks
+  ansible.builtin.import_tasks: auditd_rules.yml
+  tags: [audit_enrich, auditd]
+  when: audit_enrich_install_auditd_rules | bool
+
+- name: Include audisp configuration tasks
+  ansible.builtin.import_tasks: audisp.yml
+  tags: [audit_enrich, audisp]
+
+- name: Include ausearch wrapper tasks
+  ansible.builtin.import_tasks: wrapper.yml
+  tags: [audit_enrich, wrapper]
+  when: audit_enrich_install_wrapper | bool
+
+- name: Include logrotate tasks
+  ansible.builtin.import_tasks: logrotate.yml
+  tags: [audit_enrich, logrotate]
+  when: audit_enrich_install_logrotate | bool
+
+- name: Include verification tasks
+  ansible.builtin.import_tasks: verify.yml
+  tags: [audit_enrich, verify]

@@ -1,0 +1,14 @@
+---
+# =============================================================================
+# vars/main.yml — audit_enrich_aws role
+# Internal constants. Do not override in inventory.
+# =============================================================================
+
+# systemd unit name
+audit_enrich_service_name: audit-enrich-aws
+
+# audisp syslog plugin path (RHEL 8)
+audit_enrich_audisp_syslog_conf: /etc/audit/plugins.d/syslog.conf
+
+# auditd rules drop-in directory
+audit_enrich_rules_dir: /etc/audit/rules.d

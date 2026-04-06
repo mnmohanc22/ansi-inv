@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# =============================================================================
+# /etc/logrotate.d/aws-audit-enrich
+# Managed by Ansible role: audit_enrich_aws
+# =============================================================================
+
+{{ audit_enrich_refresh_log }} {
+    {{ audit_enrich_logrotate_schedule }}
+    rotate {{ audit_enrich_logrotate_rotate }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    dateext
+    dateformat -%Y%m%d
+}

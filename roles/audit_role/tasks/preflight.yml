@@ -1,0 +1,57 @@
+---
+# =============================================================================
+# tasks/preflight.yml — sanity checks before any changes are made
+# =============================================================================
+
+- name: Verify OS is RHEL/CentOS/Rocky 8 or 9
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "RedHat"
+      - ansible_distribution_major_version | int >= 9
+    fail_msg: >
+      This role targets RHEL 8/9 (or compatible). Detected:
+      {{ ansible_distribution }} {{ ansible_distribution_version }}
+    success_msg: "OS check passed: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+
+- name: Verify Python 3 is available at configured path
+  ansible.builtin.command: "{{ audit_enrich_python_bin }} --version"
+  register: _py_version
+  changed_when: false
+  failed_when: _py_version.rc != 0
+
+- name: Display Python version
+  ansible.builtin.debug:
+    msg: "Python: {{ _py_version.stdout | trim }}"
+
+- name: Verify auditd package is installed
+  ansible.builtin.command: rpm -q audit
+  register: _audit_pkg
+  changed_when: false
+  failed_when: _audit_pkg.rc != 0
+
+- name: Confirm IMDSv2 is reachable (PUT token request)
+  ansible.builtin.uri:
+    url: "http://169.254.169.254/latest/api/token"
+    method: PUT
+    headers:
+      X-aws-ec2-metadata-token-ttl-seconds: "{{ audit_enrich_imds_token_ttl }}"
+    timeout: "{{ audit_enrich_imds_timeout }}"
+    status_code: [200]
+  register: _imds_check
+  failed_when: _imds_check.status != 200
+
+- name: Ensure audit log directory exists with correct permissions
+  ansible.builtin.file:
+    path: "{{ audit_enrich_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Ensure script installation directory exists
+  ansible.builtin.file:
+    path: "{{ audit_enrich_script_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"

@@ -1,0 +1,23 @@
+---
+# =============================================================================
+# site.yml — example playbook consuming the audit_enrich_aws role
+#
+# Usage:
+#   ansible-playbook site.yml -i inventory/hosts.ini
+#   ansible-playbook site.yml -i inventory/hosts.ini --tags preflight,scripts
+#   ansible-playbook site.yml -i inventory/hosts.ini --limit wlsintq01
+# =============================================================================
+
+- name: Deploy AWS audit log enrichment on RHEL 8 EC2 nodes
+  hosts: ec2_rhel8
+  become: true
+  gather_facts: true
+
+  # Override role defaults here or in group_vars/ec2_rhel8.yml
+  vars:
+    audit_enrich_cron_minute: "30"    # refresh at :30 past each hour
+    audit_enrich_cron_hour:   "*"
+
+  roles:
+    - role: audit_enrich_aws
+      tags: audit_enrich_aws

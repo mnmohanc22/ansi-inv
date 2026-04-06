@@ -1,0 +1,17 @@
+---
+# =============================================================================
+# tasks/cron.yml — periodic metadata refresh via cron
+# =============================================================================
+
+- name: Install cron job for periodic AWS metadata refresh
+  ansible.builtin.cron:
+    name: "AWS metadata refresh for auditd enrichment"
+    minute: "{{ audit_enrich_cron_minute }}"
+    hour: "{{ audit_enrich_cron_hour }}"
+    user: root
+    job: >-
+      {{ audit_enrich_python_bin }} {{ audit_enrich_fetch_script }}
+      --env-file {{ audit_enrich_env_file }}
+      --json-cache {{ audit_enrich_json_cache }}
+      >> {{ audit_enrich_refresh_log }} 2>&1
+    state: present

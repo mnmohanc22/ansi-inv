@@ -1,0 +1,33 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# =============================================================================
+# ausearch-aws
+# Convenience wrapper: prints the AWS EC2 context banner sourced from the
+# local metadata cache, then passes all arguments through to ausearch(8).
+#
+# Managed by Ansible role: audit_enrich_aws
+# Host     : {{ inventory_hostname }}
+# =============================================================================
+
+PYTHON="{{ audit_enrich_python_bin }}"
+ENRICH="{{ audit_enrich_enrich_script }}"
+CACHE="{{ audit_enrich_json_cache }}"
+
+# Verify dependencies
+if [ ! -f "$ENRICH" ]; then
+    echo "ERROR: Enrichment script not found: $ENRICH" >&2
+    exit 1
+fi
+
+if [ ! -f "$CACHE" ]; then
+    echo "WARNING: Metadata cache not found: $CACHE" >&2
+    echo "Run 'aws_metadata_fetch.py' to populate it, or wait for the next cron cycle." >&2
+    echo ""
+fi
+
+# Print the AWS context banner via audit_log_enrich.py --show
+"$PYTHON" "$ENRICH" --show --json-cache "$CACHE" 2>/dev/null
+echo ""
+
+# Pass all arguments through to ausearch
+exec ausearch "$@"

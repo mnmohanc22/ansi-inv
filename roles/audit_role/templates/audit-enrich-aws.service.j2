@@ -1,0 +1,40 @@
+# {{ ansible_managed }}
+# =============================================================================
+# audit-enrich-aws.service
+# Refresh AWS EC2 metadata for auditd log enrichment at boot time.
+# Managed by Ansible role: audit_enrich_aws
+# =============================================================================
+
+[Unit]
+Description=Refresh AWS EC2 metadata for auditd log enrichment
+Documentation=https://github.com/your-org/audit-enrich-aws
+After=network-online.target auditd.service
+Wants=network-online.target
+Before=crond.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+ExecStart={{ audit_enrich_python_bin }} {{ audit_enrich_fetch_script }} \
+    --env-file {{ audit_enrich_env_file }} \
+    --json-cache {{ audit_enrich_json_cache }}
+
+# Restart policy — retry once on failure (e.g. IMDS not yet available at boot)
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=60
+StartLimitBurst=2
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=audit-enrich-aws
+
+# Harden the service unit
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths={{ audit_enrich_log_dir }}
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+---
+- name: RHEL server audit enrichment
+  hosts: rhel
+  become: true
+  roles:
+    - audit_role
+

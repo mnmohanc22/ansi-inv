@@ -1,0 +1,18 @@
+---
+# =============================================================================
+# tasks/audisp.yml — ensure the audisp syslog plugin forwards audit events
+# =============================================================================
+
+- name: Check if audisp syslog plugin config exists
+  ansible.builtin.stat:
+    path: "{{ audit_enrich_audisp_syslog_conf }}"
+  register: _audisp_conf
+
+- name: Activate audisp syslog plugin (if config present)
+  ansible.builtin.lineinfile:
+    path: "{{ audit_enrich_audisp_syslog_conf }}"
+    regexp: "^active"
+    line: "active = yes"
+    state: present
+  when: _audisp_conf.stat.exists
+  notify: Restart auditd

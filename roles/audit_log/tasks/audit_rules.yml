@@ -5,18 +5,7 @@
 
 - name: Configure audit rules
   block:
-    - name: Check if audit.rules dir exists
-      ansible.builtin.stat:
-        path: /etc/audit/rules.d
-      register: audit_rules_dir_stat
-
-    - name: Copy existing audit.rules to backup directory if it exists
-      ansible.builtin.copy:
-        src: /etc/audit/audit.rules
-        dest: "{{ audit_backup_dir }}/audit.rules"
-        remote_src: true
-      when: audit_rules_dir_stat.stat.exists
-
+   
     - name: Ensure /etc/audit/rules.d exists
       ansible.builtin.file:
         path: /etc/audit/rules.d
@@ -24,6 +13,45 @@
         owner: root
         group: root
         mode: "0750"
+
+    - name: Ensure all directories referenced by audit rules exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+      loop:
+        - /etc/chrony.d
+        - /etc/sudoers.d
+        - /etc/security
+        - /etc/pki
+        - /etc/cron.d
+        - /etc/cron.daily
+        - /etc/cron.hourly
+        - /etc/cron.monthly
+        - /etc/cron.weekly
+        - /var/spool/cron
+        - /var/spool/at
+        - /etc/pam.d
+        - /lib64/security
+        - /usr/lib64/security
+        - /etc/ssh/sshd_config.d
+        - /etc/systemd/system
+        - /usr/lib/systemd/system
+        - /run/systemd
+        - /etc/rc.d/init.d
+        - /etc/selinux
+        - /usr/share/selinux
+        - /etc/sysconfig/network-scripts
+        - /etc/NetworkManager
+        - /etc/firewalld
+        - /etc/sysctl.d
+        - /run/credentials
+        - /root/.aws
+        - /root/.ssh
+        - /etc/aws
+        - "{{ fti_data_path | default('/data/fti') }}"
 
     - name: Remove stale audit rule files not managed by this role
       ansible.builtin.find:

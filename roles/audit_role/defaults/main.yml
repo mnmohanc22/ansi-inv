@@ -1,0 +1,60 @@
+---
+# =============================================================================
+# defaults/main.yml — audit_enrich_aws role
+# All variables here are intentionally overridable by inventory / group_vars.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Python interpreter
+# ---------------------------------------------------------------------------
+audit_enrich_python_bin: /usr/bin/python3
+
+# ---------------------------------------------------------------------------
+# Script installation paths
+# ---------------------------------------------------------------------------
+audit_enrich_script_dir:    /usr/local/lib/audit-enrich
+audit_enrich_fetch_script:  "{{ audit_enrich_script_dir }}/aws_metadata_fetch.py"
+audit_enrich_enrich_script: "{{ audit_enrich_script_dir }}/audit_log_enrich.py"
+audit_enrich_wrapper_bin:   /usr/local/bin/ausearch-aws
+
+# ---------------------------------------------------------------------------
+# Output file paths
+# ---------------------------------------------------------------------------
+audit_enrich_log_dir:    /var/log/audit
+audit_enrich_env_file:   "{{ audit_enrich_log_dir }}/aws_metadata.env"
+audit_enrich_json_cache: "{{ audit_enrich_log_dir }}/aws_metadata.json"
+audit_enrich_refresh_log: "{{ audit_enrich_log_dir }}/audit_enrich_aws.log"
+
+# ---------------------------------------------------------------------------
+# IMDS settings (passed into systemd / cron invocations via template)
+# ---------------------------------------------------------------------------
+audit_enrich_imds_timeout: 3
+audit_enrich_imds_retries: 3
+audit_enrich_imds_token_ttl: 21600
+
+# ---------------------------------------------------------------------------
+# Metadata refresh schedule (cron)
+# ---------------------------------------------------------------------------
+audit_enrich_cron_minute: "0"
+audit_enrich_cron_hour:   "*"      # every hour
+
+# ---------------------------------------------------------------------------
+# auditd rule options
+# ---------------------------------------------------------------------------
+audit_enrich_rules_file: /etc/audit/rules.d/99-aws-metadata.rules
+
+# Watch for IAM credential directory (set to '' to disable)
+audit_enrich_watch_aws_creds: /root/.aws
+
+# ---------------------------------------------------------------------------
+# Log rotation
+# ---------------------------------------------------------------------------
+audit_enrich_logrotate_rotate:   12
+audit_enrich_logrotate_schedule: weekly
+
+# ---------------------------------------------------------------------------
+# Feature flags
+# ---------------------------------------------------------------------------
+audit_enrich_install_auditd_rules: true
+audit_enrich_install_logrotate:    true
+audit_enrich_install_wrapper:      true

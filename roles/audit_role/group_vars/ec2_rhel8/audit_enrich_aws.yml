@@ -1,0 +1,55 @@
+---
+# =============================================================================
+# group_vars/ec2_rhel8/audit_enrich_aws.yml
+# Role variable overrides for the ec2_rhel8 host group.
+# These take precedence over role defaults/main.yml.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Python interpreter (RHEL 8 ships Python 3.6+ at this path)
+# ---------------------------------------------------------------------------
+audit_enrich_python_bin: /usr/bin/python3
+
+# ---------------------------------------------------------------------------
+# Script install location — keep separate from OS-managed /usr/local/bin
+# ---------------------------------------------------------------------------
+audit_enrich_script_dir: /usr/local/lib/audit-enrich
+
+# ---------------------------------------------------------------------------
+# Output paths
+# ---------------------------------------------------------------------------
+audit_enrich_log_dir:     /var/log/audit
+audit_enrich_env_file:    /var/log/audit/aws_metadata.env
+audit_enrich_json_cache:  /var/log/audit/aws_metadata.json
+audit_enrich_refresh_log: /var/log/audit/audit_enrich_aws.log
+
+# ---------------------------------------------------------------------------
+# IMDS tuning — tighten timeouts in environments with fast IMDSv2 responses
+# ---------------------------------------------------------------------------
+audit_enrich_imds_timeout:   3
+audit_enrich_imds_retries:   3
+audit_enrich_imds_token_ttl: 21600
+
+# ---------------------------------------------------------------------------
+# Cron — refresh at :15 past every hour (avoid top-of-hour thundering herd)
+# ---------------------------------------------------------------------------
+audit_enrich_cron_minute: "15"
+audit_enrich_cron_hour:   "*"
+
+# ---------------------------------------------------------------------------
+# auditd rules
+# ---------------------------------------------------------------------------
+audit_enrich_install_auditd_rules: true
+audit_enrich_watch_aws_creds: /root/.aws   # set to '' to disable
+
+# ---------------------------------------------------------------------------
+# Log rotation
+# ---------------------------------------------------------------------------
+audit_enrich_logrotate_rotate:   12
+audit_enrich_logrotate_schedule: weekly
+
+# ---------------------------------------------------------------------------
+# Feature flags
+# ---------------------------------------------------------------------------
+audit_enrich_install_logrotate: true
+audit_enrich_install_wrapper:   true
