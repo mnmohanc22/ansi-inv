@@ -1,0 +1,9 @@
+- name: Convert current run tags to API format
+  set_fact:
+    downstream_job_tags: >-
+      {{
+        (ansible_run_tags | default(['all']))
+        | reject('equalto', 'all')
+        | list
+        | join(',')
+      }}
