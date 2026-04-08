@@ -1,0 +1,40 @@
+# /etc/audit/plugins.d/audit_enrich_simple.conf
+active    = yes
+direction = out
+path      = /usr/bin/python3
+args      = -u /opt/scripts/audit_enrich_simple.py
+type      = always
+format    = string
+
+# /etc/logrotate.d/audit-enriched
+
+/var/log/audit-enriched.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    postrotate
+        /bin/kill -HUP $(cat /var/run/rsyslogd.pid 2>/dev/null) 2>/dev/null || true
+    endscript
+}
+
+# /etc/rsyslog.d/40-audit-enriched.conf
+
+# All enriched audit records go to dedicated file only
+# Never touches /var/log/messages
+
+if $programname == 'AUDIT_ENRICHED' then {
+    action(
+        type="omfile"
+        file="/var/log/audit-enriched.log"
+        fileCreateMode="0640"
+        dirOwner="root"
+        dirGroup="root"
+        flushOnTXEnd="on"
+        asyncWriting="off"
+    )
+    stop    # stop here — never falls through to /var/log/messages
+}
