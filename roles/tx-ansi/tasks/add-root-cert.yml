@@ -1,0 +1,60 @@
+## add root certificate to the JDK keystore
+
+- name: Ensure certificate file exists
+  stat:
+    path: "{{ cert_file }}"
+  register: cert_stat
+
+- name: Fail if certificate not found
+  fail:
+    msg: "Certificate file not found at {{ cert_file }}"
+  when: not cert_stat.stat.exists
+
+- name: Backup cacerts
+  copy:
+    src: "{{ cacerts_path }}"
+    dest: "{{ cacerts_path }}.bak"
+    remote_src: yes
+  when: cacerts_stat.stat.exists
+
+- name: Check if certificate already exists
+  command: >
+    {{ keytool_path }} -list
+    -keystore {{ cacerts_path }}
+    -storepass {{ cacerts_password }}
+    -alias {{ cert_alias }}
+  register: cert_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Import certificate into cacerts
+  command: >
+    {{ keytool_path }} -importcert
+    -noprompt
+    -trustcacerts
+    -alias {{ cert_alias }}
+    -file {{ cert_file }}
+    -keystore {{ cacerts_path }}
+    -storepass {{ cacerts_password }}
+  when: cert_check.rc != 0
+
+- name: Verify certificate import
+  command: >
+    {{ keytool_path }} -list
+    -keystore {{ cacerts_path }}
+    -storepass {{ cacerts_password }}
+    -alias {{ cert_alias }}
+  register: verify_output
+
+- name: Show verification output
+  debug:
+    var: verify_output.stdout
+
+# - name: "Add root certificate to JDK keystore"
+#   command: "keytool -import -alias rootcert -file /tmp/rootcert.pem -keystore {{ jdk_home }}/lib/security/cacerts -storepass changeit -noprompt"
+#   register: import_output
+#   ignore_errors: yes
+
+# - name: "Print import output"
+#   debug:
+#     var: import_output.stdout_lines

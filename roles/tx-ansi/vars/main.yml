@@ -1,0 +1,12 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for tx-ansi
+
+
+jdk_home: "/opt/java/jdk17"
+cacerts_path: "{{ jdk_home }}/lib/security/cacerts"
+keytool_path: "{{ jdk_home }}/bin/keytool"
+cacerts_password: changeit
+
+cert_file: /tmp/rootCA.crt
+cert_alias: my-root-ca

@@ -1,0 +1,36 @@
+
+## list certificate aliases in the keystore
+# - name: "List certificate aliases"
+#   command: "keytool -list -keystore {{ jdk_home }}/lib/security/cacerts -storepass changeit"
+#   register: certs_output
+
+# - name: "Print certificate aliases"
+#   debug:
+#     var: certs_output.stdout_lines
+
+- name: list all certificates in cacerts
+  command: >
+    {{ keytool_path }} -list
+    -keystore {{ cacerts_path }}
+    -storepass {{ cacerts_password }}
+  register: all_certs_output
+  ignore_errors: yes
+  changed_when: false
+
+- name: "Print all certificates"
+  debug:
+    var: all_certs_output.stdout_lines
+
+- name: Check if certificate already exists
+  command: >
+    {{ keytool_path }} -list
+    -keystore {{ cacerts_path }}
+    -storepass {{ cacerts_password }}
+    -alias {{ cert_alias }}
+  register: cert_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: "Print certificate check output"
+  debug:
+    var: cert_check.stdout_lines  

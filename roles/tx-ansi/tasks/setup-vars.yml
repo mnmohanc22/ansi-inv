@@ -1,0 +1,18 @@
+## print jdk-home
+
+- name: Validate JAVA_HOME exists
+  stat:
+    path: "{{ jdk_home }}"
+  register: java_home_stat
+
+- name: Fail if JAVA_HOME is invalid
+  fail:
+    msg: "JAVA_HOME {{ jdk_home }} does not exist"
+  when: not java_home_stat.stat.exists
+
+- name: "Print jdk_home"
+  debug:
+    msg: "jdk_home is {{ jdk_home }}"
+
+
+
