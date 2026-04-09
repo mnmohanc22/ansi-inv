@@ -1,0 +1,24 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for sow-int
+
+# Fields to update on the incident
+snow_fields:
+  state:            '2'          # 2=In Progress, 6=Resolved, 7=Closed
+  assigned_to:      ""
+  assignment_group: "iam-middleware"
+  priority:         '2'          # 1=Critical 2=High 3=Medium 4=Low
+
+# Work notes — internal only, not visible to end user
+snow_work_notes: |
+  [code]
+  Ansible automation completed successfully on {{ ansible_date_time.iso8601 | default('N/A') }}
+
+
+  No manual intervention required.
+  [/code]
+
+# Additional comments — visible to end user / requester
+snow_comments: >
+  Automated deployment completed.
+  Contact iam-middleware team for questions.

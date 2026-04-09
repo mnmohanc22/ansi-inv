@@ -1,0 +1,43 @@
+- name: Update ServiceNow record fields
+  block:
+    - name: Build field update payload
+      ansible.builtin.set_fact:
+        _snow_field_payload: "{{ snow_fields }}"
+
+    - name: Display fields to be updated
+      ansible.builtin.debug:
+        msg: "Updating {{ _snow_field_payload | length }} field(s) on {{ snow_table }} {{ snow_record_number | default(snow_record_sys_id) }}"
+        verbosity: 1
+
+    - name: PATCH ServiceNow record fields
+      ansible.builtin.uri:
+        url:              "{{ _snow_base_url }}/{{ snow_table }}/{{ snow_record_sys_id }}"
+        method:           PATCH
+        user:             "{{ vault_snow_username }}"
+        password:         "{{ vault_snow_password }}"
+        force_basic_auth: true
+        headers:          "{{ _snow_headers }}"
+        body:             "{{ _snow_field_payload | to_json }}"
+        body_format:      json
+        validate_certs:   "{{ snow_validate_certs }}"
+        timeout:          "{{ snow_timeout }}"
+        status_code:      [200]
+        return_content:   true
+      register:   _snow_field_result
+      retries:    "{{ snow_retries }}"
+      delay:      "{{ snow_retry_delay }}"
+      until:      _snow_field_result.status == 200
+      no_log:     false   # set true if fields contain sensitive data
+
+    - name: Store updated field values for verification
+      ansible.builtin.set_fact:
+        _snow_updated_fields: "{{ _snow_field_result.json.result }}"
+
+    - name: Display ServiceNow field update result
+      ansible.builtin.debug:
+        msg:
+          - "Status           : {{ _snow_field_result.status }}"
+          - "Record sys_id    : {{ _snow_updated_fields.sys_id }}"
+          - "Record number    : {{ _snow_updated_fields.number | default('N/A') }}"
+          - "Fields updated   : {{ snow_fields.keys() | list | join(', ') }}"
+        verbosity: 0  
