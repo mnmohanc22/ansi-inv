@@ -1,0 +1,247 @@
+---
+# tasks/firewalld_detect_mode.yml
+#
+# Enables firewalld in detect mode:
+#   - Service running and enabled
+#   - Default zone = trusted (no blocking)
+#   - log-denied = all (full visibility to auditd)
+#   - Rich rules log specific traffic patterns
+#
+# NIST 800-53 : AU-2  Audit Events
+#               AU-12 Audit Record Generation
+#               CA-7  Continuous Monitoring
+#               SI-4  System Monitoring
+
+# ── 1. Install firewalld ──────────────────────────────────────
+- name: "firewalld detect | Install firewalld"
+  tags:
+    - firewalld
+    - detect
+    - install
+  block:
+    - name: "firewalld detect | Ensure firewalld is installed"
+      ansible.builtin.dnf:
+        name:  firewalld
+        state: present
+
+# ── 2. Disable conflicting services ──────────────────────────
+- name: "firewalld detect | Disable conflicting services"
+  tags:
+    - firewalld
+    - detect
+  block:
+    - name: "firewalld detect | Stop and disable iptables"
+      ansible.builtin.systemd:
+        name:    iptables
+        state:   stopped
+        enabled: false
+        masked:  true
+      failed_when: false
+
+    - name: "firewalld detect | Stop and disable ip6tables"
+      ansible.builtin.systemd:
+        name:    ip6tables
+        state:   stopped
+        enabled: false
+        masked:  true
+      failed_when: false
+
+    - name: "firewalld detect | Stop and disable nftables"
+      ansible.builtin.systemd:
+        name:    nftables
+        state:   stopped
+        enabled: false
+        masked:  true
+      failed_when: false
+
+# ── 3. Enable and start firewalld ────────────────────────────
+- name: "firewalld detect | Enable and start firewalld service"
+  tags:
+    - firewalld
+    - detect
+    - service
+  block:
+    - name: "firewalld detect | Unmask firewalld"
+      ansible.builtin.systemd:
+        name:   firewalld
+        masked: false
+
+    - name: "firewalld detect | Enable and start firewalld"
+      ansible.builtin.systemd:
+        name:    firewalld
+        state:   started
+        enabled: true
+      register: _firewalld_state
+
+    - name: "firewalld detect | Confirm firewalld is running"
+      ansible.builtin.assert:
+        that:
+          - _firewalld_state is not failed
+        fail_msg:    "firewalld failed to start — check: journalctl -u firewalld"
+        success_msg: "firewalld is running"
+
+# ── 4. Set default zone to trusted (detect mode — no blocking)
+- name: "firewalld detect | Configure default zone"
+  tags:
+    - firewalld
+    - detect
+    - configure
+  block:
+    - name: "firewalld detect | Get current default zone"
+      ansible.builtin.command:
+        cmd: firewall-cmd --get-default-zone
+      register:     _current_zone
+      changed_when: false
+
+    - name: "firewalld detect | Set default zone to trusted (no blocking)"
+      ansible.builtin.command:
+        cmd: firewall-cmd --set-default-zone={{ firewalld_detect_zone }}
+      when:     _current_zone.stdout != firewalld_detect_zone
+      register: _zone_runtime
+      changed_when: _zone_runtime.rc == 0
+      notify: Reload firewalld
+
+    - name: "firewalld detect | Set default zone permanently"
+      ansible.builtin.command:
+        cmd: firewall-cmd --set-default-zone={{ firewalld_detect_zone }} --permanent
+      when:     _current_zone.stdout != firewalld_detect_zone
+      register: _zone_permanent
+      changed_when: _zone_permanent.rc == 0
+
+# ── 5. Enable log-denied for full traffic visibility ─────────
+- name: "firewalld detect | Configure log-denied"
+  tags:
+    - firewalld
+    - detect
+    - configure
+  block:
+    - name: "firewalld detect | Get current log-denied setting"
+      ansible.builtin.command:
+        cmd: firewall-cmd --get-log-denied
+      register:     _current_log_denied
+      changed_when: false
+
+    - name: "firewalld detect | Set log-denied=all for runtime"
+      ansible.builtin.command:
+        cmd: firewall-cmd --set-log-denied={{ firewalld_log_denied }}
+      when:     _current_log_denied.stdout != firewalld_log_denied
+      register: _log_denied_runtime
+      changed_when: _log_denied_runtime.rc == 0
+      notify: Reload firewalld
+
+    - name: "firewalld detect | Set log-denied=all permanently"
+      ansible.builtin.command:
+        cmd: firewall-cmd --set-log-denied={{ firewalld_log_denied }} --permanent
+      when:     _current_log_denied.stdout != firewalld_log_denied
+      register: _log_denied_permanent
+      changed_when: _log_denied_permanent.rc == 0
+
+# ── 6. Add rich rules to log specific traffic patterns ────────
+- name: "firewalld detect | Add rich rules for traffic logging"
+  tags:
+    - firewalld
+    - detect
+    - rich_rules
+  block:
+    - name: "firewalld detect | Add rich rule to log SSH connection attempts"
+      ansible.posix.firewalld:
+        rich_rule:   'rule family="ipv4" service name="ssh" log prefix="FW_DETECT_SSH " level="info" accept'
+        zone:        "{{ firewalld_detect_zone }}"
+        permanent:   true
+        state:       enabled
+        immediate:   true
+
+    - name: "firewalld detect | Add rich rule to log HTTP traffic"
+      ansible.posix.firewalld:
+        rich_rule:   'rule family="ipv4" service name="http" log prefix="FW_DETECT_HTTP " level="info" accept'
+        zone:        "{{ firewalld_detect_zone }}"
+        permanent:   true
+        state:       enabled
+        immediate:   true
+
+    - name: "firewalld detect | Add rich rule to log HTTPS traffic"
+      ansible.posix.firewalld:
+        rich_rule:   'rule family="ipv4" service name="https" log prefix="FW_DETECT_HTTPS " level="info" accept'
+        zone:        "{{ firewalld_detect_zone }}"
+        permanent:   true
+        state:       enabled
+        immediate:   true
+
+    - name: "firewalld detect | Add rich rules for custom ports"
+      ansible.posix.firewalld:
+        rich_rule:   "rule family=\"ipv4\" port port=\"{{ item.port }}\" protocol=\"{{ item.proto }}\" log prefix=\"FW_DETECT_PORT_{{ item.port }} \" level=\"info\" accept"
+        zone:        "{{ firewalld_detect_zone }}"
+        permanent:   true
+        state:       enabled
+        immediate:   true
+      loop:          "{{ firewalld_detect_log_ports }}"
+      loop_control:
+        label: "port {{ item.port }}/{{ item.proto }}"
+      when:          firewalld_detect_log_ports | length > 0
+
+# ── 7. Reload firewalld to apply all changes ──────────────────
+- name: "firewalld detect | Reload firewalld to apply changes"
+  tags:
+    - firewalld
+    - detect
+    - configure
+  block:
+    - name: "firewalld detect | Reload firewalld"
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+      changed_when: true
+
+# ── 8. Validate detect mode is active ────────────────────────
+# ── 9. Display detect mode summary ───────────────────────────
+- name: "firewalld detect | Validate and display detect mode status"
+  tags:
+    - firewalld
+    - detect
+    - validate
+  block:
+    - name: "firewalld detect | Verify service is active"
+      ansible.builtin.command:
+        cmd: systemctl is-active firewalld
+      register:     _verify_active
+      changed_when: false
+      failed_when:  _verify_active.stdout != 'active'
+
+    - name: "firewalld detect | Verify service is enabled"
+      ansible.builtin.command:
+        cmd: systemctl is-enabled firewalld
+      register:     _verify_enabled
+      changed_when: false
+      failed_when:  _verify_enabled.stdout != 'enabled'
+
+    - name: "firewalld detect | Verify default zone is trusted"
+      ansible.builtin.command:
+        cmd: firewall-cmd --get-default-zone
+      register:     _verify_zone
+      changed_when: false
+      failed_when:  _verify_zone.stdout != firewalld_detect_zone
+
+    - name: "firewalld detect | Verify log-denied is all"
+      ansible.builtin.command:
+        cmd: firewall-cmd --get-log-denied
+      register:     _verify_log
+      changed_when: false
+      failed_when:  _verify_log.stdout != firewalld_log_denied
+
+    - name: "firewalld detect | Check auditd is receiving NETFILTER_PKT events"
+      ansible.builtin.shell: |
+        ausearch -m NETFILTER_PKT -ts today 2>/dev/null | wc -l
+      register:     _audit_events
+      changed_when: false
+      failed_when:  false
+
+    - name: "firewalld detect | Display detect mode status"
+      ansible.builtin.debug:
+        msg:
+          - "====== firewalld Detect Mode — {{ inventory_hostname }} ======"
+          - "Service active     : {{ _verify_active.stdout }}"
+          - "Service enabled    : {{ _verify_enabled.stdout }}"
+          - "Default zone       : {{ _verify_zone.stdout }} (no blocking)"
+          - "Log denied         : {{ _verify_log.stdout }} (full visibility)"
+          - "Audit events today : {{ _audit_events.stdout }} NETFILTER_PKT"
+          - "Mode               : DETECT ONLY — traffic is NOT blocked"
+          - "Status             : {{ 'PASS' if _verify_active.stdout == 'active' and _verify_zone.stdout == firewalld_detect_zone and _verify_log.stdout == firewalld_log_denied else 'FAIL' }}"

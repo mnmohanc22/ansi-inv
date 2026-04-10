@@ -1,0 +1,65 @@
+- name: " Ensure gpgcheck=1 is set"
+  tags:
+    - cis
+    - cis_1_2_1_2
+    - gpgcheck
+    - patch
+  block:
+    # ── 1. Fix /etc/dnf/dnf.conf ─────────────────────────────────
+    - name: "CIS 1.2.1.2 | Ensure gpgcheck=1 is set in /etc/dnf/dnf.conf"
+      ansible.builtin.ini_file:
+        path:    /etc/dnf/dnf.conf
+        section: main
+        option:  gpgcheck
+        value:   "1"
+        owner:   root
+        group:   root
+        mode:    "0644"
+        backup:  true
+
+    # ── 2. Fix /etc/yum.conf ─────────────────────────────────────
+    - name: "CIS 1.2.1.2 | Ensure gpgcheck=1 is set in /etc/yum.conf"
+      ansible.builtin.ini_file:
+        path:    /etc/yum.conf
+        section: main
+        option:  gpgcheck
+        value:   "1"
+        owner:   root
+        group:   root
+        mode:    "0644"
+        backup:  true
+
+
+# ── 1. Fix /etc/dnf/dnf.conf ─────────────────────────────────
+- name: "CIS 1.2.1.2 | Ensure gpgcheck=1 exists in /etc/dnf/dnf.conf"
+  ansible.builtin.lineinfile:
+    path:     /etc/dnf/dnf.conf
+    regexp:   '^gpgcheck\s*='
+    line:     'gpgcheck=1'
+    insertafter: '^\[main\]'
+    state:    present
+    backup:   true
+    owner:    root
+    group:    root
+    mode:     "0644"
+  tags:
+    - cis
+    - cis_1_2_1_2
+    - gpgcheck
+
+# ── 2. Fix /etc/yum.conf ─────────────────────────────────────
+- name: "CIS 1.2.1.2 | Ensure gpgcheck=1 exists in /etc/yum.conf"
+  ansible.builtin.lineinfile:
+    path:        /etc/yum.conf
+    regexp:      '^gpgcheck\s*='
+    line:        'gpgcheck=1'
+    insertafter: '^\[main\]'
+    state:       present
+    backup:      true
+    owner:       root
+    group:       root
+    mode:        "0644"
+  tags:
+    - cis
+    - cis_1_2_1_2
+    - gpgcheck
