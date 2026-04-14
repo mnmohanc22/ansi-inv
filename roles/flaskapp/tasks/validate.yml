@@ -1,0 +1,68 @@
+---
+# roles/flaskapp/tasks/validate.yml
+
+- name: "flaskapp | Wait for Unix socket to appear"
+  ansible.builtin.wait_for:
+    path:    "{{ flaskapp_socket }}"
+    state:   present
+    timeout: 30
+  tags: [flaskapp, validate]
+
+- name: "flaskapp | Verify flaskapp systemd service is active"
+  ansible.builtin.command:
+    cmd: systemctl is-active flaskapp
+  register:     _svc_check
+  changed_when: false
+  failed_when:  _svc_check.stdout != 'active'
+  tags: [flaskapp, validate]
+
+- name: "flaskapp | Verify flaskapp service is enabled at boot"
+  ansible.builtin.command:
+    cmd: systemctl is-enabled flaskapp
+  register:     _svc_enabled
+  changed_when: false
+  failed_when:  _svc_enabled.stdout != 'enabled'
+  tags: [flaskapp, validate]
+
+- name: "flaskapp | Verify nginx is active"
+  ansible.builtin.command:
+    cmd: systemctl is-active nginx
+  register:     _nginx_check
+  changed_when: false
+  failed_when:  _nginx_check.stdout != 'active'
+  tags: [flaskapp, validate]
+
+- name: "flaskapp | Hit health check endpoint via localhost"
+  ansible.builtin.uri:
+    url:            "http://localhost/health"
+    method:         GET
+    status_code:    200
+    validate_certs: false
+  register: _health_check
+  retries:  5
+  delay:    5
+  until:    _health_check.status == 200
+  tags: [flaskapp, validate]
+
+- name: "flaskapp | Verify log directory exists and is writable"
+  ansible.builtin.stat:
+    path: "{{ flaskapp_root }}/logs"
+  register:     _log_dir
+  failed_when:  not _log_dir.stat.exists
+  changed_when: false
+  tags: [flaskapp, validate]
+
+- name: "flaskapp | Display deployment summary"
+  ansible.builtin.debug:
+    msg:
+      - "====== Flask App Deployment — {{ inventory_hostname }} ======"
+      - "flaskapp service  : {{ _svc_check.stdout }}"
+      - "flaskapp enabled  : {{ _svc_enabled.stdout }}"
+      - "nginx service     : {{ _nginx_check.stdout }}"
+      - "health endpoint   : HTTP {{ _health_check.status }}"
+      - "health response   : {{ _health_check.json | default({}) }}"
+      - "socket path       : {{ flaskapp_socket }}"
+      - "app root          : {{ flaskapp_root }}"
+      - "logs              : {{ flaskapp_root }}/logs/"
+      - "Overall status    : PASS"
+  tags: [flaskapp, validate]

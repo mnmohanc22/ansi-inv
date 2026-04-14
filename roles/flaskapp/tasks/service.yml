@@ -1,0 +1,26 @@
+---
+# roles/flaskapp/tasks/service.yml
+
+- name: "flaskapp | Deploy systemd service unit"
+  ansible.builtin.template:
+    src:    "{{ role_path }}/templates/flaskapp.service.j2"
+    dest:   /etc/systemd/system/flaskapp.service
+    owner:  root
+    group:  root
+    mode:   "0644"
+  notify:
+    - Reload systemd
+    - Restart flaskapp
+  tags: [flaskapp, service]
+
+- name: "flaskapp | Reload systemd daemon"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  tags: [flaskapp, service]
+
+- name: "flaskapp | Enable and start flaskapp service"
+  ansible.builtin.systemd:
+    name:    flaskapp
+    enabled: true
+    state:   started
+  tags: [flaskapp, service]

@@ -1,0 +1,39 @@
+---
+# roles/flaskapp/tasks/firewall.yml
+
+- name: "flaskapp | Enable and start firewalld"
+  ansible.builtin.systemd:
+    name:    firewalld
+    enabled: true
+    state:   started
+  tags: [flaskapp, firewall]
+
+- name: "flaskapp | Allow HTTP through firewalld"
+  ansible.posix.firewalld:
+    service:   http
+    zone:      public
+    permanent: true
+    state:     enabled
+    immediate: true
+  tags: [flaskapp, firewall]
+
+- name: "flaskapp | Allow HTTPS through firewalld"
+  ansible.posix.firewalld:
+    service:   https
+    zone:      public
+    permanent: true
+    state:     enabled
+    immediate: true
+  tags: [flaskapp, firewall]
+
+- name: "flaskapp | Enable log-denied for audit visibility"
+  ansible.builtin.command:
+    cmd: firewall-cmd --set-log-denied=all --permanent
+  changed_when: true
+  tags: [flaskapp, firewall]
+
+- name: "flaskapp | Reload firewalld"
+  ansible.builtin.command:
+    cmd: firewall-cmd --reload
+  changed_when: true
+  tags: [flaskapp, firewall]

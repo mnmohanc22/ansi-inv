@@ -1,0 +1,48 @@
+[Unit]
+Description=Flask Production Application — {{ flaskapp_name }}
+Documentation=https://flask.palletsprojects.com
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+# ── Identity ──────────────────────────────────────────────────
+Type=notify
+User={{ flaskapp_user }}
+Group={{ flaskapp_group }}
+
+# ── Runtime socket directory ──────────────────────────────────
+RuntimeDirectory={{ flaskapp_name }}
+RuntimeDirectoryMode=0755
+
+# ── Working directory and environment ─────────────────────────
+WorkingDirectory={{ flaskapp_root }}
+EnvironmentFile={{ flaskapp_root }}/.env
+
+# ── Start command ─────────────────────────────────────────────
+ExecStart={{ flaskapp_root }}/venv/bin/gunicorn \
+    --config {{ flaskapp_root }}/gunicorn.conf.py \
+    wsgi:application
+
+# ── Graceful reload without downtime ─────────────────────────
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# ── Restart policy ────────────────────────────────────────────
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# ── Logging ───────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ flaskapp_name }}
+
+# ── Hardening ─────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths={{ flaskapp_root }}/logs /run/{{ flaskapp_name }}
+
+[Install]
+WantedBy=multi-user.target

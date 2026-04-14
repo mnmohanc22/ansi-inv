@@ -1,0 +1,10 @@
+"""
+Gunicorn WSGI entry point.
+Usage: gunicorn --config gunicorn.conf.py wsgi:application
+"""
+from app import create_app
+
+application = create_app('production')
+
+if __name__ == '__main__':
+    application.run()

@@ -1,0 +1,51 @@
+---
+# roles/flaskapp/tasks/selinux.yml
+
+- name: "flaskapp | Check SELinux status"
+  ansible.builtin.command:
+    cmd: getenforce
+  register:     _selinux_status
+  changed_when: false
+  failed_when:  false
+  tags: [flaskapp, selinux]
+
+- name: "flaskapp | Allow nginx to connect to Unix socket"
+  ansible.posix.seboolean:
+    name:       httpd_can_network_connect
+    state:      true
+    persistent: true
+  when: _selinux_status.stdout != 'Disabled'
+  tags: [flaskapp, selinux]
+
+- name: "flaskapp | Allow nginx to read application files"
+  ansible.posix.seboolean:
+    name:       httpd_read_user_content
+    state:      true
+    persistent: true
+  when: _selinux_status.stdout != 'Disabled'
+  tags: [flaskapp, selinux]
+
+- name: "flaskapp | Set SELinux context on application directory"
+  community.general.sefcontext:
+    target:  '{{ flaskapp_root }}(/.*)?'
+    setype:  httpd_sys_content_t
+    state:   present
+  when: _selinux_status.stdout != 'Disabled'
+  notify: Restore SELinux context
+  tags: [flaskapp, selinux]
+
+- name: "flaskapp | Set SELinux context on log directory"
+  community.general.sefcontext:
+    target:  '{{ flaskapp_root }}/logs(/.*)?'
+    setype:  httpd_log_t
+    state:   present
+  when: _selinux_status.stdout != 'Disabled'
+  notify: Restore SELinux context
+  tags: [flaskapp, selinux]
+
+- name: "flaskapp | Apply SELinux context on app directory"
+  ansible.builtin.command:
+    cmd: restorecon -Rv {{ flaskapp_root }}/
+  when:         _selinux_status.stdout != 'Disabled'
+  changed_when: true
+  tags: [flaskapp, selinux]

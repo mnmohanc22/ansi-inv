@@ -1,0 +1,35 @@
+# Managed by Ansible — do not edit manually
+# Role: flaskapp
+import multiprocessing
+
+# ── Binding ───────────────────────────────────────────────────
+bind            = 'unix:{{ flaskapp_socket }}'
+backlog         = 2048
+
+# ── Workers ───────────────────────────────────────────────────
+workers         = {{ flaskapp_workers }}
+worker_class    = 'sync'
+worker_connections = 1000
+threads         = 2
+timeout         = {{ flaskapp_timeout }}
+graceful_timeout= 30
+keepalive       = 5
+
+# ── Process naming ────────────────────────────────────────────
+proc_name       = '{{ flaskapp_name }}'
+
+# ── Logging ───────────────────────────────────────────────────
+accesslog       = '{{ flaskapp_root }}/logs/gunicorn-access.log'
+errorlog        = '{{ flaskapp_root }}/logs/gunicorn-error.log'
+loglevel        = '{{ flaskapp_log_level }}'
+capture_output  = True
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)sus'
+
+# ── Security ──────────────────────────────────────────────────
+limit_request_line   = 4096
+limit_request_fields = 100
+forwarded_allow_ips  = '127.0.0.1'
+
+# ── Worker recycling ──────────────────────────────────────────
+max_requests        = 1000
+max_requests_jitter = 50

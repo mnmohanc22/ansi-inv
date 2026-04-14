@@ -1,0 +1,34 @@
+---
+# roles/flaskapp/tasks/main.yml
+
+- name: "flaskapp | Install system packages"
+  ansible.builtin.import_tasks: install.yml
+  tags: [flaskapp, install]
+
+- name: "flaskapp | Deploy application files"
+  ansible.builtin.import_tasks: deploy.yml
+  tags: [flaskapp, deploy]
+
+- name: "flaskapp | Configure systemd service"
+  ansible.builtin.import_tasks: service.yml
+  tags: [flaskapp, service]
+
+- name: "flaskapp | Configure nginx"
+  ansible.builtin.import_tasks: nginx.yml
+  tags: [flaskapp, nginx]
+
+# - name: "flaskapp | Configure firewalld"
+#   ansible.builtin.import_tasks: firewall.yml
+#   tags: [flaskapp, firewall]
+
+# - name: "flaskapp | Configure SELinux"
+#   ansible.builtin.import_tasks: selinux.yml
+#   tags: [flaskapp, selinux]
+
+- name: "flaskapp | Configure log rotation"
+  ansible.builtin.import_tasks: logrotate.yml
+  tags: [flaskapp, logrotate]
+
+- name: "flaskapp | Validate deployment"
+  ansible.builtin.import_tasks: validate.yml
+  tags: [flaskapp, validate]

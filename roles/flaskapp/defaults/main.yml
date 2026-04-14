@@ -1,0 +1,24 @@
+---
+# roles/flaskapp/defaults/main.yml
+
+flaskapp_name:        "flaskapp"
+flaskapp_user:        "flaskapp"
+flaskapp_group:       "flaskapp"
+flaskapp_root:        "/opt/flaskapp"
+flaskapp_server_name: "app.example.com"
+flaskapp_socket:      "/run/flaskapp/flaskapp.sock"
+flaskapp_workers:     "{{ (ansible_processor_vcpus | default(2) * 2) + 1 }}"
+flaskapp_timeout:     120
+flaskapp_log_level:   "info"
+
+# Log rotation
+flaskapp_log_rotate_days:  30
+flaskapp_log_rotate_count: 10
+
+# SSL — set false to use HTTP only (dev/test)
+flaskapp_ssl_enabled:       false
+flaskapp_ssl_cert_path:     "/etc/pki/tls/certs/flaskapp.crt"
+flaskapp_ssl_key_path:      "/etc/pki/tls/private/flaskapp.key"
+
+# Vault secret — must be overridden in production
+vault_flask_secret_key:     "CHANGE_ME"

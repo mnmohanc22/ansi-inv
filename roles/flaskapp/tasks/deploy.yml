@@ -1,0 +1,68 @@
+---
+# roles/flaskapp/tasks/deploy.yml
+
+- name: "flaskapp | Copy application Python files"
+  ansible.builtin.copy:
+    src:    "{{ item.src }}"
+    dest:   "{{ item.dest }}"
+    owner:  "{{ flaskapp_user }}"
+    group:  "{{ flaskapp_group }}"
+    mode:   "0644"
+    backup: true
+  loop:
+    - { src: "app/__init__.py",  dest: "{{ flaskapp_root }}/app/__init__.py" }
+    - { src: "app/config.py",    dest: "{{ flaskapp_root }}/app/config.py" }
+    - { src: "app/routes.py",    dest: "{{ flaskapp_root }}/app/routes.py" }
+    - { src: "wsgi.py",          dest: "{{ flaskapp_root }}/wsgi.py" }
+    - { src: "requirements.txt", dest: "{{ flaskapp_root }}/requirements.txt" }
+  notify: Restart flaskapp
+  tags: [flaskapp, deploy]
+
+- name: "flaskapp | Deploy gunicorn config from template"
+  ansible.builtin.template:
+    src:    "{{ role_path }}/templates/gunicorn.conf.py.j2"
+    dest:   "{{ flaskapp_root }}/gunicorn.conf.py"
+    owner:  "{{ flaskapp_user }}"
+    group:  "{{ flaskapp_group }}"
+    mode:   "0644"
+    backup: true
+  notify: Restart flaskapp
+  tags: [flaskapp, deploy]
+
+- name: "flaskapp | Deploy environment file from template"
+  ansible.builtin.template:
+    src:    "{{ role_path }}/templates/flaskapp.env.j2"
+    dest:   "{{ flaskapp_root }}/.env"
+    owner:  "{{ flaskapp_user }}"
+    group:  "{{ flaskapp_group }}"
+    mode:   "0600"
+    backup: true
+  no_log: true
+  notify: Restart flaskapp
+  tags: [flaskapp, deploy]
+
+- name: "flaskapp | Create Python virtual environment"
+  ansible.builtin.command:
+    cmd:     "python3 -m venv {{ flaskapp_root }}/venv"
+    creates: "{{ flaskapp_root }}/venv/bin/activate"
+  become:      true
+  become_user: "{{ flaskapp_user }}"
+  tags: [flaskapp, deploy]
+
+- name: "flaskapp | Install Python dependencies into venv"
+  ansible.builtin.pip:
+    requirements: "{{ flaskapp_root }}/requirements.txt"
+    virtualenv:   "{{ flaskapp_root }}/venv"
+    state:        present
+  become:      true
+  become_user: "{{ flaskapp_user }}"
+  notify: Restart flaskapp
+  tags: [flaskapp, deploy]
+
+- name: "flaskapp | Set ownership on all application files"
+  ansible.builtin.file:
+    path:    "{{ flaskapp_root }}"
+    owner:   "{{ flaskapp_user }}"
+    group:   "{{ flaskapp_group }}"
+    recurse: true
+  tags: [flaskapp, deploy]

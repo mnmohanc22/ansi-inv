@@ -1,0 +1,11 @@
+---
+# roles/flaskapp/tasks/logrotate.yml
+
+- name: "flaskapp | Deploy logrotate config"
+  ansible.builtin.template:
+    src:    "{{ role_path }}/templates/logrotate_flaskapp.j2"
+    dest:   /etc/logrotate.d/flaskapp
+    owner:  root
+    group:  root
+    mode:   "0644"
+  tags: [flaskapp, logrotate]

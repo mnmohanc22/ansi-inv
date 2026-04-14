@@ -1,0 +1,24 @@
+---
+# roles/flaskapp/handlers/main.yml
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: "Reload systemd"
+
+- name: Restart flaskapp
+  ansible.builtin.systemd:
+    name:  flaskapp
+    state: restarted
+  listen: "Restart flaskapp"
+
+- name: Restart nginx
+  ansible.builtin.systemd:
+    name:  nginx
+    state: restarted
+  listen: "Restart nginx"
+
+- name: Restore SELinux context
+  ansible.builtin.command:
+    cmd: restorecon -Rv {{ flaskapp_root }}/
+  listen: "Restore SELinux context"

@@ -1,0 +1,33 @@
+---
+# roles/flaskapp/tasks/nginx.yml
+
+- name: "flaskapp | Deploy nginx virtual host config"
+  ansible.builtin.template:
+    src:    "{{ role_path }}/templates/nginx_flaskapp.conf.j2"
+    dest:   /etc/nginx/conf.d/flaskapp.conf
+    owner:  root
+    group:  root
+    mode:   "0644"
+    backup: true
+  notify: Restart nginx
+  tags: [flaskapp, nginx]
+
+- name: "flaskapp | Remove default nginx config if present"
+  ansible.builtin.file:
+    path:  /etc/nginx/conf.d/default.conf
+    state: absent
+  notify: Restart nginx
+  tags: [flaskapp, nginx]
+
+- name: "flaskapp | Validate nginx configuration"
+  ansible.builtin.command:
+    cmd: nginx -t
+  changed_when: false
+  tags: [flaskapp, nginx, validate]
+
+- name: "flaskapp | Enable and start nginx"
+  ansible.builtin.systemd:
+    name:    nginx
+    enabled: true
+    state:   started
+  tags: [flaskapp, nginx]

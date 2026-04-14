@@ -1,0 +1,72 @@
+# ── Debug raw payload and tags ────────────────────────────────────
+- name: Debug raw payload and tags
+  tags:
+    - always
+    - print_raw
+  block:
+    - name: Print raw JSON payload
+      debug:
+        msg: "{{ vars | to_nice_json }}"
+
+    - name: "[TAGS] Tags as parsed list"
+      debug:
+        msg: |
+          Tags passed    : {{ job_tags   | default('') | split(',') | map('trim') | list }}
+         
+
+    - name: "[TAGS] Warn if no tags provided"
+      debug:
+        msg: "WARNING — No job_tags passed via API. Running all tasks by default."
+      when: job_tags is not defined or job_tags == ""
+
+    - name: "[PAYLOAD] Print as JSON dict"
+      debug:
+        msg: >-
+          {{
+            {
+              'change_number': change_number | default(''),
+              'debug_mode':    debug_mode    | default(''),
+              'notify_slack':  notify_slack  | default('')
+            } | to_nice_json
+          }}
+
+
+
+
+# ── Validate  ────────────────────────────
+- name: Validate
+  tags:
+    - check_changeid
+  block:
+    # ── Map individual vars into working facts ──────────────────
+    - name: Set working facts from individual extra_vars
+      set_fact:
+         change:       "{{ change_number }}"
+         notify_slack: "{{ notify_slack  | default('false') }}"
+
+    - name: Confirm vars mapped
+      debug:
+        msg: |
+          Working facts set:
+            change        : {{ change }}
+            notify_slack  : {{ notify_slack }}
+
+    # ── Evaluate and validate change_number ─────────────────────
+    - name: "[CHANGEID] Evaluate change_number and set flag"
+      set_fact:
+        change_valid: >-
+          {{
+            false if (
+              change is not defined        or
+              change == None               or
+              change == ''                 
+            ) else true
+          }}
+
+    - name: "[CHANGEID] Print change_valid flag"
+      debug:
+        msg: |
+          
+           change_valid  : {{ change_valid }}
+        
+   

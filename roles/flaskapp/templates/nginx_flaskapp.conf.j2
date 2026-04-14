@@ -1,0 +1,104 @@
+# Managed by Ansible — do not edit manually
+# Role: flaskapp
+
+upstream {{ flaskapp_name }}_backend {
+    server unix:{{ flaskapp_socket }} fail_timeout=0;
+}
+
+{% if flaskapp_ssl_enabled %}
+# ── HTTP → HTTPS redirect ─────────────────────────────────────
+server {
+    listen      80;
+    server_name {{ flaskapp_server_name }};
+    return      301 https://$host$request_uri;
+}
+
+# ── HTTPS server ──────────────────────────────────────────────
+server {
+    listen              443 ssl http2;
+    server_name         {{ flaskapp_server_name }};
+
+    ssl_certificate     {{ flaskapp_ssl_cert_path }};
+    ssl_certificate_key {{ flaskapp_ssl_key_path }};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    add_header X-Frame-Options           DENY                always;
+    add_header X-Content-Type-Options    nosniff             always;
+    add_header X-XSS-Protection          "1; mode=block"     always;
+    add_header Referrer-Policy           "no-referrer"       always;
+
+    access_log  /var/log/nginx/{{ flaskapp_name }}-access.log combined;
+    error_log   /var/log/nginx/{{ flaskapp_name }}-error.log  warn;
+
+    client_max_body_size  16M;
+    keepalive_timeout     65s;
+
+    location /static/ {
+        alias      {{ flaskapp_root }}/app/static/;
+        expires    30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /health {
+        proxy_pass       http://{{ flaskapp_name }}_backend;
+        proxy_set_header Host $host;
+        access_log       off;
+    }
+
+    location / {
+        proxy_pass              http://{{ flaskapp_name }}_backend;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect          off;
+        proxy_connect_timeout   60s;
+        proxy_send_timeout      60s;
+        proxy_read_timeout      {{ flaskapp_timeout }}s;
+    }
+}
+{% else %}
+# ── HTTP server (non-SSL) ─────────────────────────────────────
+server {
+    listen      80;
+    server_name {{ flaskapp_server_name }};
+
+    access_log  /var/log/nginx/{{ flaskapp_name }}-access.log combined;
+    error_log   /var/log/nginx/{{ flaskapp_name }}-error.log  warn;
+
+    client_max_body_size  16M;
+    keepalive_timeout     65s;
+
+    add_header X-Frame-Options      DENY   always;
+    add_header X-Content-Type-Options nosniff always;
+
+    location /static/ {
+        alias      {{ flaskapp_root }}/app/static/;
+        expires    30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /health {
+        proxy_pass       http://{{ flaskapp_name }}_backend;
+        proxy_set_header Host $host;
+        access_log       off;
+    }
+
+    location / {
+        proxy_pass              http://{{ flaskapp_name }}_backend;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect          off;
+        proxy_connect_timeout   60s;
+        proxy_send_timeout      60s;
+        proxy_read_timeout      {{ flaskapp_timeout }}s;
+    }
+}
+{% endif %}
