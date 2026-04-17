@@ -1,0 +1,21 @@
+# ── Call reusable API block ───────────────────────────────────────
+- name: "[snow] Add work note to {{ work_note_number }}"
+  include_tasks: api_call.yml
+  vars:
+    snow_table:  "{{ work_note_table }}"
+    snow_query:  "number={{ work_note_number }}"
+    snow_method: "PATCH"
+    snow_body:
+      "{{ work_note_type | default('work_notes') }}": "{{ work_note_message }}"
+    snow_label:  "Add work note → {{ work_note_number }}"
+    snow_no_log: false
+  tags:
+    - snow
+    - snow_work_note
+
+- name: "[snow] Work note added"
+  debug:
+    msg: "Work note added to {{ work_note_number }}"
+  tags:
+    - snow
+    - snow_work_note

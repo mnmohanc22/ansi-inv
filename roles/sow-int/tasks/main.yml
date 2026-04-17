@@ -1,3 +1,21 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for sow-int
+
+
+# ── Update Change ─────────────────────────────────────────────────
+- name: Update Change record
+  include_tasks: update-tic.yml
+  vars:
+    change_number:     "{{ change_number }}"
+    change_state:      "{{ change_state | default('-1') }}"   # Implement
+    change_work_notes: >
+      AAP Job {{ aap_job_id | default('unknown') }}
+      Status: {{ aap_job_status | default('running') }}
+      Time: {{ ansible_date_time.iso8601 }}
+  when:
+    - change_number is defined
+    - change_number != ''
+  tags:
+    - snow
+    - snow_change

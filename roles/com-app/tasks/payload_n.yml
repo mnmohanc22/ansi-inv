@@ -1,0 +1,47 @@
+- name: Update ServiceNow record with work notes and comments
+  block:
+    - name: Build work notes and comments payload
+      ansible.builtin.set_fact:
+        _snow_notes_payload: >-
+          {{
+            ({}
+              | combine({'work_notes': snow_work_notes}
+                        if snow_work_notes | length > 0 else {})
+              | combine({'comments': snow_comments}
+                        if snow_comments | length > 0 else {})
+            )
+          }}
+
+    - name: Display notes payload summary
+      ansible.builtin.debug:
+        msg:
+          - "Work notes set   : {{ snow_work_notes | length > 0 }}"
+          - "Comments set     : {{ snow_comments   | length > 0 }}"
+        verbosity: 1
+
+    - name: PATCH ServiceNow record work notes and comments
+      ansible.builtin.uri:
+        url:              "{{ _snow_base_url }}/{{ snow_table }}/{{ snow_record_sys_id }}"
+        method:           PATCH
+        user:             "{{ vault_snow_username }}"
+        password:         "{{ vault_snow_password }}"
+        force_basic_auth: true
+        headers:          "{{ _snow_headers }}"
+        body:             "{{ _snow_notes_payload | to_json }}"
+        body_format:      json
+        validate_certs:   "{{ snow_validate_certs }}"
+        timeout:          "{{ snow_timeout }}"
+        status_code:      [200]
+        return_content:   true
+      register:   _snow_notes_result
+      retries:    "{{ snow_retries }}"
+      delay:      "{{ snow_retry_delay }}"
+      until:      _snow_notes_result.status == 200
+
+    - name: Display work notes update result
+      ansible.builtin.debug:
+        msg:
+          - "HTTP status      : {{ _snow_notes_result.status }}"
+          - "Record           : {{ _snow_notes_result.json.result.number | default(snow_record_sys_id) }}"
+          - "Work notes added : {{ snow_work_notes | length > 0 }}"
+          - "Comments added   : {{ snow_comments   | length > 0 }}"

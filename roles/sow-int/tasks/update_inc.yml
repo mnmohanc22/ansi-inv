@@ -1,0 +1,24 @@
+# ── Call reusable API block ───────────────────────────────────────
+- name: "[snow] Update Incident {{ incident_number }}"
+  include_tasks: api_call.yml
+  vars:
+    snow_table:  "incident"
+    snow_query:  "number={{ incident_number }}"
+    snow_method: "PATCH"
+    snow_body:   "{{ _incident_body }}"
+    snow_label:  "Update Incident {{ incident_number }} → state={{ incident_state }}"
+    snow_no_log: true
+  tags:
+    - snow
+    - snow_incident
+
+- name: "[snow] Incident update confirmed"
+  debug:
+    msg: |
+      Incident Updated:
+        Number : {{ incident_number }}
+        State  : {{ incident_state }}
+        Sys ID : {{ snow_api_result.sys_id | default('N/A') }}
+  tags:
+    - snow
+    - snow_incident
