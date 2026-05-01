@@ -1,0 +1,6 @@
+---
+- name: Apply RHEL compliance checks
+  hosts: rhel
+  become: true
+  roles:
+    - rhel_compliance

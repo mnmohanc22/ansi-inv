@@ -1,0 +1,66 @@
+---
+- name: Remove IIS Web Server role
+  tags: [iis, remove]
+  block:
+    - name: Stop IIS service before removal
+      ansible.windows.win_service:
+        name: W3SVC
+        state: stopped
+      ignore_errors: true
+
+    - name: Remove IIS Web Server role and sub-features
+      ansible.windows.win_feature:
+        name: Web-Server
+        state: absent
+        include_sub_features: true
+        include_management_tools: true
+      register: iis_remove
+
+    - name: Remove related .NET features
+      ansible.windows.win_feature:
+        name:
+          - NET-Framework-45-ASPNET
+          - NET-WCF-HTTP-Activation45
+        state: absent
+      register: net_remove
+      ignore_errors: true
+
+    - name: Reboot if required
+      ansible.windows.win_reboot:
+        reboot_timeout: 600
+        post_reboot_delay: 30
+        msg: "Rebooting after IIS removal"
+      when: iis_remove.reboot_required or net_remove.reboot_required
+
+    - name: Verify no Web-* features remain installed
+      ansible.windows.win_shell: |
+        $remaining = Get-WindowsFeature |
+          Where-Object { $_.InstallState -eq 'Installed' -and $_.Name -like 'Web-*' }
+        if ($remaining) {
+          $remaining | Select-Object Name, InstallState | Format-Table -AutoSize | Out-String
+        } else {
+          "All IIS features removed successfully."
+        }
+      register: verify_remove
+      changed_when: false
+
+    - name: Show removal verification
+      ansible.builtin.debug:
+        msg: "{{ verify_remove.stdout | trim }}"
+
+    - name: Verify W3SVC service is gone
+      ansible.windows.win_shell: |
+        $svc = Get-Service W3SVC -ErrorAction SilentlyContinue
+        if ($svc) { "W3SVC still present: $($svc.Status)" } else { "W3SVC service removed." }
+      register: svc_check
+      changed_when: false
+
+    - name: Show service status
+      ansible.builtin.debug:
+        msg: "{{ svc_check.stdout | trim }}"
+
+    - name: Remove inetpub directory
+      ansible.windows.win_file:
+        path: 'C:\inetpub'
+        state: absent
+      when: remove_payload | default(false) | bool

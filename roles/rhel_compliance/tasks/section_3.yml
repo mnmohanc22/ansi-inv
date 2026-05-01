@@ -1,0 +1,87 @@
+###### 3.2.1 Ensure atm kernel module is not available
+- name: "Block: Ensure atm kernel module is not available"
+  block:
+    - name: "Disable atm kernel module"
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/atm.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          install atm /bin/true
+          blacklist atm
+      register: disable_atm_module_result
+
+    - name: "Debug disable_atm_module_result"
+      ansible.builtin.debug:
+        msg: "disable_atm_module_result  :  {{ disable_atm_module_result }}"
+
+    - name: "Remove atm module if loaded"
+      ansible.builtin.modprobe:
+        name: atm
+        state: absent
+      failed_when: false
+      register: remove_atm_module_result
+
+    - name: "Debug remove_atm_module_result"
+      ansible.builtin.debug:
+        msg: "remove_atm_module_result :  {{ remove_atm_module_result }}"
+
+
+#### 3.2.2 Ensure can kernel module is not available
+- name: "Block: Ensure can kernel module is not available"
+  block:
+    - name: "Disable can kernel module"
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/can.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          install can /bin/true
+          blacklist can
+      register: disable_can_module_result
+
+    - name: "Debug disable_can_module_result"
+      ansible.builtin.debug:
+        msg: "disable_can_module_result  :  {{ disable_can_module_result }}"
+
+    - name: "Remove can module if loaded"
+      ansible.builtin.modprobe:
+        name: can
+        state: absent
+      failed_when: false
+      register: remove_can_module_result
+
+    - name: "Debug remove_can_module_result"
+      ansible.builtin.debug:
+        msg: "remove_can_module_result :  {{ remove_can_module_result }}"
+
+##### 3.2.6 Ensure tipc kernel module is not available
+- name: "Block: Ensure tipc kernel module is not available"
+  block:
+    - name: "Disable tipc kernel module"
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/tipc.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          install tipc /bin/true
+          blacklist tipc
+      register: disable_tipc_module_result
+
+    - name: "Debug disable_tipc_module_result"
+      ansible.builtin.debug:
+        msg: "disable_tipc_module_result  :  {{ disable_tipc_module_result }}"
+
+    - name: "Remove tipc module if loaded"
+      ansible.builtin.modprobe:
+        name: tipc
+        state: absent
+      failed_when: false
+      register: remove_tipc_module_result
+
+    - name: "Debug remove_tipc_module_result"
+      ansible.builtin.debug:
+        msg: "remove_tipc_module_result :  {{ remove_tipc_module_result }}"

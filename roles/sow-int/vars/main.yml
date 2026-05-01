@@ -22,3 +22,22 @@ snow_work_notes: |
 snow_comments: >
   Automated deployment completed.
   Contact iam-middleware team for questions.
+
+
+# ── SMTP settings ─────────────────────────────────────────────────
+smtp_host:     "smtp.company.com"
+smtp_port:     587
+smtp_secure:   "starttls"         # starttls / ssl / none
+smtp_from:     "aap-notify@company.com"
+smtp_timeout:  30
+
+# ── Default recipients ────────────────────────────────────────────
+notify_email_to:
+  - "ops-team@company.com"
+  - "devops@company.com"
+
+notify_email_cc:
+  - "manager@company.com"
+
+alert_email_to:
+  - "oncall@company.com"  

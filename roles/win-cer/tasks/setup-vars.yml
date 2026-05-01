@@ -1,0 +1,9 @@
+# --- Setup ---
+
+- name: print vars
+  debug:
+    msg: |
+      windows_wildcard_cert_friendly_name: {{ windows_wildcard_cert_friendly_name }}
+      wildcard_domain: {{ wildcard_domain }}
+      windows_cert_store_path: {{ windows_cert_store_path }}
+      windows_cert_friendly_name: {{ windows_cert_friendly_name }}  

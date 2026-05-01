@@ -1,0 +1,29 @@
+---
+- name: Install IIS Web Server role
+  tags: [iis, install]
+  block:
+    - name: Install IIS Web Server role
+      ansible.windows.win_feature:
+        name: Web-Server
+        state: present
+        include_management_tools: true
+      register: iis_install
+
+    - name: Reboot if required
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 30
+        msg: "Rebooting after IIS installation"
+      when: iis_install.reboot_required
+
+    - name: Verify IIS is running
+      ansible.windows.win_service:
+        name: W3SVC
+        state: started
+        start_mode: auto
+      register: iis_service_status
+
+    - name: Show IIS installation status
+      ansible.builtin.debug:
+        msg: "IIS installation {{ 'succeeded' if iis_service_status.state == 'running' else 'failed' }}"
+             

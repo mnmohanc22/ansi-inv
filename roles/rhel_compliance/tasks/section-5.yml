@@ -1,0 +1,83 @@
+#### 5.1.8 Ensure sshd Ciphers are configured
+
+# - name: "Block: Ensure sshd Ciphers are configured"
+#   block:
+#     - name: Ensure strong SSH ciphers are configured
+#       ansible.builtin.lineinfile:
+#         path: /etc/ssh/sshd_config
+#         regexp: '^Ciphers\s+'
+#         line: "Ciphers {{ sshd_ciphers | join(',') }}"
+#         state: present
+#         insertafter: EOF
+#         validate: '/usr/sbin/sshd -t -f %s'
+#       notify: Reload sshd
+#       register: sshd_ciphers_result 
+
+#     - name: "Debug: sshd Ciphers configuration result"
+#       ansible.builtin.debug:
+#         msg: "sshd_ciphers_result :  {{ sshd_ciphers_result }}"   
+
+
+- name: Ensure default umask is configured
+  block:
+
+    - name: check current default umask in /etc/login.defs
+      ansible.builtin.shell: "awk '/^UMASK/ {print $2}' /etc/login.defs"
+      register: current_umask
+      changed_when: false
+
+    - name: Debug current default umask
+      ansible.builtin.debug:
+        msg: "Current default umask in /etc/login.defs: {{ current_umask.stdout }}"  
+
+    - name: Ensure default umask is set in /etc/login.defs
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^\s*UMASK\s+'
+        line: "UMASK {{ cis_default_umask }}"
+        create: false
+        backup: true
+
+    - name: check current default umask in /etc/profile
+      ansible.builtin.shell: "awk '/^[[:space:]]*umask/ {print $2}' /etc/profile"
+      register: profile_umask
+      changed_when: false
+
+    - name: Debug current default umask in /etc/profile
+      ansible.builtin.debug:
+        msg: "Current default umask in /etc/profile: {{ profile_umask.stdout }}"
+
+    - name: Ensure umask is set in /etc/profile
+      ansible.builtin.lineinfile:
+        path: /etc/profile
+        regexp: '^\s*umask\s+'
+        line: "umask {{ cis_default_umask }}"
+        create: false
+        backup: true
+
+    - name: check current default umask in /etc/bashrc
+      ansible.builtin.shell: "awk '/^[[:space:]]*umask/ {print $2}' /etc/bashrc"
+      register: bashrc_umask
+      changed_when: false
+
+    - name: Debug current default umask in /etc/bashrc
+      ansible.builtin.debug:
+        msg: "Current default umask in /etc/bashrc: {{ bashrc_umask.stdout }}"      
+
+    - name: Ensure umask is set in /etc/bashrc
+      ansible.builtin.lineinfile:
+        path: /etc/bashrc
+        regexp: '^\s*umask\s+'
+        line: "umask {{ cis_default_umask }}"
+        create: false
+        backup: true
+
+    - name: Ensure umask is configured in /etc/profile.d/cis_umask.sh
+      ansible.builtin.copy:
+        dest: /etc/profile.d/cis_umask.sh
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # CIS 5.4.3.3 - Default user umask
+          umask {{ cis_default_umask }}

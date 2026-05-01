@@ -1,0 +1,5 @@
+ Get-ChildItem -Path Cert:\LocalMachine\My
+
+  Get-ChildItem -Path Cert:\LocalMachine\My | Select-Object Subject, Thumbprint, NotAfter, Issuer | Format-Table -AutoSize
+
+  

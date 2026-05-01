@@ -1,0 +1,17 @@
+- name: Remove IIS features per CIS / NIST hardening baseline
+  win_feature:
+    name:
+      - Web-Dir-Browsing       # CIS: directory listing should be off
+      - Web-Http-Tracing       # CIS: tracing exposes diagnostic data
+      - Web-Dav-Publishing     # WebDAV — disable unless required
+      - Web-CGI                # CGI — legacy, rarely needed
+      - Web-Basic-Auth         # Cleartext auth — disable unless TLS-only
+      - Web-Digest-Auth        # Digest auth — disable unless required
+      - Web-FTP-Server         # FTP — disable unless required
+      - Web-FTP-Service
+    state: absent
+  register: hardening_remove
+
+- name: Reboot if required
+  win_reboot:
+  when: hardening_remove.reboot_required

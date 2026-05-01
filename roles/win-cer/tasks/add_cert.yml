@@ -1,0 +1,80 @@
+---
+- name: Add certificate
+  block:
+    - name: Import wildcard PFX into LocalMachine\My
+      ansible.windows.win_certificate_store:
+        path: "{{ windows_wildcard_cert_pfx_dest }}"
+        password: "{{ windows_wildcard_cert_pfx_password }}"
+        store_location: "{{ windows_wildcard_cert_store_location }}"
+        store_name: "{{ windows_wildcard_cert_store_name }}"
+        state: present
+        key_exportable: false
+      no_log: true
+      register: cert_import
+
+    - name: print cert import result
+      ansible.builtin.debug:
+        msg: "{{ cert_import }}"
+
+
+    - name: Get certificate details after import
+      import_tasks: get_cert_details.yml
+      vars:
+        windows_cert_store_path: "{{ windows_wildcard_cert_store_path }}"
+        windows_cert_friendly_name: "{{ windows_wildcard_cert_friendly_name }}"
+
+
+
+   
+
+
+# ## add tasks to add 
+
+- name: Add certificate Intermediate and Root certs if needed
+  block:
+    - name: Import wildcard PFX into Intermediate store if needed 
+      ansible.windows.win_certificate_store:
+        path: "{{ windows_wildcard_cert_pfx_dest }}"
+        password: "{{ windows_wildcard_cert_pfx_password }}"
+        store_location: "{{ windows_wildcard_cert_store_location }}"
+        store_name: "CA"
+        state: present
+        key_exportable: false
+      no_log: true
+      register: cert_import
+
+    - name: print cert import result
+      ansible.builtin.debug:
+        msg: "{{ cert_import }}"  
+
+    - name: Get certificate details after import
+      import_tasks: get_cert_details.yml
+      vars:
+        windows_cert_store_path: "CA"
+        windows_cert_friendly_name: "{{ windows_wildcard_cert_friendly_name }}"
+
+
+
+- name: Add certificate Intermediate and Root certs if needed
+  block:
+    - name: Import wildcard PFX into Root store if needed 
+      ansible.windows.win_certificate_store:
+        path: "{{ windows_wildcard_cert_pfx_dest }}"
+        password: "{{ windows_wildcard_cert_pfx_password }}"
+        store_location: "{{ windows_wildcard_cert_store_location }}"
+        store_name: "Root"
+        state: present
+        key_exportable: false
+      no_log: true
+      register: cert_import
+
+    - name: print cert import result
+      ansible.builtin.debug:
+        msg: "{{ cert_import }}"  
+
+    - name: Get certificate details after import
+      import_tasks: get_cert_details.yml
+      vars:
+        windows_cert_store_name: "Root"
+        windows_cert_store_path: "{{ windows_root_cert_store_path }}"
+        windows_cert_friendly_name: "{{ windows_wildcard_cert_friendly_name }}"

@@ -1,0 +1,71 @@
+---
+
+
+- name: setuop vars
+  import_tasks: setup-vars.yml
+  tags: [setup]
+
+
+- name: add tasks to list certificates
+  import_tasks: list_certificates.yml
+  tags: [list]
+
+
+- name: add tasks to create temp directory and prepare cert files
+  import_tasks: create-dir.yml
+  tags: [prepare, copy]
+
+- name: Copy certificate to target
+  import_tasks: copy_cert.yml
+  tags: [copy]
+
+
+
+# --- Check ---
+
+- name: Check certificate
+  import_tasks: check_cert.yml
+  tags: [check]
+
+# --- Add ---
+
+- name: Add certificate
+  import_tasks: add_cert.yml
+  tags: [add]
+
+
+- name: Remove certificate
+  import_tasks: remove_certificate.yml
+  tags: [remove]
+
+- name: include tasks to list features
+  import_tasks: view-feat.yml
+  tags: [view-feat]
+
+- name: include tasks to add features
+  import_tasks: add-feat.yml
+  tags: [add-feat]  
+
+- name: add tasks to check IIS connectivity
+  import_tasks: check-iis.yml
+  tags: [check, check-iis]  
+
+- name: add tasks to install IIS
+  import_tasks: install-iis.yml
+  tags: [install-iis, iis]
+
+- name: add tasks to remove IIS
+  import_tasks: remove-iis.yml
+  tags: [remove-iis, iis]
+
+- name: add tasks remove features
+  import_tasks: remove-feat.yml
+  tags: [remove-feat]
+
+- name: add tasks to get IIS status
+  import_tasks: get-iis.yml
+  tags: [get-iis]
+
+- name: add tasks to install complus application
+  import_tasks: install-complus.yml
+  tags: [complus] 

@@ -1,0 +1,107 @@
+---
+- name: List certificates in store - win_My_certs
+  block:
+    - name: Get certificates from store  - win_My_certs
+      ansible.windows.win_shell: |
+        Get-ChildItem -Path "{{ win_My_certs }}" |
+          Select-Object -Property FriendlyName, Subject, Thumbprint,
+            @{ Name = 'Expiry'; Expression = { $_.NotAfter.ToString('yyyy-MM-dd') } },
+            @{ Name = 'Issuer'; Expression = { $_.Issuer } } |
+          ConvertTo-Json -Compress
+      args:
+        executable: powershell.exe
+      register: _cert_list_result
+      changed_when: false
+
+    - name: Set certificate list fact
+      set_fact:
+        _cert_list: "{{ (_cert_list_result.stdout | default('[]', true)) | from_json }}"
+
+    - name: Normalize cert list to array
+      set_fact:
+        _cert_list: "{{ [_cert_list] if _cert_list is mapping else _cert_list }}"
+
+    - name: Display certificates
+      ansible.builtin.debug:
+        msg: >-
+          FriendlyName: {{ item.FriendlyName | default('N/A') }}
+          | Subject: {{ item.Subject }}
+          | Thumbprint: {{ item.Thumbprint }}
+          | Expiry: {{ item.Expiry }}
+          | Issuer: {{ item.Issuer }}
+      loop: "{{ _cert_list }}"
+      loop_control:
+        label: "{{ item.Thumbprint }}"
+      when: _cert_list | length > 0
+
+
+- name: List certificates in store - win_CA_certs
+  block:
+    - name: Get certificates from store  - win_CA_certs
+      ansible.windows.win_shell: |
+        Get-ChildItem -Path "{{ win_CA_certs }}" |
+          Select-Object -Property FriendlyName, Subject, Thumbprint,
+            @{ Name = 'Expiry'; Expression = { $_.NotAfter.ToString('yyyy-MM-dd') } },
+            @{ Name = 'Issuer'; Expression = { $_.Issuer } } |
+          ConvertTo-Json -Compress
+      args:
+        executable: powershell.exe
+      register: _cert_list_result
+      changed_when: false
+
+    - name: Set certificate list fact
+      set_fact:
+        _cert_list: "{{ (_cert_list_result.stdout | default('[]', true)) | from_json }}"
+
+    - name: Normalize cert list to array
+      set_fact:
+        _cert_list: "{{ [_cert_list] if _cert_list is mapping else _cert_list }}"
+
+    - name: Display certificates
+      ansible.builtin.debug:
+        msg: >-
+          FriendlyName: {{ item.FriendlyName | default('N/A') }}
+          | Subject: {{ item.Subject }}
+          | Thumbprint: {{ item.Thumbprint }}
+          | Expiry: {{ item.Expiry }}
+          | Issuer: {{ item.Issuer }}
+      loop: "{{ _cert_list }}"
+      loop_control:
+        label: "{{ item.Thumbprint }}"
+      when: _cert_list | length > 0
+
+
+- name: List certificates in store - win_Root_certs
+  block:
+    - name: Get certificates from store  - win_Root_certs
+      ansible.windows.win_shell: |
+        Get-ChildItem -Path "{{ win_Root_certs }}" |
+          Select-Object -Property FriendlyName, Subject, Thumbprint,
+            @{ Name = 'Expiry'; Expression = { $_.NotAfter.ToString('yyyy-MM-dd') } },
+            @{ Name = 'Issuer'; Expression = { $_.Issuer } } |
+          ConvertTo-Json -Compress
+      args:
+        executable: powershell.exe
+      register: _cert_list_result
+      changed_when: false
+
+    - name: Set certificate list fact
+      set_fact:
+        _cert_list: "{{ (_cert_list_result.stdout | default('[]', true)) | from_json }}"
+
+    - name: Normalize cert list to array
+      set_fact:
+        _cert_list: "{{ [_cert_list] if _cert_list is mapping else _cert_list }}"
+
+    - name: Display certificates
+      ansible.builtin.debug:
+        msg: >-
+          FriendlyName: {{ item.FriendlyName | default('N/A') }}
+          | Subject: {{ item.Subject }}
+          | Thumbprint: {{ item.Thumbprint }}
+          | Expiry: {{ item.Expiry }}
+          | Issuer: {{ item.Issuer }}
+      loop: "{{ _cert_list }}"
+      loop_control:
+        label: "{{ item.Thumbprint }}"
+      when: _cert_list | length > 0      

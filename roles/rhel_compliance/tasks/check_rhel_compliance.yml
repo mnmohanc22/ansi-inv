@@ -1,0 +1,102 @@
+
+
+# - name: "Block: Get current crypto policy modules"
+#   block:
+#     - name: "Get current crypto policy modules"
+#       ansible.builtin.command: update-crypto-policies --show
+#       register: rhel8cis_crypto_policy_module
+#       changed_when: false
+#       failed_when: false
+
+#     - name: "Debug: rhel8cis_crypto_policy_module"
+#       ansible.builtin.debug:
+#         msg: "rhel8cis_crypto_policy_module: {{ (rhel8cis_crypto_policy_module.stdout | default('')) | trim }}"
+
+
+# - name: "Block: Gather system-wide crypto-policy module"
+#   block:
+#     - name: "Gather system-wide crypto-policy | initial"
+#       ansible.builtin.command: update-crypto-policies --show
+#       changed_when: false
+#       check_mode: false
+#       register: init_system_wide_crypto_policy
+
+#     - name: "Gather system-wide crypto-policy module | debug init_system_wide_crypto_policy"
+#       ansible.builtin.debug:
+#         msg: "init_system_wide_crypto_policy: {{ (init_system_wide_crypto_policy.stdout | default('')) | trim }}"
+
+#     - name: "Gather system-wide crypto-policy | set fact current system policy"
+#       ansible.builtin.set_fact:
+#         current_crypto_policy: "{{ init_system_wide_crypto_policy.stdout.split(':')[0] }}"
+     
+
+
+#     - name: "Gather system-wide crypto-policy | set fact current system policy"
+#       ansible.builtin.set_fact:
+#         init_system_wide_crypto_policy: "{{ init_system_wide_crypto_policy.stdout.split(':')[0] }}"
+
+#     - name: "Gather system-wide crypto-policy module | set fact system policy submodule"
+#       ansible.builtin.set_fact:
+#         current_crypto_modules: "{{ init_system_wide_crypto_policy.stdout.split(':')[1:] }}"
+#       when: "':' in init_system_wide_crypto_policy.stdout"
+
+#     - name: "Debug current_crypto_module"
+#       ansible.builtin.debug:
+#         msg: "current_crypto_module: {{ current_crypto_modules }}"
+
+
+#     - name: "Gather system-wide crypto-policy module | set fact system policy submodule"
+#       ansible.builtin.set_fact:
+#         rhel8cis_crypto_policy_module: "{{ init_system_wide_crypto_policy.stdout.split(':')[1] }}"
+#       when: "':' in init_system_wide_crypto_policy.stdout"     
+
+#     - name: "Debug current_crypto_policy"
+#       ansible.builtin.debug:
+#         msg: "current_crypto_policy: {{ current_crypto_policy }}"
+
+#     - name: "debug rhel8cis_crypto_policy "    
+#       ansible.builtin.debug:
+#         msg: "rhel8cis_crypto_policy: {{ rhel8cis_crypto_policy }}"
+
+   
+#     - name: "Debug rhel8cis_crypto_policy_module"
+#       ansible.builtin.debug:
+#         msg: "rhel8cis_crypto_policy_module: {{ rhel8cis_crypto_policy_module }}"    
+
+#     - name: "Debug rhel8cis_additional_crypto_policy_module "    
+#       ansible.builtin.debug:
+#         msg: "rhel8cis_additional_crypto_policy_module: {{ rhel8cis_additional_crypto_policy_module }}"
+
+#     - name: "Debug rhel8cis_full_crypto_policy"
+#       ansible.builtin.debug:
+#         msg: "rhel8cis_full_crypto_policy: {{ rhel8cis_full_crypto_policy }}"
+
+     
+
+
+- name: "Block: Gather system-wide crypto-policy module"
+  block:
+    - name: "Gather system-wide crypto-policy | initial"
+      ansible.builtin.command: update-crypto-policies --show
+      changed_when: false
+      check_mode: false
+      register: init_system_wide_crypto_policy
+
+    - name: "Gather system-wide crypto-policy module | debug init_system_wide_crypto_policy"
+      ansible.builtin.debug:
+        msg: "init_system_wide_crypto_policy: {{ (init_system_wide_crypto_policy.stdout | default('')) | trim }}"
+
+    - name: "Gather system-wide crypto-policy | set fact current system policy"
+      ansible.builtin.set_fact:
+        current_crypto_policy: "{{ init_system_wide_crypto_policy.stdout.split(':')[0] }}"
+     
+    - name: "Gather system-wide crypto-policy | set fact current system policy"
+      ansible.builtin.set_fact:
+        rhel8cis_crypto_policy_module: "{{ (init_system_wide_crypto_policy.stdout | default('')) | trim }}"
+   
+    - name: "Debug rhel8cis_crypto_policy"
+      ansible.builtin.debug:
+        msg: "rhel8cis_crypto_policy_module: {{ rhel8cis_crypto_policy_module }}"
+
+
+    

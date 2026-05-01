@@ -1,0 +1,35 @@
+
+
+
+- name: Ensure Firewalld is enabled and configured for detection
+  block:
+    - name: Ensure Firewalld is installed
+      ansible.builtin.yum:
+        name: firewalld
+        state: present
+
+    - name: Ensure Firewalld is running and enabled
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Enable logging of dropped packets in Firewalld
+      ansible.builtin.command: |
+        firewall-cmd --set-log-denied=all
+      register: firewalld_log_denied_result
+
+    - name: Debug Firewalld log-denied result
+      debug:
+        msg: "Firewalld log-denied result: {{ firewalld_log_denied_result.stdout }}"
+
+  rescue:
+    - name: Handle error during Firewalld configuration
+      debug:
+        msg: "An error occurred while configuring Firewalld."
+
+  always:
+    - name: Log final status of Firewalld configuration
+      debug:
+        msg: "Firewalld configuration block completed."
+

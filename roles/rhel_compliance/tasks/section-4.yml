@@ -1,0 +1,171 @@
+##### 4.1.3 Ensure firewalld.service is configured
+
+- name: "Block: Ensure firewalld.service is configured"
+  block:
+    - name: Ensure firewalld is installed (dnf)
+      ansible.builtin.shell: |
+        dnf -y install firewalld || true
+      args:
+        executable: /bin/bash
+      register: install_firewalld_result
+      failed_when: false
+      changed_when: "'Installed' in (install_firewalld_result.stdout | default('')) or 'Complete!' in (install_firewalld_result.stdout | default(''))"
+
+    - name: "Debug:  install_firewalld_result"
+      ansible.builtin.debug:
+        msg: "install_firewalld_result: {{ install_firewalld_result }}"
+
+    - name: "Enable and start firewalld (systemctl)"
+      ansible.builtin.shell: |
+        systemctl enable --now firewalld || true
+      args:
+        executable: /bin/bash
+      register: enable_firewalld_result
+      failed_when: false
+      changed_when: false
+
+    - name: "Debug: enable_firewalld_result"
+      ansible.builtin.debug:
+        msg: "enable_firewalld_result: {{ enable_firewalld_result }}"
+
+    - name: Set firewalld default zone to trusted (audit mode)
+      ansible.builtin.shell: |
+        firewall-cmd --set-default-zone=trusted || true
+      args:
+        executable: /bin/bash
+      register: firewalld_default_zone_result
+      failed_when: false
+      changed_when: false
+
+    - name: Persist firewalld runtime config
+      ansible.builtin.shell: |
+        firewall-cmd --runtime-to-permanent || true
+      args:
+        executable: /bin/bash
+      register: firewalld_runtime_to_perm_result
+      failed_when: false
+      changed_when: false
+
+    - name: Enable logging of denied packets
+      ansible.builtin.shell: |
+        firewall-cmd --set-log-denied=all || true
+      args:
+        executable: /bin/bash
+      register: firewalld_log_denied_result
+      failed_when: false
+      changed_when: false
+
+
+    - name: add  logging rules  (rich rules)
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --add-rich-rule='rule family="ipv4" log prefix="FW_MONITOR" level="info" limit value="1/m' || true
+        firewall-cmd --permanent --add-rich-rule='rule family="ipv6" log prefix="FW_MONITOR" level="info" limit value="1/m' || true
+      args:
+        executable: /bin/bash
+      register: firewalld_log_rules_result
+      failed_when: false
+      changed_when: false
+
+    - name: Reload firewalld to apply changes
+      ansible.builtin.shell: |
+        firewall-cmd --reload || true
+      args:
+        executable: /bin/bash
+      register: firewalld_reload_result
+      failed_when: false
+      changed_when: false  
+
+    - name: "Debug: firewalld command results"
+      ansible.builtin.debug:
+        msg:
+          - "firewalld_default_zone_result: {{ firewalld_default_zone_result }}"
+          - "firewalld_runtime_to_perm_result: {{ firewalld_runtime_to_perm_result }}"
+          - "firewalld_log_denied_result: {{ firewalld_log_denied_result }}"
+
+
+
+#### 4.1.5 Ensure firewalld loopback traffic is configured
+
+- name: "Block: Ensure firewalld loopback traffic is configured"
+  block:
+    - name: Ensure loopback interface is in trusted zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=trusted --add-interface=lo || true
+      args:
+        executable: /bin/bash
+      register: firewalld_loopback_iface_result
+      failed_when: false
+      changed_when: false
+
+    - name: Drop IPv4 loopback traffic not on loopback interface
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="127.0.0.0/8" drop' || true
+      args:
+        executable: /bin/bash
+      register: firewalld_loopback_ipv4_rule_result
+      failed_when: false
+      changed_when: false
+
+    - name: Drop IPv6 loopback traffic not on loopback interface
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="::1" drop' || true
+      args:
+        executable: /bin/bash
+      register: firewalld_loopback_ipv6_rule_result
+      failed_when: false
+      changed_when: false
+
+    - name: Reload firewalld
+      ansible.builtin.shell: |
+        firewall-cmd --reload || true
+      args:
+        executable: /bin/bash
+      register: firewalld_reload_result
+      failed_when: false
+      changed_when: false
+
+    - name: "Debug: firewalld loopback configuration results"
+      ansible.builtin.debug:
+        msg:
+          - "firewalld_loopback_iface_result: {{ firewalld_loopback_iface_result }}"
+          - "firewalld_loopback_ipv4_rule_result: {{ firewalld_loopback_ipv4_rule_result }}"
+          - "firewalld_loopback_ipv6_rule_result: {{ firewalld_loopback_ipv6_rule_result }}"
+          - "firewalld_reload_result: {{ firewalld_reload_result }}"
+
+  #### 4.1.6 Ensure firewalld loopback source address traffic is configured
+
+- name: "Block: Ensure firewalld loopback source address traffic is configured"
+  block:
+    - name: Drop IPv4 loopback source traffic on non-loopback interfaces
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="127.0.0.0/8" drop' || true
+      args:
+        executable: /bin/bash
+      register: firewalld_loopback_src_ipv4_rule_result
+      failed_when: false
+      changed_when: false
+
+    - name: Drop IPv6 loopback source traffic on non-loopback interfaces
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="::1" drop' || true
+      args:
+        executable: /bin/bash
+      register: firewalld_loopback_src_ipv6_rule_result
+      failed_when: false
+      changed_when: false
+
+    - name: Reload firewalld
+      ansible.builtin.shell: |
+        firewall-cmd --reload || true
+      args:
+        executable: /bin/bash
+      register: firewalld_reload_after_src_rules_result
+      failed_when: false
+      changed_when: false
+
+    - name: "Debug: firewalld loopback source traffic configuration results"
+      ansible.builtin.debug:
+        msg:
+          - "firewalld_loopback_src_ipv4_rule_result: {{ firewalld_loopback_src_ipv4_rule_result }}"
+          - "firewalld_loopback_src_ipv6_rule_result: {{ firewalld_loopback_src_ipv6_rule_result }}"
+          - "firewalld_reload_after_src_rules_result: {{ firewalld_reload_after_src_rules_result }}"

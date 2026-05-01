@@ -1,0 +1,9 @@
+
+
+---
+- name: Deploy Windows application
+  hosts: win
+  gather_facts: true
+  roles:
+    - role: win-cer
+      

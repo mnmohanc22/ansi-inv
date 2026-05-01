@@ -1,0 +1,153 @@
+############ 1.1.1.9 Ensure firewire-core kernel module is not available
+- name: "Block: Ensure firewire-core kernel module is not available"
+  block:
+    - name: "Disable firewire-core kernel module"
+      ansible.builtin.copy:
+        dest: /etc/modprobe.d/firewire-core.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          install firewire-core /bin/true
+          blacklist firewire-core
+      register: disable_firewire_core_module_result
+
+    - name: "Debug disable_firewire_core_module_result"
+      ansible.builtin.debug:
+        msg: "disable_firewire_core_module_result  :  {{ disable_firewire_core_module_result }}"        
+
+    - name: "Remove firewire-core module if loaded"
+      ansible.builtin.modprobe:
+        name: firewire-core
+        state: absent
+      failed_when: false
+      register: remove_firewire_core_module_result
+
+    - name: "Debug remove_firewire_core_module_result"
+      ansible.builtin.debug:
+        msg: "remove_firewire_core_module_result :  {{ remove_firewire_core_module_result }}"
+
+
+  always:
+    - name: "Always: Disable firewire-core kernel module"
+      ansible.builtin.debug:
+        msg: "firewire-core remediation block completed."
+
+
+########### 1.3.1.4 Ensure the SELinux mode is not disabled
+
+- name: "Block: Ensure the SELinux mode is not disabled"
+  block:
+    - name: "update  SELinux mode to permissive in config file"
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX=permissive'
+      register: update_selinux_mode_result
+
+    - name: "Debug update_selinux_mode_result"
+      ansible.builtin.debug:
+        msg: "update_selinux_mode_result  :  {{ update_selinux_mode_result }}"  
+
+    # - name: Ensure SELinux policy type is targeted
+    #   ansible.builtin.lineinfile:
+    #     path: /etc/selinux/config
+    #     regexp: '^SELINUXTYPE='
+    #     line: 'SELINUXTYPE=targeted'
+
+
+
+######## 1.5.10 Ensure systemd-coredump Storage is configured
+
+- name: "Block:  Ensure systemd-coredump Storage is configured"
+  block:
+    - name: "Update systemd-coredump Storage to none"
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/coredump.conf
+        regexp: '^#?Storage='
+        line: 'Storage=none'
+        create: yes
+      register: coredump_storage_result
+
+    - name: "Debug: coredump_storage_result"
+      ansible.builtin.debug:
+        msg: "coredump_storage_result: {{ coredump_storage_result }}"
+
+    - name: Reload systemd daemon
+      ansible.builtin.command: systemctl daemon-reexec
+      register: systemd_daemon_reexec_result
+      changed_when: false
+      failed_when: false
+
+    - name: "Debug: systemd_daemon_reexec_result"
+      ansible.builtin.debug:
+        msg: "systemd_daemon_reexec_result: {{  systemd_daemon_reexec_result }}"
+
+  
+  ############# 1.5.5 Ensure kernel.dmesg_restrict is configured
+
+- name: "Block: Ensure kernel.dmesg_restrict is configured"
+  block:
+    - name: Ensure kernel.dmesg_restrict is configured
+      ansible.builtin.sysctl:
+        name: kernel.dmesg_restrict
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+        sysctl_file: /etc/sysctl.d/99-dmesg.conf
+      register: dmesg_restrict_result
+
+    - name: "Debug: dmesg_restrict_result"
+      ansible.builtin.debug:
+        msg: "dmesg_restrict_result: {{ dmesg_restrict_result }}"
+
+  
+
+####### 1.5.7 Ensure kernel.yama.ptrace_scope is configured
+
+- name: "Block: Ensure kernel.yama.ptrace_scope is configured"
+  block:
+    - name: Ensure kernel.yama.ptrace_scope is configured
+      ansible.builtin.sysctl:
+        name: kernel.yama.ptrace_scope
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+        sysctl_file: /etc/sysctl.d/99-ptrace.conf
+      register: ptrace_scope_result
+
+    - name: "Debug: ptrace_scope_result"
+      ansible.builtin.debug:
+        msg: "ptrace_scope_result: {{ ptrace_scope_result }}"
+
+
+
+
+#####1.5.9 Ensure systemd-coredump ProcessSizeMax is configured
+
+- name: "Block:  Ensure systemd-coredump ProcessSizeMax is configured"
+  block:
+    - name: "Update systemd-coredump ProcessSizeMax to 0"
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/coredump.conf
+        regexp: '^#?ProcessSizeMax='
+        line: 'ProcessSizeMax=0'
+        create: yes
+      register: coredump_process_size_max_result
+
+    - name: "Debug : coredump_process_size_max_result"
+      ansible.builtin.debug:
+        msg: " coredump_process_size_max_result:  {{  coredump_process_size_max_result }}"
+
+    - name: Reload systemd daemon
+      ansible.builtin.command: systemctl daemon-reexec
+      register: systemd_daemon_reexec_result
+      changed_when: false
+      failed_when: false
+
+    - name: "Debug:  systemd_daemon_reexec_result"
+      ansible.builtin.debug:
+        msg: "systemd_daemon_reexec_result : {{   systemd_daemon_reexec_result }}"
+

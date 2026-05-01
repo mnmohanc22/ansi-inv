@@ -1,0 +1,41 @@
+---
+- name: Get IIS status and details
+  tags: [iis, get]
+  block:
+    - name: Verify IIS responds on port 80
+      ansible.windows.win_uri:
+        url: http://localhost
+        status_code: 200
+      register: iis_check
+      retries: 5
+      delay: 3
+      until: iis_check is succeeded
+
+    - name: print debug info
+      ansible.builtin.debug:
+        msg: "IIS is responding on port 80 with status code {{ iis_check.status_code }}"  
+
+    - name: Get installed IIS features
+      ansible.windows.win_shell: |
+        Get-WindowsFeature |
+          Where-Object { $_.InstallState -eq 'Installed' -and $_.Name -like 'Web-*' } |
+          Select-Object Name, DisplayName |
+          Sort-Object Name |
+          Format-Table -AutoSize
+      register: iis_installed
+      changed_when: false
+
+    - name: Get IIS version
+      ansible.windows.win_shell: |
+        (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\InetStp\).VersionString
+      register: iis_version
+      changed_when: false
+
+    - name: IIS status summary
+      ansible.builtin.debug:
+        msg:
+          - "IIS Version  : {{ iis_version.stdout | trim }}"
+          - "HTTP Status  : {{ iis_check.status_code }}"
+          - "Default Site : http://{{ inventory_hostname }}/"
+          - "Features     :"
+          - "{{ iis_installed.stdout }}"

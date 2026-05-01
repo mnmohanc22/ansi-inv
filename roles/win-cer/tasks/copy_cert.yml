@@ -1,0 +1,14 @@
+---
+- name: Copy certificates to target
+  block:
+    - name: Copy wildcard certificate PFX to target
+      ansible.windows.win_copy:
+        src: "{{ windows_wildcard_cert_pfx_src }}"
+        dest: "{{ windows_wildcard_cert_pfx_dest }}"
+
+    - name: Copy intermediate/root certificates to target
+      ansible.windows.win_copy:
+        src: "{{ item.src }}"
+        dest: "{{ windows_wildcard_cert_temp_dir }}\\{{ item.src | basename }}"
+      loop: "{{ windows_wildcard_cert_intermediate_certs }}"
+      when: windows_wildcard_cert_intermediate_certs | length > 0

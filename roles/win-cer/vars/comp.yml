@@ -1,0 +1,12 @@
+---
+comp_dll_src_list:
+  - src: "files/MyComLib.dll"
+  - src: "files/MyComLib2.dll"
+  - src: "files/MyComLib3.dll"
+comp_app_name: "MyComPlusApp"
+comp_app_id: "{12345678-1234-1234-1234-123456789012}"
+comp_identity: "DOMAIN\\svc-complus"
+comp_password: "{{ vault_complus_password }}"
+comp_activation: "Server"
+
+dll_tmp_dir: "C:\\Temp\\ComPlusInstall"

@@ -1,0 +1,45 @@
+---
+- name: Add certificate
+  when: not _cert_check.exists
+  block:
+    - name: Render add_cert script
+      ansible.windows.win_template:
+        src: add_cert.ps1
+        dest: "{{ windows_wildcard_cert_temp_dir }}\\add_cert.ps1"
+
+    - name: Run add_cert script
+      ansible.windows.win_shell: |
+        & "{{ windows_wildcard_cert_temp_dir }}\\add_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: add_cert_result
+      no_log: true
+      changed_when: true
+
+- name: Set wildcard certificate thumbprint fact
+  set_fact:
+    wildcard_cert_thumbprint: >-
+      {{ (add_cert_result.stdout | from_json).thumbprint
+         if not _cert_check.exists
+         else _cert_check.thumbprint }}
+
+
+
+# --- Validate ---
+
+- name: Validate certificate
+  when: windows_wildcard_cert_verify
+  tags: [validate]
+  block:
+    - name: Render validate_cert script
+      ansible.windows.win_template:
+        src: validate_cert.ps1
+        dest: "{{ windows_wildcard_cert_temp_dir }}\\validate_cert.ps1"
+
+    - name: Run validate_cert script
+      ansible.windows.win_shell: |
+        & "{{ windows_wildcard_cert_temp_dir }}\\validate_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: validate_cert_result
+      changed_when: false

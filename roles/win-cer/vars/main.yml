@@ -1,0 +1,112 @@
+---
+# Source certificate files
+windows_wildcard_cert_pfx_src: "wildcard.pfx"
+windows_wildcard_cert_pfx_password: ""
+
+# Destination temp paths on remote Windows host
+windows_wildcard_cert_temp_dir: "C:\\Temp\\cert_install"
+windows_wildcard_cert_pfx_dest: "C:\\Temp\\cert_install\\wildcard.pfx"
+
+# Certificate identity
+windows_wildcard_cert_friendly_name: "Wildcard *.pmcllc.com"
+wildcard_domain: "pmcllc.com"
+
+# Target certificate store
+windows_wildcard_cert_store_location: "LocalMachine"
+windows_wildcard_cert_store_name: "My"
+windows_wildcard_cert_store_path: "Cert:\\LocalMachine\\My"
+windows_intermediate_cert_store_path: "Cert:\\LocalMachine\\CA"
+windows_root_cert_store_path: "Cert:\\LocalMachine\\Root"
+
+# Shorthand store paths
+win_My_certs: "Cert:\\LocalMachine\\My"
+win_CA_certs: "Cert:\\LocalMachine\\CA"
+win_Root_certs: "Cert:\\LocalMachine\\Root"
+
+# Generic vars used by get_cert_details.yml
+windows_cert_store_path: "Cert:\\LocalMachine\\My"
+windows_cert_friendly_name: "Wildcard *.pmcllc.com"
+
+# Whether private key export should be allowed after import
+windows_wildcard_cert_exportable: false
+
+# Optional chain certificates to import
+windows_wildcard_cert_intermediate_certs: []
+# Example:
+# windows_wildcard_cert_intermediate_certs:
+#   - { src: "intermediate1.cer", store_name: "CA" }
+#   - { src: "rootca.cer", store_name: "Root" }
+
+# Cleanup temp files after import
+windows_wildcard_cert_cleanup_temp: true
+
+# Validate cert exists by thumbprint after import
+windows_wildcard_cert_verify: true
+
+
+
+# IIS feature groups
+iis_features_core:
+  - Web-Server
+  - Web-WebServer
+
+iis_features_common_http:
+  - Web-Common-Http
+  - Web-Default-Doc
+  - Web-Dir-Browsing
+  - Web-Http-Errors
+  - Web-Static-Content
+  - Web-Http-Redirect
+
+iis_features_health_diag:
+  - Web-Health
+  - Web-Http-Logging
+  - Web-Log-Libraries
+  - Web-Request-Monitor
+  - Web-Http-Tracing
+
+iis_features_performance:
+  - Web-Performance
+  - Web-Stat-Compression
+  - Web-Dyn-Compression
+
+iis_features_security:
+  - Web-Security
+  - Web-Filtering
+  - Web-Basic-Auth
+  - Web-Windows-Auth
+  - Web-Client-Auth
+  - Web-Cert-Auth
+  - Web-IP-Security
+
+iis_features_app_dev:
+  - Web-App-Dev
+  - Web-Net-Ext45
+  - Web-Asp-Net45
+  - Web-ISAPI-Ext
+  - Web-ISAPI-Filter
+
+iis_features_mgmt:
+  - Web-Mgmt-Tools
+  - Web-Mgmt-Console
+  - Web-Mgmt-Service
+  - Web-Scripting-Tools
+
+iis_features_dotnet:
+  - NET-Framework-45-ASPNET
+  - NET-WCF-HTTP-Activation45
+##############
+
+
+
+comp_dll_src_list:
+  - src: "files/MyComLib.dll"
+  - src: "files/MyComLib2.dll"
+  - src: "files/MyComLib3.dll"
+comp_app_name: "MyComPlusApp"
+comp_app_id: "{12345678-1234-1234-1234-123456789012}"
+comp_identity: "DOMAIN\\svc-complus"
+comp_password: "{{ vault_complus_password }}"
+comp_activation: "Server"
+
+dll_tmp_dir: "C:\\Temp\\ComPlusInstall"

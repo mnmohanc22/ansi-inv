@@ -1,0 +1,16 @@
+##### 2.2.4 Ensure telnet client is not installed
+
+- name: "Block: Ensure telnet client is not installed"
+  block:
+    - name: "Ensure telnet client is not installed | Remove  telnet client package"
+      ansible.builtin.shell: |
+        dnf -y remove telnet || true
+      args:
+        executable: /bin/bash
+      register: remove_telnet_package_output
+      changed_when: "'Removed' in (remove_telnet_package_output.stdout | default('')) or 'Erased' in (remove_telnet_package_output.stdout | default(''))"
+      failed_when: false
+
+    - name: "Ensure telnet client is not installed | Debug remove_telnet_package_output"
+      ansible.builtin.debug:
+        msg: "remove_telnet_package_output:  {{ remove_telnet_package_output }}"

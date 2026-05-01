@@ -1,0 +1,156 @@
+#### 7.1.11 Ensure world writable files and directories are secured
+
+- name: "Block: Secure world-writable files and directories"
+  block:
+    - name: Find world-writable files
+      ansible.builtin.shell: >
+        find / -xdev -type f -perm -0002
+        {% for p in (cis_ww_excluded_paths | default([])) %} -not -path '{{ p }}/*' {% endfor %}
+      args:
+        executable: /bin/bash
+      register: ww_files
+      changed_when: false
+      failed_when: false
+
+    - name: "Debug: world-writable files found"
+      ansible.builtin.debug:
+        msg: "World-writable files: {{ ww_files.stdout_lines | default([]) }}"  
+
+    - name: Remove world-writable permission from files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: "o-w"
+      loop: "{{ ww_files.stdout_lines | default([]) }}"
+      when: (ww_files.stdout_lines | default([])) | length > 0
+      failed_when: false
+
+    - name: Find world-writable directories without sticky bit
+      ansible.builtin.shell: >
+        find / -xdev -type d -perm -0002 ! -perm -1000
+        {% for p in (cis_ww_excluded_paths | default([])) %} -not -path '{{ p }}/*' {% endfor %}
+      args:
+        executable: /bin/bash
+      register: ww_dirs
+      changed_when: false
+      failed_when: false
+
+    - name: "Debug: world-writable directories without sticky bit found"
+      ansible.builtin.debug:
+        msg: "World-writable directories without sticky bit: {{ ww_dirs.stdout_lines | default([]) }}"  
+
+    - name: Add sticky bit to world-writable directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: "+t"
+      loop: "{{ ww_dirs.stdout_lines | default([]) }}"
+      when: (ww_dirs.stdout_lines | default([])) | length > 0
+      failed_when: false
+
+    # - name: Save CIS world-writable audit results
+    #   ansible.builtin.copy:
+    #     dest: /var/log/cis_world_writable_check.log
+    #     owner: root
+    #     group: root
+    #     mode: "0644"
+    #     content: |
+    #       Date: {{ ansible_date_time.iso8601 }}
+    #       Host: {{ inventory_hostname }}
+
+    #       World-writable files:
+    #       {{ ww_files.stdout | default('None') }}
+
+    #       World-writable directories without sticky bit:
+    #       {{ ww_dirs.stdout | default('None') }}
+    #   failed_when: false
+
+    # - name: "Debug: world-writable remediation summary"
+    #   ansible.builtin.debug:
+    #     msg:
+    #       - "world_writable_files_found: {{ (ww_files.stdout_lines | default([])) | length }}"
+    #       - "world_writable_dirs_found: {{ (ww_dirs.stdout_lines | default([])) | length }}"
+
+#### 7.1.12 Ensure no files or directories without an owner and a group exist
+
+- name: Ensure home directories exist with secure ownership and permissions
+  block:
+    - name: Get local interactive users
+      ansible.builtin.shell: |
+        awk -F: -v min_uid="{{ min_uid }}" '
+        ($3 >= min_uid && $1 != "nfsnobody" && $7 !~ /(nologin|false)$/) {
+          print $1 ":" $4 ":" $6
+        }' /etc/passwd
+      register: interactive_users
+      changed_when: false
+
+    - name: "Debug: local interactive users found"
+      ansible.builtin.debug:
+        msg: "Local interactive users: {{ interactive_users.stdout_lines | default([]) }}"  
+
+    - name: Ensure home directories exist with secure ownership and permissions
+      ansible.builtin.file:
+        path: "{{ item.split(':')[2] }}"
+        state: directory
+        owner: "{{ item.split(':')[0] }}"
+        group: "{{ item.split(':')[1] }}"
+        mode: "0750"
+      loop: "{{ interactive_users.stdout_lines }}"
+      when:
+        - item.split(':')[2] != ""
+        - item.split(':')[2] != "/"
+      register: home_dir_results
+      failed_when: false  
+
+    - name: "Debug: home directory results"
+      ansible.builtin.debug:
+        msg: "Home directory results: {{ home_dir_results }}"
+
+
+#### 7.2.9 Ensure local interactive user dot files access is configured
+
+
+- name: Ensure local interactive user dot files access is configured
+  block:
+    - name: Get local interactive users and home directories
+      ansible.builtin.shell: |
+        awk -F: -v min_uid="{{ min_uid }}" '
+        ($3 >= min_uid && $1 != "nfsnobody" && $7 !~ /(nologin|false)$/) {
+          print $1 ":" $6
+        }' /etc/passwd
+      register: interactive_users
+      changed_when: false
+
+    - name: "Debug: local interactive users and home directories found"
+      ansible.builtin.debug:
+        msg: "Local interactive users and home directories: {{ interactive_users.stdout_lines | default([]) }}"  
+
+    - name: Find dot files in interactive user home directories
+      ansible.builtin.find:
+        paths: "{{ item.split(':')[1] }}"
+        patterns: ".*"
+        file_type: file
+        hidden: true
+        recurse: false
+      loop: "{{ interactive_users.stdout_lines }}"
+      register: user_dot_files
+      when:
+        - item.split(':')[1] != ""
+        - item.split(':')[1] != "/"
+
+    - name: "Debug: user dot files found"
+      ansible.builtin.debug:
+        msg: "User dot files: {{ user_dot_files.results | map(attribute='files') | flatten | map(attribute='path') | list }}"    
+
+    - name: Secure local interactive user dot files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: "{{ item.pw_name | default(omit) }}"
+        mode: "0640"
+      loop: "{{ user_dot_files.results | map(attribute='files') | flatten }}"
+      register: dot_file_results
+      when:
+        - item.path is defined
+        - item.path | basename not in ['.', '..']
+
+    - name: "Debug: dot file results"
+      ansible.builtin.debug:
+        msg: "Dot file results: {{ dot_file_results }}"

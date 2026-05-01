@@ -1,0 +1,20 @@
+---
+- name: Check IIS service and connectivity
+  tags: [iis, check]
+  block:
+    - name: Ensure W3SVC (IIS) service is started and set to auto
+      ansible.windows.win_service:
+        name: W3SVC
+        state: started
+        start_mode: auto
+
+    - name: Verify IIS is responding on port 80
+      ansible.windows.win_wait_for:
+        port: 80
+        timeout: 30
+      register: iis_port_check
+      ignore_errors: true
+
+    - name: Show IIS status
+      ansible.builtin.debug:
+        msg: "IIS is {{ 'UP' if iis_port_check is succeeded else 'NOT responding on port 80' }}"

@@ -1,0 +1,33 @@
+---
+
+
+
+- name: View installed IIS features
+  tags: [iis, view]
+  block:
+    - name: Get enabled IIS features
+      ansible.windows.win_shell: |
+        Get-WindowsFeature |
+          Where-Object { $_.InstallState -eq 'Installed' -and $_.Name -like 'Web-*' } |
+          Select-Object Name, DisplayName, InstallState |
+          Sort-Object Name |
+          Format-Table -AutoSize
+      register: iis_features
+      changed_when: false
+
+    - name: Show enabled IIS features
+      ansible.builtin.debug:
+        msg: "{{ iis_features.stdout }}"
+
+    - name: Get IIS features as JSON
+      ansible.windows.win_shell: |
+        Get-WindowsFeature |
+          Where-Object { $_.InstallState -eq 'Installed' -and $_.Name -like 'Web-*' } |
+          Select-Object Name, DisplayName, InstallState |
+          ConvertTo-Json -Compress
+      register: iis_features_json
+      changed_when: false
+
+    - name: Show installed Web features
+      ansible.builtin.debug:
+        msg: "{{ iis_features_json.stdout }}"

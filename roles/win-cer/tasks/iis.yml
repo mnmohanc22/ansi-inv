@@ -1,0 +1,146 @@
+---
+- name: Install and harden IIS
+  tags: [iis]
+  block:
+    # --- Install ---
+
+    - name: Install IIS production feature set
+      ansible.windows.win_feature:
+        name: "{{ iis_features }}"
+        state: present
+        include_management_tools: true
+      register: iis_install
+
+    - name: Reboot if required after install
+      ansible.windows.win_reboot:
+        reboot_timeout: 600
+        post_reboot_delay: 30
+        msg: "Rebooting after IIS install"
+      when: iis_install.reboot_required
+
+    # --- Harden ---
+
+    - name: Remove risky default IIS sub-features
+      ansible.windows.win_feature:
+        name:
+          - Web-Dir-Browsing
+          - Web-Http-Tracing
+        state: absent
+      register: iis_harden
+      ignore_errors: true
+
+    - name: Reboot if hardening removal required it
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 30
+      when: iis_harden.reboot_required | default(false)
+
+    # --- Service baseline ---
+
+    - name: Ensure W3SVC service is running and auto-start
+      ansible.windows.win_service:
+        name: W3SVC
+        state: started
+        start_mode: auto
+
+    - name: Ensure WAS service is running and auto-start
+      ansible.windows.win_service:
+        name: WAS
+        state: started
+        start_mode: auto
+
+    # --- Request filtering ---
+
+    - name: Disable risky HTTP verbs (TRACE and TRACK)
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        Add-WebConfiguration `
+          -Filter 'system.webServer/security/requestFiltering/verbs' `
+          -Value @{verb='TRACE'; allowed='False'} -PSPath 'IIS:\' -ErrorAction SilentlyContinue
+        Add-WebConfiguration `
+          -Filter 'system.webServer/security/requestFiltering/verbs' `
+          -Value @{verb='TRACK'; allowed='False'} -PSPath 'IIS:\' -ErrorAction SilentlyContinue
+      changed_when: false
+
+    - name: Set request filtering size limits
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        Set-WebConfigurationProperty `
+          -Filter 'system.webServer/security/requestFiltering/requestLimits' `
+          -Name 'maxAllowedContentLength' -Value 30000000 -PSPath 'IIS:\'
+        Set-WebConfigurationProperty `
+          -Filter 'system.webServer/security/requestFiltering/requestLimits' `
+          -Name 'maxUrl' -Value 4096 -PSPath 'IIS:\'
+        Set-WebConfigurationProperty `
+          -Filter 'system.webServer/security/requestFiltering/requestLimits' `
+          -Name 'maxQueryString' -Value 2048 -PSPath 'IIS:\'
+      changed_when: false
+
+    # --- Hide server fingerprint ---
+
+    - name: Remove Server response header
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        Set-WebConfigurationProperty `
+          -Filter 'system.webServer/security/requestFiltering' `
+          -Name 'removeServerHeader' -Value $true -PSPath 'IIS:\'
+      changed_when: false
+
+    - name: Remove X-Powered-By header
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        Remove-WebConfigurationProperty `
+          -Filter 'system.webServer/httpProtocol/customHeaders' `
+          -Name '.' -AtElement @{name='X-Powered-By'} -PSPath 'IIS:\' -ErrorAction SilentlyContinue
+      changed_when: false
+
+    # --- Logging ---
+
+    - name: Configure IIS logging
+      ansible.windows.win_shell: |
+        Import-Module WebAdministration
+        Set-WebConfigurationProperty -Filter 'system.applicationHost/sites/siteDefaults/logFile' `
+          -Name 'logFormat' -Value 'W3C' -PSPath 'IIS:\'
+        Set-WebConfigurationProperty -Filter 'system.applicationHost/sites/siteDefaults/logFile' `
+          -Name 'period' -Value 'Daily' -PSPath 'IIS:\'
+        Set-WebConfigurationProperty -Filter 'system.applicationHost/sites/siteDefaults/logFile' `
+          -Name 'logExtFileFlags' `
+          -Value 'Date,Time,ClientIP,UserName,SiteName,ComputerName,ServerIP,Method,UriStem,UriQuery,HttpStatus,Win32Status,BytesSent,BytesRecv,TimeTaken,ServerPort,UserAgent,Cookie,Referer,ProtocolVersion,Host,HttpSubStatus' `
+          -PSPath 'IIS:\'
+      changed_when: false
+
+    # --- Verification ---
+
+    - name: Verify IIS responds on port 80
+      ansible.windows.win_uri:
+        url: http://localhost
+        status_code: 200
+      register: iis_check
+      retries: 5
+      delay: 3
+      until: iis_check is succeeded
+
+    - name: Get installed IIS features
+      ansible.windows.win_shell: |
+        Get-WindowsFeature |
+          Where-Object { $_.InstallState -eq 'Installed' -and $_.Name -like 'Web-*' } |
+          Select-Object Name, DisplayName |
+          Sort-Object Name |
+          Format-Table -AutoSize
+      register: iis_installed
+      changed_when: false
+
+    - name: Get IIS version
+      ansible.windows.win_shell: |
+        (Get-ItemProperty HKLM:\SOFTWARE\Microsoft\InetStp\).VersionString
+      register: iis_version
+      changed_when: false
+
+    - name: IIS install summary
+      ansible.builtin.debug:
+        msg:
+          - "IIS Version  : {{ iis_version.stdout | trim }}"
+          - "HTTP Status  : {{ iis_check.status_code }}"
+          - "Default Site : http://{{ inventory_hostname }}/"
+          - "Features     :"
+          - "{{ iis_installed.stdout }}"

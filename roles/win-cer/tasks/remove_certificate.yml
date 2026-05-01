@@ -1,0 +1,50 @@
+---
+- name: Remove certificate
+  block:
+    - name: Find certificate thumbprint
+      ansible.windows.win_shell: |
+        $cert = Get-ChildItem "{{ windows_wildcard_cert_store_path }}" |
+          Where-Object { $_.FriendlyName -eq '{{ windows_wildcard_cert_friendly_name }}' -or
+                         $_.Subject -like '*{{ windows_wildcard_cert_friendly_name }}*' } |
+          Sort-Object NotAfter -Descending |
+          Select-Object -First 1
+        if ($cert) {
+          @{ found = $true; thumbprint = $cert.Thumbprint } | ConvertTo-Json -Compress
+        } else {
+          @{ found = $false; thumbprint = $null } | ConvertTo-Json -Compress
+        }
+      register: _remove_cert_lookup
+      changed_when: false
+
+    - name: Set remove cert fact
+      set_fact:
+        _remove_cert: "{{ _remove_cert_lookup.stdout | from_json }}"
+
+    - name: Remove certificate from store
+      ansible.windows.win_certificate_store:
+        thumbprint: "{{ _remove_cert.thumbprint }}"
+        store_location: "{{ windows_wildcard_cert_store_location }}"
+        store_name: "{{ windows_wildcard_cert_store_name }}"
+        state: absent
+      when: _remove_cert.found | bool
+
+    - name: Remove certificate from CA store
+      ansible.windows.win_certificate_store:
+        thumbprint: "{{ _remove_cert.thumbprint }}"
+        store_location: "{{ windows_wildcard_cert_store_location }}"
+        store_name: "CA"
+        state: absent
+      when: _remove_cert.found | bool
+
+    - name: Remove certificate from Root store
+      ansible.windows.win_certificate_store:
+        thumbprint: "{{ _remove_cert.thumbprint }}"
+        store_location: "{{ windows_wildcard_cert_store_location }}"
+        store_name: "Root"
+        state: absent
+      when: _remove_cert.found | bool
+
+    - name: Certificate not found
+      ansible.builtin.debug:
+        msg: "No certificate matching '{{ windows_wildcard_cert_friendly_name }}' found in store — nothing to remove."
+      when: not _remove_cert.found | bool

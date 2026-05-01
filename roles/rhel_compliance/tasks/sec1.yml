@@ -1,0 +1,74 @@
+---
+- name: Ensure gpgcheck is enabled globally and in all repos
+  block:
+
+    - name: check current global gpgcheck setting in dnf.conf
+      ansible.builtin.shell: "awk -F= '/^[[:space:]]*gpgcheck[[:space:]]*=/ {print $2}' /etc/dnf/dnf.conf"
+      register: current_gpgcheck
+      changed_when: false
+
+    - name: Debug current global gpgcheck setting
+      ansible.builtin.debug:
+        msg: "Current global gpgcheck setting in /etc/dnf/dnf.conf: {{ current_gpgcheck.stdout | default('not set') }}"
+
+    - name: check current global gpgcheck setting in yum.conf if exists (RHEL 7)
+      ansible.builtin.shell: "awk -F= '/^[[:space:]]*gpgcheck[[:space:]]*=/ {print $2}' /etc/yum.conf"
+      register: current_gpgcheck_yum
+      changed_when: false
+      failed_when: false
+
+    - name: Debug current global gpgcheck setting in yum.conf
+      ansible.builtin.debug:
+        msg: "Current global gpgcheck setting in /etc/yum.conf: {{ current_gpgcheck_yum.stdout | default('not set') }}"
+         
+
+    - name: Ensure global gpgcheck is enabled in dnf.conf
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/dnf.conf
+        regexp: '^\s*gpgcheck\s*='
+        line: 'gpgcheck=1'
+        create: true
+        backup: true
+
+    - name: Find all repo files
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d/
+        patterns: "*.repo"
+      register: repo_files
+
+    - name: Debug repo files found
+      ansible.builtin.debug:
+        msg: "Repo files found: {{ repo_files.files | map(attribute='path') | list }}"
+
+    - name: check current gpgcheck setting in each repo file
+      ansible.builtin.shell: "awk -F= '/^[[:space:]]*gpgcheck[[:space:]]*=/ {print $2}' {{ item.path }}"
+      loop: "{{ repo_files.files }}"
+      register: repo_gpgcheck_settings
+      changed_when: false
+      failed_when: false
+
+    - name: Print gpgcheck value per repo file
+      ansible.builtin.debug:
+        msg: "{{ item.item.path | basename }} : gpgcheck={{ item.stdout | trim | default('not set') }}"
+      loop: "{{ repo_gpgcheck_settings.results }}"
+      loop_control:
+        label: "{{ item.item.path | basename }}"
+
+    - name: Ensure gpgcheck is enabled in all repo files
+      ansible.builtin.lineinfile:
+        path: "{{ item.path }}"
+        regexp: '^\s*gpgcheck\s*='
+        line: 'gpgcheck=1'
+        insertafter: '^\[.*\]'
+        backup: true
+      loop: "{{ repo_files.files }}"
+      register: gpgcheck_results
+      failed_when: false
+    
+    - name: Print repo files where gpgcheck was changed
+      ansible.builtin.debug:
+        msg: "gpgcheck updated: {{ item.item.path | basename }}"
+      loop: "{{ gpgcheck_results.results }}"
+      loop_control:
+        label: "{{ item.item.path | basename }}"
+      when: item.changed

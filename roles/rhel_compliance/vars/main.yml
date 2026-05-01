@@ -1,0 +1,69 @@
+---
+# vars file for roles/rhel_compliance
+
+
+
+rhel8cis_allowed_crypto_policies:
+  - 'DEFAULT'
+  - 'FUTURE'
+  - 'FIPS'
+
+
+rhel8cis_crypto_policy: 'DEFAULT'  
+
+# Following is left blank for ability to build string
+rhel8cis_crypto_policy_module: ''
+
+rhel8cis_additional_crypto_policy_module:
+rhel8cis_full_crypto_policy: ''
+
+
+# rhel8cis_crypto_policy: ""
+# rhel8cis_additional_crypto_policy_module: ""
+# rhel8cis_full_crypto_policy: ""
+
+# Do not adjust these are recognized as part of the CIS benchmark and used during testing
+rhel8cis_allowed_crypto_policies_modules:
+  # Recognized by CIS as possible extra options
+  - 'OSPP'
+  - 'AD-SUPPORT'
+  - 'AD-SUPPORT-LEGACY'
+  # The following are already included in 1.6.x controls
+  - 'NO-SHA1'
+  - 'NO-SSHCBC'
+  - 'NO-SSHETM'
+  - 'NO-SSHWEAKCIPHER'
+  - 'NO-SSHWEAKMAC'
+  - 'NO-WEAKMAC'
+
+
+sshd_ciphers:
+  - chacha20-poly1305@openssh.com
+  - aes256-gcm@openssh.com
+  - aes128-gcm@openssh.com
+
+
+cis_ww_excluded_paths:
+  - /proc
+  - /sys
+  - /dev
+  - /run
+  - /tmp
+  - /var/tmp
+
+
+cis_default_owner: root
+cis_default_group: root
+cis_fs_excluded_paths:
+  - /proc
+  - /sys
+  - /dev
+  - /run
+
+
+
+## sec7
+min_uid: 1000
+
+## sec5
+cis_default_umask: "027"

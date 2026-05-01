@@ -1,0 +1,36 @@
+---
+iis_features:
+  # Core role
+  - Web-Server
+
+  # Common HTTP
+  - Web-Default-Doc
+  - Web-Http-Errors
+  - Web-Static-Content
+  - Web-Http-Redirect
+
+  # Health and Diagnostics
+  - Web-Http-Logging
+  - Web-Log-Libraries
+  - Web-Request-Monitor
+
+  # Performance
+  - Web-Stat-Compression
+  - Web-Dyn-Compression
+
+  # Security
+  - Web-Filtering
+  - Web-Windows-Auth
+
+  # Application Development
+  - Web-Net-Ext45
+  - Web-Asp-Net45
+  - Web-ISAPI-Ext
+  - Web-ISAPI-Filter
+
+  # Management
+  - Web-Mgmt-Console
+
+  # .NET Framework
+  - NET-Framework-45-ASPNET
+  - NET-WCF-HTTP-Activation45

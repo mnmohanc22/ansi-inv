@@ -1,0 +1,21 @@
+---
+- name: Setup certificate files
+  block:
+    - name: Print certificate file paths
+      ansible.builtin.debug:
+        msg: "PFX source: {{ windows_wildcard_cert_pfx_src }}, PFX destination: {{ windows_wildcard_cert_pfx_dest }}"
+
+    - name: Print temp directory path
+      ansible.builtin.debug:
+        msg: "Temp directory: {{ windows_wildcard_cert_temp_dir }}"
+
+    - name: Ensure temp directory exists
+      ansible.windows.win_file:
+        path: "{{ windows_wildcard_cert_temp_dir }}"
+        state: directory
+      register: _cert_temp_dir
+
+    - name: Print cert temp dir creation result
+      ansible.builtin.debug:
+        msg: "{{ _cert_temp_dir }}"
+

@@ -1,0 +1,55 @@
+---
+# tasks file for roles/rhel_compliance
+
+
+
+
+# - name: import tasks to check RHEL compliance on the server
+#   import_tasks: check_rhel_compliance.yml
+#   tags:
+#     - check_rhel_compliance
+#     - always
+
+- name: import tasks to enforce RHEL compliance on the server
+  import_tasks: section_1.yml
+  tags:
+    - section_1    
+
+# - name: Run post remediation tasks
+#   ansible.builtin.import_tasks: post.yml
+#   tags:
+#     - always
+
+# import tasks for section 7 - file permissions
+- name: import tasks to check and fix file permissions
+  ansible.builtin.import_tasks: section-7.yml
+  tags:
+    - section-7
+
+
+# import tasks for section 6   - file permissions
+- name: import tasks to check and fix file permissions
+  ansible.builtin.import_tasks: section-6.yml
+  tags:
+    - section-6
+
+
+# import tasks for section 5   - file permissions
+- name: import tasks to check and fix file permissions
+  ansible.builtin.import_tasks: section-5.yml
+  tags:
+    - section-5
+
+
+# import tasks for section 4   - file permissions
+- name: import tasks to check and fix file permissions
+  ansible.builtin.import_tasks: section-4.yml
+  tags:
+    - section-4    
+
+
+# import tasks for sec1   - file permissions
+- name: import tasks to check and fix file permissions
+  ansible.builtin.import_tasks: sec1.yml
+  tags:
+    - sec1     

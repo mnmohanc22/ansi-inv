@@ -1,0 +1,17 @@
+---
+- name: Render check_cert script
+  ansible.windows.win_template:
+    src: check_cert.ps1
+    dest: "{{ windows_wildcard_cert_temp_dir }}\\check_cert.ps1"
+
+- name: Run check_cert script
+  ansible.windows.win_shell: |
+    & "{{ windows_wildcard_cert_temp_dir }}\\check_cert.ps1"
+  args:
+    executable: powershell.exe
+  register: check_cert_result
+  changed_when: false
+
+- name: Set check_cert fact
+  set_fact:
+    _cert_check: "{{ check_cert_result.stdout | from_json }}"

@@ -1,0 +1,16 @@
+# --- Cleanup ---
+
+- name: Cleanup temporary certificate files
+  when: windows_wildcard_cert_cleanup_temp
+  block:
+    - name: Remove temporary PFX file
+      ansible.windows.win_file:
+        path: "{{ windows_wildcard_cert_pfx_dest }}"
+        state: absent
+
+    - name: Remove temporary chain certificate files
+      ansible.windows.win_file:
+        path: "{{ windows_wildcard_cert_temp_dir }}\\{{ item.src | basename }}"
+        state: absent
+      loop: "{{ windows_wildcard_cert_intermediate_certs }}"
+      when: windows_wildcard_cert_intermediate_certs | length > 0

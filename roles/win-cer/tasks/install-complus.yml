@@ -1,0 +1,82 @@
+---
+- name: Install COM+ application
+  tags: [complus]
+  block:
+    - name: Ensure target directory exists
+      ansible.windows.win_file:
+        path: "{{ dll_tmp_dir }}"
+        state: directory
+
+    - name: Copy COM+ DLLs to server
+      ansible.windows.win_copy:
+        src: "{{ item.src }}"
+        dest: "{{ dll_tmp_dir }}"
+      loop: "{{ comp_dll_src_list }}"
+
+    - name: Ensure COMSysApp service is running
+      ansible.windows.win_service:
+        name: COMSysApp
+        state: started
+        start_mode: manual
+
+    - name: Create COM+ application if not exists
+      ansible.windows.win_shell: |
+        $catalog = New-Object -ComObject COMAdmin.COMAdminCatalog
+        $apps    = $catalog.GetCollection("Applications")
+        $apps.Populate()
+
+        $existing = $apps | Where-Object { $_.Name -eq '{{ comp_app_name }}' }
+        if (-not $existing) {
+          $newApp = $apps.Add()
+          $newApp.Value("Name")       = '{{ comp_app_name }}'
+          $newApp.Value("ID")         = '{{ comp_app_id }}'
+          $newApp.Value("Activation") = if ('{{ comp_activation }}' -eq 'Server') { 1 } else { 0 }
+          $newApp.Value("Identity")   = '{{ comp_identity }}'
+          $newApp.Value("Password")   = '{{ comp_password }}'
+          $newApp.Value("RunForeverInProcess") = $false
+          $apps.SaveChanges() | Out-Null
+          Write-Output "Created COM+ application: {{ comp_app_name }}"
+        } else {
+          Write-Output "COM+ application already exists: {{ comp_app_name }}"
+        }
+      register: app_create
+      changed_when: "'Created' in app_create.stdout"
+      no_log: true
+
+    - name: Install component DLL into COM+ application
+      ansible.windows.win_shell: |
+        $catalog = New-Object -ComObject COMAdmin.COMAdminCatalog
+        $catalog.InstallComponent(
+          '{{ comp_app_name }}',
+          '{{ dll_tmp_dir }}\{{ comp_dll_src_list[0].src | basename }}',
+          '',
+          ''
+        )
+        Write-Output "Installed component into {{ comp_app_name }}"
+      register: comp_install
+      changed_when: "'Installed' in comp_install.stdout"
+
+    - name: Start the COM+ application
+      ansible.windows.win_shell: |
+        $catalog = New-Object -ComObject COMAdmin.COMAdminCatalog
+        $catalog.StartApplication('{{ comp_app_name }}')
+        Write-Output "Started {{ comp_app_name }}"
+      changed_when: false
+
+    - name: Verify component registration
+      ansible.windows.win_shell: |
+        $catalog = New-Object -ComObject COMAdmin.COMAdminCatalog
+        $apps    = $catalog.GetCollection("Applications")
+        $apps.Populate()
+        $app = $apps | Where-Object { $_.Name -eq '{{ comp_app_name }}' }
+        if ($app) {
+          $components = $apps.GetCollection("Components", $app.Key)
+          $components.Populate()
+          $components | Select-Object @{N='Name';E={$_.Name}} | Format-Table -AutoSize
+        }
+      register: verify
+      changed_when: false
+
+    - name: Show registered components
+      ansible.builtin.debug:
+        msg: "{{ verify.stdout }}"

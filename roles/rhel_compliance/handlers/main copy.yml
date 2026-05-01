@@ -1,0 +1,21 @@
+---
+# handlers file for roles/rhel_compliance
+
+
+
+- name: Set_Crypto_Policy
+  when: init_system_wide_crypto_policy.stdout != rhel8cis_crypto_policy_module
+  ansible.builtin.command: update-crypto-policies --set "{{ rhel8cis_crypto_policy_module }}"
+  changed_when: true
+  notify:
+    - Set_reboot_required
+    - Restart_sshd
+
+- name: Set_reboot_required
+  ansible.builtin.set_fact:
+    change_requires_reboot: true
+
+- name: Restart_sshd
+  ansible.builtin.service:
+    name: sshd
+    state: restarted    

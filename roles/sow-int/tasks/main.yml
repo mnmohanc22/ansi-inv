@@ -19,3 +19,47 @@
   tags:
     - snow
     - snow_change
+
+
+# ── Deploy started notification ───────────────────────────────────
+- name: Send deploy started email
+  include_tasks: email_deploy.yml
+  vars:
+    deploy_status: "started"
+  tags:
+    - email
+    - email_deploy
+
+# ── Deploy success notification ───────────────────────────────────
+- name: Send deploy success email
+  include_tasks: email_deploy.yml
+  vars:
+    deploy_status: "success"
+  tags:
+    - email
+    - email_deploy
+
+# ── Deploy failure notification ───────────────────────────────────
+- name: Send deploy failure email
+  include_tasks: email_deploy.yml
+  vars:
+    deploy_status:  "failed"
+    deploy_error:   "{{ ansible_failed_result.msg | default('unknown') }}"
+  tags:
+    - email
+    - email_deploy
+
+
+
+
+- name: "[email] Send ServiceNow status email"
+  include_tasks: s-em.yml
+  vars:
+    email_to:      "{{ notify_email_to }}"
+    email_cc:      "{{ notify_email_cc | default(omit) }}"
+    email_subject: "{{ _snow_email_subject }}"
+    email_body:    "{{ _snow_email_body }}"
+    email_no_log:  false
+  tags:
+    - always
+    - email

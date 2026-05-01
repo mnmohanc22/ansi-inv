@@ -1,0 +1,69 @@
+---
+- name: Install and configure IIS features
+  tags: [iis]
+  block:
+    - name: Install IIS core features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_core }}"
+        state: present
+        include_management_tools: true
+      register: iis_core
+
+    - name: Install IIS Common HTTP features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_common_http }}"
+        state: present
+      register: iis_http
+
+    - name: Install IIS Health and Diagnostics features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_health_diag }}"
+        state: present
+      register: iis_health
+
+    - name: Install IIS Performance features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_performance }}"
+        state: present
+      register: iis_perf
+
+    - name: Install IIS Security features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_security }}"
+        state: present
+      register: iis_sec
+
+    - name: Install IIS Application Development features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_app_dev }}"
+        state: present
+      register: iis_appdev
+
+    - name: Install IIS Management features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_mgmt }}"
+        state: present
+      register: iis_mgmt
+
+    - name: Install .NET Framework features
+      ansible.windows.win_feature:
+        name: "{{ iis_features_dotnet }}"
+        state: present
+      register: iis_dotnet
+
+    - name: Reboot if required by feature installation
+      ansible.windows.win_reboot:
+        reboot_timeout: 300
+        post_reboot_delay: 30
+        msg: "Rebooting after IIS feature installation"
+      when: >
+        iis_core.reboot_required     or
+        iis_http.reboot_required     or
+        iis_health.reboot_required   or
+        iis_perf.reboot_required     or
+        iis_sec.reboot_required      or
+        iis_appdev.reboot_required   or
+        iis_mgmt.reboot_required     or
+        iis_dotnet.reboot_required
+
+    
