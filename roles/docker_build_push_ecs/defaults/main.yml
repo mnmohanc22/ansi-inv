@@ -1,0 +1,49 @@
+---
+# ============================================================================
+# docker_build_push_ecs — defaults
+# ============================================================================
+# This role builds a Docker image on the Ansible control node, pushes it to
+# Amazon ECR using a named AWS CLI profile, and (optionally) rolls out a new
+# revision on an ECS service.
+# ============================================================================
+
+# ---------- AWS profile / region ----------
+# Profile must exist in ~/.aws/credentials or ~/.aws/config on the Ansible
+# server. The role reads credentials via boto3, never sees the secret values.
+aws_profile: "default"
+aws_region: "us-east-1"
+
+# ---------- ECR ----------
+ecr_repository_name: ""              # REQUIRED, e.g. "myorg/web-api"
+ecr_create_if_missing: true
+ecr_image_scan_on_push: true
+ecr_immutable_tags: false            # set true for prod / compliance
+
+# ---------- Docker build ----------
+docker_build_context: ""             # REQUIRED, abs path to dir with Dockerfile
+docker_dockerfile: "Dockerfile"
+docker_build_args: {}                # dict of --build-arg key/values
+docker_target: ""                    # multi-stage build target (optional)
+docker_platform: "linux/amd64"       # or linux/arm64
+docker_pull_base: true
+docker_nocache: false
+
+# ---------- Tagging ----------
+image_tag: "latest"
+image_additional_tags: []            # e.g. ["v1.2.3"]
+image_tag_with_git_sha: true         # appends short git SHA if repo is a git tree
+image_tag_with_timestamp: false      # appends YYYYMMDDHHMMSS
+
+# ---------- Push behavior ----------
+push_image: true
+remove_local_after_push: false       # cleanup on Ansible server
+
+# ---------- ECS deploy (optional) ----------
+ecs_deploy: false                    # flip to true to update a service
+ecs_cluster: ""
+ecs_service: ""
+ecs_task_family: ""
+ecs_container_name: ""               # which container in the task def to update
+ecs_force_new_deployment: true
+ecs_wait_for_stable: true
+ecs_wait_timeout: 600                # seconds

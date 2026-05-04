@@ -1,0 +1,51 @@
+# ---
+# - name: Debug playbook arguments
+#   tags: [debug, setup]
+#   block:
+#     - name: Show git variables
+#       ansible.builtin.debug:
+#         msg:
+#           - "git_repo_url      : {{ git_repo_url | default('(not set)') }}"
+#           - "git_repo_name     : {{ git_repo_name | default('(not set)') }}"
+#           - "git_branch        : {{ git_branch | default('(not set)') }}"
+#           - "git_checkout_dir  : {{ git_checkout_dir | default('(not set)') }}"
+#           - "git_clone_depth   : {{ git_clone_depth | default('(not set)') }}"
+#           - "git_force_checkout: {{ git_force_checkout | default('(not set)') }}"
+
+#     - name: Show AWS / ECR variables
+#       ansible.builtin.debug:
+#         msg:
+#           - "env_name              : {{ env_name | default('(not set)') }}"
+#           - "aws_profile           : {{ aws_profile | default('(not set)') }}"
+#           - "aws_region            : {{ aws_region | default('(not set)') }}"
+#           - "ecr_repository_name   : {{ ecr_repository_name | default('(not set)') }}"
+#           - "ecr_create_if_missing : {{ ecr_create_if_missing | default('(not set)') }}"
+#           - "ecr_immutable_tags    : {{ ecr_immutable_tags | default('(not set)') }}"
+#           - "ecr_image_scan_on_push: {{ ecr_image_scan_on_push | default('(not set)') }}"
+
+#     - name: Show Docker build variables
+#       ansible.builtin.debug:
+#         msg:
+#           - "docker_build_context : {{ docker_build_context | default('(not set)') }}"
+#           - "docker_dockerfile    : {{ docker_dockerfile | default('(not set)') }}"
+#           - "docker_platform      : {{ docker_platform | default('(not set)') }}"
+#           - "docker_build_args    : {{ docker_build_args | default({}) }}"
+#           - "docker_target        : {{ docker_target | default('(not set)') }}"
+#           - "docker_pull_base     : {{ docker_pull_base | default('(not set)') }}"
+#           - "docker_nocache       : {{ docker_nocache | default('(not set)') }}"
+
+#     - name: Show image tag variables
+#       ansible.builtin.debug:
+#         msg:
+#           - "image_tag            : {{ image_tag | default('(not set)') }}"
+#           - "image_additional_tags: {{ image_additional_tags | default([]) }}"
+#           - "docker_image_tag       : {{ docker_image_tag | default('(not yet set)') }}"
+
+#     - name: Show ECS deploy variables
+#       ansible.builtin.debug:
+#         msg:
+#           - "ecs_deploy          : {{ ecs_deploy | default('(not set)') }}"
+#           - "ecs_cluster         : {{ ecs_cluster | default('(not set)') }}"
+#           - "ecs_service         : {{ ecs_service | default('(not set)') }}"
+#           - "ecs_task_family     : {{ ecs_task_family | default('(not set)') }}"
+#           - "ecs_container_name  : {{ ecs_container_name | default('(not set)') }}"

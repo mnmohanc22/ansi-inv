@@ -1,0 +1,46 @@
+---
+# ============================================================================
+# Example: create / update an EC2-launched ECS service using bridge networking
+# (no awsvpc, no subnets needed). Useful for legacy services running on an
+# ECS cluster backed by EC2 container instances.
+#   ansible-playbook -i 'localhost,' examples/playbook-ec2-bridge.yml
+# ============================================================================
+
+- name: "Create / update EC2-launched ECS service"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ecs_service_taskdef
+      vars:
+        aws_profile: "lacare-dev"
+        aws_region:  "us-west-2"
+        state: "present"
+
+        taskdef_family:        "internal-worker"
+        taskdef_network_mode:  "bridge"
+        taskdef_requires_compatibilities: ["EC2"]
+        taskdef_execution_role_arn: "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+
+        taskdef_containers:
+          - name: worker
+            image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/platform/internal-worker:2.0.1"
+            essential: true
+            cpu: 256
+            memory: 512
+            environment:
+              - { name: QUEUE_NAME, value: jobs-prod }
+            logConfiguration:
+              logDriver: awslogs
+              options:
+                awslogs-group: "/ecs/internal-worker"
+                awslogs-region: us-west-2
+                awslogs-stream-prefix: ecs
+
+        ecs_cluster:       "lacare-batch-dev"
+        ecs_service_name:  "internal-worker-svc"
+        ecs_desired_count: 2
+        ecs_launch_type:   "EC2"
+        ecs_force_new_deployment: true
+        ecs_wait_for_stable: true
+        ecs_wait_timeout: 600

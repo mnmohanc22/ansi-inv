@@ -1,0 +1,51 @@
+---
+# ============================================================================
+# ecs_service_taskdef — defaults
+# ============================================================================
+# Registers / updates an ECS task definition and creates / updates the ECS
+# service that runs it. Idempotent: re-running with unchanged input is safe.
+# Set state: absent to tear the service down (and optionally deregister the
+# latest task definition revision).
+# ============================================================================
+
+# ---------- AWS profile / region ----------
+aws_profile: "default"
+aws_region:  "us-east-1"
+
+# ---------- State ----------
+state: "present"                       # present | absent
+
+
+# Container definitions — list of native ECS container dicts (camelCase keys).
+# At least one container is required.
+#
+# Example:
+# taskdef_containers:
+#   - name: sample-api
+#     image: 123456789012.dkr.ecr.us-west-2.amazonaws.com/platform/sample-api:1.4.0
+#     essential: true
+#     cpu: 256
+#     memory: 512
+#     portMappings:
+#       - containerPort: 8080
+#         protocol: tcp
+#     environment:
+#       - name: APP_ENV
+#         value: prod
+#     secrets:
+#       - name: DB_PASSWORD
+#         valueFrom: arn:aws:secretsmanager:us-west-2:123456789012:secret:prod/db-Ab12Cd
+#     logConfiguration:
+#       logDriver: awslogs
+#       options:
+#         awslogs-group: /ecs/sample-api
+#         awslogs-region: us-west-2
+#         awslogs-stream-prefix: ecs
+#         awslogs-create-group: "true"
+#     healthCheck:
+#       command: ["CMD-SHELL", "curl -f http://localhost:8080/healthz || exit 1"]
+#       interval: 30
+#       timeout: 5
+#       retries: 3
+#       startPeriod: 30
+

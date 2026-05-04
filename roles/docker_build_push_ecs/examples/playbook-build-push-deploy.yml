@@ -1,0 +1,36 @@
+---
+# ============================================================================
+# Example: build, push, and roll out to an ECS service.
+#   ansible-playbook -i 'localhost,' examples/playbook-build-push-deploy.yml
+# ============================================================================
+
+- name: "Build, push, and deploy to ECS"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - role: docker_build_push_ecs
+      vars:
+        aws_profile: "lacare-prod"
+        aws_region:  "us-west-2"
+
+        ecr_repository_name: "platform/sample-api"
+        ecr_immutable_tags:  true        # prod: prevent tag overwrites
+
+        docker_build_context: "/opt/projects/sample-api"
+        docker_platform:      "linux/amd64"
+
+        image_tag: "1.4.0"               # treat as the canonical release tag
+        image_additional_tags: []
+        image_tag_with_git_sha: true
+        image_tag_with_timestamp: true
+
+        push_image: true
+
+        ecs_deploy:        true
+        ecs_cluster:       "lacare-platform-prod"
+        ecs_service:       "sample-api-svc"
+        ecs_task_family:   "sample-api"
+        ecs_container_name: "sample-api"
+        ecs_wait_for_stable: true
+        ecs_wait_timeout:    900

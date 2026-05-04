@@ -1,0 +1,94 @@
+---
+# ============================================================================
+# ECS deploy:
+#   1. Read the current task definition for the family.
+#   2. Replace the image on the named container (in a single set_fact).
+#   3. Register a new revision.
+#   4. Update the service to use that revision (force new deployment).
+#   5. Wait for the service to reach a steady state.
+# ============================================================================
+
+- name: "ECS | get current task definition for family '{{ ecs_task_family }}'"
+  community.aws.ecs_taskdefinition_info:
+    task_definition: "{{ ecs_task_family }}"
+    profile: "{{ aws_profile }}"
+    region: "{{ aws_region }}"
+  register: current_taskdef
+
+- name: "ECS | confirm target container '{{ ecs_container_name }}' exists in task def"
+  ansible.builtin.assert:
+    that:
+      - current_taskdef.container_definitions
+        | selectattr('name', 'equalto', ecs_container_name)
+        | list | length == 1
+    fail_msg: >-
+      Container '{{ ecs_container_name }}' not found in task definition
+      '{{ ecs_task_family }}'. Available:
+      {{ current_taskdef.container_definitions | map(attribute='name') | list }}
+    quiet: true
+
+- name: "ECS | build container list with image swapped on '{{ ecs_container_name }}'"
+  ansible.builtin.set_fact:
+    updated_container_definitions: >-
+      {{
+        (current_taskdef.container_definitions
+          | rejectattr('name', 'equalto', ecs_container_name) | list)
+        +
+        (current_taskdef.container_definitions
+          | selectattr('name', 'equalto', ecs_container_name)
+          | map('combine', {'image': pushed_image_uri}) | list)
+      }}
+
+- name: "ECS | register new task definition revision"
+  community.aws.ecs_taskdefinition:
+    family: "{{ ecs_task_family }}"
+    containers: "{{ updated_container_definitions }}"
+    cpu: "{{ current_taskdef.cpu | default(omit) }}"
+    memory: "{{ current_taskdef.memory | default(omit) }}"
+    network_mode: "{{ current_taskdef.network_mode | default('bridge') }}"
+    task_role_arn: "{{ current_taskdef.task_role_arn | default(omit) }}"
+    execution_role_arn: "{{ current_taskdef.execution_role_arn | default(omit) }}"
+    volumes: "{{ current_taskdef.volumes | default([]) }}"
+    launch_type: >-
+      {{ 'FARGATE'
+         if ('FARGATE' in (current_taskdef.requires_compatibilities | default([])))
+         else 'EC2' }}
+    state: present
+    profile: "{{ aws_profile }}"
+    region: "{{ aws_region }}"
+  register: new_taskdef
+
+- name: "ECS | new task definition registered"
+  ansible.builtin.debug:
+    msg: >-
+      Registered {{ new_taskdef.taskdefinition.family }}:{{ new_taskdef.taskdefinition.revision }}
+
+- name: "ECS | update service '{{ ecs_service }}' on cluster '{{ ecs_cluster }}'"
+  community.aws.ecs_service:
+    name: "{{ ecs_service }}"
+    cluster: "{{ ecs_cluster }}"
+    task_definition: "{{ new_taskdef.taskdefinition.family }}:{{ new_taskdef.taskdefinition.revision }}"
+    state: present
+    force_new_deployment: "{{ ecs_force_new_deployment | bool }}"
+    profile: "{{ aws_profile }}"
+    region: "{{ aws_region }}"
+  register: service_update
+
+- name: "ECS | wait for service to reach steady state"
+  ansible.builtin.command: >-
+    aws ecs wait services-stable
+    --cluster {{ ecs_cluster }}
+    --services {{ ecs_service }}
+    --profile {{ aws_profile }}
+    --region {{ aws_region }}
+  changed_when: false
+  async: "{{ ecs_wait_timeout }}"
+  poll: 10
+  when: ecs_wait_for_stable | bool
+
+- name: "ECS | deployment complete"
+  ansible.builtin.debug:
+    msg: >-
+      Service {{ ecs_cluster }}/{{ ecs_service }} now running
+      {{ new_taskdef.taskdefinition.family }}:{{ new_taskdef.taskdefinition.revision }}
+      ({{ pushed_image_uri }}).

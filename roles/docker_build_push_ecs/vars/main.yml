@@ -1,0 +1,31 @@
+---
+# Intentionally empty. All tunables live in defaults/main.yml so they can be
+# overridden via group_vars, host_vars, extra-vars, or playbook vars.
+
+
+
+git_repo_url: "https://github.com/mnmohanc22/docker-test.git"
+git_repo_name: "docker-test"
+git_checkout_dir: "/tmp/builds"
+git_branch: "main"          # optional, defaults to main
+git_clone_depth: 1           # optional
+git_force_checkout: false    # optional
+
+
+docker_build_context: ""  # will default to "{{ git_checkout_dir }}/{{ git_repo_name }}"
+docker_dockerfile: "Dockerfile"
+docker_platform: "linux/amd64"
+docker_build_args: {}  # optional dict of build args to pass to docker build
+docker_target: ""  # optional target stage in Dockerfile
+docker_pull_base: false  # whether to always pull base images
+docker_nocache: false  # whether to disable build cache
+
+ecr_registry: ""  # will be set dynamically based on repository URI
+ecr_repository_name: "ecs-base"
+ecr_full_image_name: "{{ ecr_registry }}/{{ ecr_repository_name }}"
+aws_profile: "default"
+aws_region: "us-east-1"
+
+image_tag_mutability: "immutable"  # or "MUTABLE"
+
+env_name: ""

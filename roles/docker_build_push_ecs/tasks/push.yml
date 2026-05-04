@@ -1,0 +1,60 @@
+---
+- name: Validate and push Docker image to ECR
+  tags: [push]
+  block:
+    - name: Assert docker_image_tag is defined and non-empty
+      ansible.builtin.assert:
+        that:
+          - docker_image_tag is defined
+          - docker_image_tag | length > 0
+        fail_msg: "docker_image_tag is not set — run setup-build-vars before push"
+        success_msg: "docker_image_tag is set to '{{ docker_image_tag }}'"
+
+    - name: Check image exists locally
+      ansible.builtin.shell: |
+        docker image inspect "{{ docker_repository_name }}:{{ docker_image_tag }}"
+      register: _image_check
+      changed_when: false
+      failed_when: _image_check.rc != 0
+
+    - name: Check if image tag already exists in ECR
+      ansible.builtin.shell: |
+        aws ecr describe-images \
+          --repository-name "{{ ecr_repository_name }}" \
+          --image-ids imageTag="{{ docker_image_tag }}" \
+          --region "{{ aws_region }}" \
+          --profile "{{ aws_profile }}" 2>/dev/null
+      register: _ecr_image_check
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if image tag already exists in ECR
+      ansible.builtin.fail:
+        msg: "Image {{ ecr_repository_name }}:{{ docker_image_tag }} already exists in ECR — cannot overwrite an immutable tag"
+      when: _ecr_image_check.rc == 0
+
+    - name: Push image to ECR
+      ansible.builtin.shell: |
+        docker push "{{ docker_repository_name }}:{{ docker_image_tag }}"
+      environment:
+        DOCKER_BUILDKIT: "0"
+      register: push_result
+      changed_when: true
+
+    - name: Show push output
+      ansible.builtin.debug:
+        msg: "{{ push_result.stdout_lines }}"
+
+    - name: Set pushed image URI fact
+      ansible.builtin.set_fact:
+        pushed_image_uri: "{{ docker_repository_name }}:{{ docker_image_tag }}"
+
+    - name: Push summary
+      ansible.builtin.debug:
+        msg: "Pushed : {{ pushed_image_uri }}"
+
+    - name: Remove local image after push
+      ansible.builtin.shell: |
+        docker rmi "{{ docker_repository_name }}:{{ docker_image_tag }}"
+      changed_when: true
+      when: remove_local_after_push | bool

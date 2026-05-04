@@ -1,0 +1,54 @@
+---
+# ============================================================================
+# Render ecs-base-task-def.json.j2 and register (or reuse) the task definition
+# revision via the AWS CLI.  Idempotent: re-running with an unchanged template
+# still produces a new revision number, but the service update will be a no-op
+# because the image / config hasn't changed.
+# ============================================================================
+
+- name: "TaskDef | set rendered task def path"
+  ansible.builtin.set_fact:
+    _taskdef_json_path: "/tmp/{{ taskdef_family }}-taskdef.json"
+
+- name: "TaskDef | render ecs-base-task-def.json.j2"
+  ansible.builtin.template:
+    src: "ecs-base-task-def.json.j2"
+    dest: "{{ _taskdef_json_path }}"
+    mode: "0600"
+
+- name: "TaskDef | show rendered task definition"
+  ansible.builtin.debug:
+    msg: "Rendered task definition written to {{ _taskdef_json_path }}"
+
+- name: "TaskDef | register {{ taskdef_family }} with ECS"
+  ansible.builtin.shell: |
+    aws ecs register-task-definition \
+      --cli-input-json "file://{{ _taskdef_json_path }}" \
+      --region "{{ aws_region }}" \
+      --profile "{{ aws_profile }}" \
+      --query 'taskDefinition.{arn:taskDefinitionArn,family:family,revision:revision}' \
+      --output json
+  register: _taskdef_register_result
+  changed_when: true
+
+- name: "TaskDef | parse registration result"
+  ansible.builtin.set_fact:
+    _taskdef_info: "{{ _taskdef_register_result.stdout | from_json }}"
+
+- name: "TaskDef | record task definition facts"
+  ansible.builtin.set_fact:
+    registered_taskdef_arn:      "{{ _taskdef_info.arn }}"
+    registered_taskdef_family:   "{{ _taskdef_info.family }}"
+    registered_taskdef_revision: "{{ _taskdef_info.revision }}"
+    registered_taskdef_ref:      "{{ _taskdef_info.family }}:{{ _taskdef_info.revision }}"
+
+- name: "TaskDef | clean up rendered JSON"
+  ansible.builtin.file:
+    path: "{{ _taskdef_json_path }}"
+    state: absent
+
+- name: "TaskDef | summary"
+  ansible.builtin.debug:
+    msg:
+      - "Task def : {{ registered_taskdef_ref }}"
+      - "ARN      : {{ registered_taskdef_arn }}"

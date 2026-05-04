@@ -1,0 +1,158 @@
+---
+# ============================================================================
+# update_taskdef: pull the latest active revision, swap the container image
+# tag(s) to the new value, and register a fresh revision.
+#
+# Required vars (pass via playbook / extra-vars):
+#   taskdef_family        — ECS task definition family name, e.g. "ecs-base"
+#   new_image_tag         — the new image tag to apply,    e.g. "1.2.3"
+#
+# Optional:
+#   update_container_name — which container to update (default: first container)
+#   ecr_repository_uri    — full ECR repo URI (without tag).  When set it
+#                           replaces the image URI entirely.  When omitted the
+#                           existing URI is kept and only the tag is changed.
+# ============================================================================
+
+- name: "UpdateTaskDef | assert required vars"
+  ansible.builtin.assert:
+    that:
+      - taskdef_family | length > 0
+      - new_image_tag  | length > 0
+    fail_msg: "taskdef_family and new_image_tag must both be set."
+    quiet: true
+
+- name: "UpdateTaskDef | fetch latest active task definition"
+  ansible.builtin.shell: |
+    aws ecs describe-task-definition \
+      --task-definition "{{ taskdef_family }}" \
+      --profile "{{ aws_profile }}" \
+      --region  "{{ aws_region }}" \
+      --output json
+  register: _taskdef_raw
+  changed_when: false
+
+- name: "UpdateTaskDef | parse task definition"
+  ansible.builtin.set_fact:
+    _current_taskdef: "{{ (_taskdef_raw.stdout | from_json).taskDefinition }}"
+
+- name: "UpdateTaskDef | show current task definition"
+  ansible.builtin.debug:
+    msg:
+      - "Family   : {{ _current_taskdef.family }}"
+      - "Revision : {{ _current_taskdef.revision }}"
+      - "Containers: {{ _current_taskdef.containerDefinitions | map(attribute='name') | list }}"
+
+- name: "UpdateTaskDef | resolve target container name"
+  ansible.builtin.set_fact:
+    _target_container: "{{ update_container_name | default(_current_taskdef.containerDefinitions[0].name) }}"
+
+- name: "UpdateTaskDef | resolve new image URI"
+  ansible.builtin.set_fact:
+    _new_image_uri: >-
+      {%- if ecr_repository_uri | default('') | length > 0 -%}
+        {{ ecr_repository_uri }}:{{ new_image_tag }}
+      {%- else -%}
+        {{ (_current_taskdef.containerDefinitions
+            | selectattr('name', 'equalto', _target_container)
+            | first).image
+            | regex_replace(':.*$', '') }}:{{ new_image_tag }}
+      {%- endif -%}
+
+- name: "UpdateTaskDef | show image update"
+  ansible.builtin.debug:
+    msg:
+      - "Container : {{ _target_container }}"
+      - "Old image : {{ (_current_taskdef.containerDefinitions | selectattr('name', 'equalto', _target_container) | first).image }}"
+      - "New image : {{ _new_image_uri | trim }}"
+
+- name: "UpdateTaskDef | build updated container definitions"
+  ansible.builtin.set_fact:
+    _updated_containers: >-
+      {{
+        _current_taskdef.containerDefinitions | map('combine',
+          {'image': _new_image_uri | trim}
+          if item.name == _target_container
+          else {}
+        ) | list
+      }}
+  loop: "{{ _current_taskdef.containerDefinitions }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: "UpdateTaskDef | build updated container definitions (set_fact after loop)"
+  ansible.builtin.set_fact:
+    _updated_containers: >-
+      [{% for c in _current_taskdef.containerDefinitions %}
+        {{ c | combine({'image': _new_image_uri | trim}) if c.name == _target_container else c }}
+        {% if not loop.last %},{% endif %}
+      {% endfor %}]
+
+- name: "UpdateTaskDef | assemble new task definition payload"
+  ansible.builtin.set_fact:
+    _new_taskdef_payload: >-
+      {{
+        {
+          'family':                  _current_taskdef.family,
+          'networkMode':             _current_taskdef.networkMode,
+          'requiresCompatibilities': _current_taskdef.requiresCompatibilities,
+          'cpu':                     _current_taskdef.cpu    | default(omit),
+          'memory':                  _current_taskdef.memory | default(omit),
+          'containerDefinitions':    _updated_containers
+        }
+        | combine(_current_taskdef.executionRoleArn is defined
+            and _current_taskdef.executionRoleArn | length > 0
+            | ternary({'executionRoleArn': _current_taskdef.executionRoleArn}, {}))
+        | combine(_current_taskdef.taskRoleArn is defined
+            and _current_taskdef.taskRoleArn | length > 0
+            | ternary({'taskRoleArn': _current_taskdef.taskRoleArn}, {}))
+        | combine(_current_taskdef.volumes is defined
+            and _current_taskdef.volumes | length > 0
+            | ternary({'volumes': _current_taskdef.volumes}, {}))
+        | combine(_current_taskdef.placementConstraints is defined
+            and _current_taskdef.placementConstraints | length > 0
+            | ternary({'placementConstraints': _current_taskdef.placementConstraints}, {}))
+        | combine(_current_taskdef.runtimePlatform is defined
+            | ternary({'runtimePlatform': _current_taskdef.runtimePlatform}, {}))
+      }}
+
+- name: "UpdateTaskDef | write payload to temp file"
+  ansible.builtin.copy:
+    content: "{{ _new_taskdef_payload | to_nice_json }}"
+    dest: "/tmp/{{ taskdef_family }}-update-taskdef.json"
+    mode: "0600"
+
+- name: "UpdateTaskDef | register updated task definition"
+  ansible.builtin.shell: |
+    aws ecs register-task-definition \
+      --cli-input-json "file:///tmp/{{ taskdef_family }}-update-taskdef.json" \
+      --profile "{{ aws_profile }}" \
+      --region  "{{ aws_region }}" \
+      --query 'taskDefinition.{arn:taskDefinitionArn,family:family,revision:revision}' \
+      --output json
+  register: _update_register_result
+  changed_when: true
+
+- name: "UpdateTaskDef | parse registration result"
+  ansible.builtin.set_fact:
+    _registered_info: "{{ _update_register_result.stdout | from_json }}"
+
+- name: "UpdateTaskDef | set registered task definition facts"
+  ansible.builtin.set_fact:
+    registered_taskdef_arn:      "{{ _registered_info.arn }}"
+    registered_taskdef_family:   "{{ _registered_info.family }}"
+    registered_taskdef_revision: "{{ _registered_info.revision }}"
+    registered_taskdef_ref:      "{{ _registered_info.family }}:{{ _registered_info.revision }}"
+
+- name: "UpdateTaskDef | clean up temp file"
+  ansible.builtin.file:
+    path: "/tmp/{{ taskdef_family }}-update-taskdef.json"
+    state: absent
+
+- name: "UpdateTaskDef | summary"
+  ansible.builtin.debug:
+    msg:
+      - "Container : {{ _target_container }}"
+      - "New image : {{ _new_image_uri | trim }}"
+      - "Task def  : {{ registered_taskdef_ref }}"
+      - "ARN       : {{ registered_taskdef_arn }}"

@@ -1,0 +1,58 @@
+---
+- name: ECR login
+  block:
+    - name: Check Docker daemon is running
+      ansible.builtin.shell: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: docker_info.rc != 0
+
+    - name: Show Docker daemon info
+      ansible.builtin.debug:
+        msg: "Docker daemon is running on {{ inventory_hostname }}"
+
+    - name: Get AWS account ID
+      ansible.builtin.shell: |
+        aws sts get-caller-identity \
+          --profile "{{ aws_profile }}" \
+          --query 'Account' \
+          --output text
+      register: _aws_account_id
+      changed_when: false
+
+    - name: Set ECR registry fact
+      ansible.builtin.set_fact:
+        ecr_registry: "{{ _aws_account_id.stdout | trim }}.dkr.ecr.{{ aws_region }}.amazonaws.com"
+
+    - name: Show AWS account ID and ECR registry
+      ansible.builtin.debug:
+        msg:
+          - "AWS Account ID : {{ _aws_account_id.stdout | trim }}"
+          - "ECR registry   : {{ ecr_registry }}"
+
+    - name: Obtain ECR login password
+      ansible.builtin.shell: |
+        aws ecr get-login-password \
+          --region "{{ aws_region }}" \
+          --profile "{{ aws_profile }}"
+      register: ecr_password
+      changed_when: false
+      no_log: true
+
+    - name: Docker login to ECR
+      ansible.builtin.shell: |
+        aws ecr get-login-password \
+          --region "{{ aws_region }}" \
+          --profile "{{ aws_profile }}" | \
+        docker login \
+          --username AWS \
+          --password-stdin "{{ ecr_registry }}"
+      changed_when: true
+      no_log: true
+
+    - name: Show ECR login summary
+      ansible.builtin.debug:
+        msg:
+          - "ECR registry : {{ ecr_registry }}"
+          - "Region       : {{ aws_region }}"
+          - "Profile      : {{ aws_profile }}"

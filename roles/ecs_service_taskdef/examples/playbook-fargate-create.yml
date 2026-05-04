@@ -1,0 +1,94 @@
+---
+# ============================================================================
+# Example: create or update a Fargate service behind an ALB target group.
+#   ansible-playbook -i 'localhost,' examples/playbook-fargate-create.yml
+# ============================================================================
+
+- name: "Create / update Fargate ECS service"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ecs_service_taskdef
+      vars:
+        aws_profile: "lacare-prod"
+        aws_region:  "us-west-2"
+        state: "present"
+
+        # --- task definition -------------------------------------------------
+        taskdef_family:                  "sample-api"
+        taskdef_network_mode:            "awsvpc"
+        taskdef_cpu:                     "512"
+        taskdef_memory:                  "1024"
+        taskdef_requires_compatibilities: ["FARGATE"]
+        taskdef_execution_role_arn: "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+        taskdef_task_role_arn:      "arn:aws:iam::123456789012:role/sample-api-task"
+        taskdef_runtime_platform:
+          cpuArchitecture: X86_64
+          operatingSystemFamily: LINUX
+        taskdef_tags:
+          Environment: prod
+          Owner: platform-eng
+          CostCenter: "cc-7421"
+
+        taskdef_containers:
+          - name: sample-api
+            image: "123456789012.dkr.ecr.us-west-2.amazonaws.com/platform/sample-api:1.4.0"
+            essential: true
+            portMappings:
+              - containerPort: 8080
+                protocol: tcp
+            environment:
+              - { name: APP_ENV, value: prod }
+              - { name: LOG_LEVEL, value: INFO }
+            secrets:
+              - name: DB_PASSWORD
+                valueFrom: "arn:aws:secretsmanager:us-west-2:123456789012:secret:prod/sample-api/db-Ab12Cd"
+            logConfiguration:
+              logDriver: awslogs
+              options:
+                awslogs-group: "/ecs/sample-api"
+                awslogs-region: us-west-2
+                awslogs-stream-prefix: ecs
+                awslogs-create-group: "true"
+            healthCheck:
+              command: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
+              interval: 30
+              timeout: 5
+              retries: 3
+              startPeriod: 30
+
+        # --- service ---------------------------------------------------------
+        ecs_cluster:        "lacare-platform-prod"
+        ecs_service_name:   "sample-api-svc"
+        ecs_desired_count:  3
+        ecs_launch_type:    "FARGATE"
+
+        ecs_subnets:
+          - subnet-0aaaaaaaaaaaaaaaa
+          - subnet-0bbbbbbbbbbbbbbbb
+          - subnet-0ccccccccccccccccc
+        ecs_security_groups:
+          - sg-0123456789abcdef0
+        ecs_assign_public_ip: false
+
+        ecs_load_balancers:
+          - targetGroupArn: "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/sample-api/abcdef1234567890"
+            containerName: sample-api
+            containerPort: 8080
+        ecs_health_check_grace_period: 60
+
+        ecs_deployment_min_healthy_percent: 100
+        ecs_deployment_max_percent: 200
+        ecs_deployment_circuit_breaker_enable: true
+        ecs_deployment_circuit_breaker_rollback: true
+
+        ecs_service_tags:
+          Environment: prod
+          Owner: platform-eng
+        ecs_propagate_tags: TASK_DEFINITION
+        ecs_enable_ecs_managed_tags: true
+
+        ecs_force_new_deployment: true
+        ecs_wait_for_stable: true
+        ecs_wait_timeout: 900

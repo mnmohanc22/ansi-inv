@@ -1,0 +1,77 @@
+---
+# ============================================================================
+# Create or update the ECS service.
+#
+# community.aws.ecs_service is idempotent for state: present:
+#   - if no service with this name exists in the cluster -> create
+#   - if it exists and is ACTIVE                           -> update
+#   - if it exists and is INACTIVE (previously deleted)    -> recreate
+#
+# We construct network_configuration / load_balancers / deployment_configuration
+# defensively so that callers only pay the awsvpc tax when they actually want it.
+# ============================================================================
+
+- name: "Service | build network_configuration (awsvpc only)"
+  ansible.builtin.set_fact:
+    _network_configuration:
+      subnets: "{{ ecs_subnets }}"
+      security_groups: "{{ ecs_security_groups }}"
+      assign_public_ip: "{{ 'ENABLED' if (ecs_assign_public_ip | bool) else 'DISABLED' }}"
+  when:
+    - (taskdef_network_mode == 'awsvpc') or (ecs_launch_type == 'FARGATE')
+
+- name: "Service | build deployment_configuration"
+  ansible.builtin.set_fact:
+    _deployment_configuration:
+      minimum_healthy_percent: "{{ ecs_deployment_min_healthy_percent | int }}"
+      maximum_percent: "{{ ecs_deployment_max_percent | int }}"
+      deployment_circuit_breaker:
+        enable:   "{{ ecs_deployment_circuit_breaker_enable | bool }}"
+        rollback: "{{ ecs_deployment_circuit_breaker_rollback | bool }}"
+
+- name: "Service | create or update {{ ecs_service_name }} on {{ ecs_cluster }}"
+  community.aws.ecs_service:
+    state: present
+    name:    "{{ ecs_service_name }}"
+    cluster: "{{ ecs_cluster }}"
+    task_definition: "{{ registered_taskdef_ref }}"
+    desired_count:   "{{ ecs_desired_count | int }}"
+    scheduling_strategy: "{{ ecs_scheduling_strategy }}"
+
+    # Launch type vs capacity provider strategy (mutually exclusive)
+    launch_type: >-
+      {{ ecs_launch_type if (ecs_capacity_provider_strategy | length == 0) else omit }}
+    capacity_provider_strategy: >-
+      {{ ecs_capacity_provider_strategy if (ecs_capacity_provider_strategy | length > 0) else omit }}
+    platform_version: >-
+      {{ ecs_platform_version if (ecs_launch_type == 'FARGATE') else omit }}
+
+    # Networking — only when awsvpc / Fargate
+    network_configuration: >-
+      {{ _network_configuration | default(omit) }}
+
+    # LB + service discovery
+    load_balancers: "{{ ecs_load_balancers }}"
+    service_registries: "{{ ecs_service_registries if (ecs_service_registries | length > 0) else omit }}"
+    health_check_grace_period_seconds: "{{ ecs_health_check_grace_period | int }}"
+
+    # Rollout behavior
+    deployment_configuration: "{{ _deployment_configuration }}"
+    force_new_deployment: "{{ ecs_force_new_deployment | bool }}"
+
+    # Tags
+    tags: "{{ ecs_service_tags if (ecs_service_tags | length > 0) else omit }}"
+    propagate_tags: "{{ ecs_propagate_tags }}"
+    enable_ecs_managed_tags: "{{ ecs_enable_ecs_managed_tags | bool }}"
+
+    profile: "{{ aws_profile }}"
+    region:  "{{ aws_region }}"
+  register: service_result
+
+- name: "Service | summary"
+  ansible.builtin.debug:
+    msg:
+      - "Action       : {{ 'created' if existing_service_status != 'ACTIVE' else 'updated' }}"
+      - "Service ARN  : {{ service_result.service.serviceArn | default('n/a') }}"
+      - "Task def ref : {{ registered_taskdef_ref }}"
+      - "Desired count: {{ ecs_desired_count }}"

@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: docker_build_push_ecs
+  author: "Platform Engineering"
+  description: "Build a Docker image and push to AWS ECR (and optionally roll out an ECS service) using an AWS CLI profile on the Ansible server."
+  license: "MIT"
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+  galaxy_tags:
+    - aws
+    - ecr
+    - ecs
+    - docker
+    - ci
+    - cd
+
+dependencies: []

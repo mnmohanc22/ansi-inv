@@ -1,0 +1,112 @@
+---
+# ============================================================================
+# ecs-base — task definition and service vars
+# Override these in group_vars, host_vars, or playbook vars as needed.
+# ============================================================================
+
+# ---------- AWS ----------
+aws_profile: "default"
+aws_region:  "us-east-1"
+
+state: "present"
+
+# ---------- Task Definition ----------
+taskdef_family:                   "ecs-base"
+#taskdef_network_mode:             "awsvpc"
+taskdef_network_mode:             "none"
+taskdef_cpu:                      "256"
+taskdef_memory:                   "512"
+taskdef_requires_compatibilities:
+  - "FARGATE"
+
+
+taskdef_execution_role_arn: "arn:aws:iam::035414200601:role/ecsTaskExecutionRole"
+taskdef_task_role_arn:      "arn:aws:iam::035414200601:role/ecs-base-task-role"
+
+taskdef_runtime_platform:
+  cpuArchitecture: X86_64
+  operatingSystemFamily: LINUX
+
+taskdef_volumes: []
+taskdef_placement_constraints: []
+taskdef_proxy_configuration: {}
+
+taskdef_tags:
+  Application: ecs-base
+  ManagedBy: ansible
+
+# ---------- Container Definition ----------
+taskdef_containers:
+  - name: ecs-base
+    image: "035414200601.dkr.ecr.us-east-1.amazonaws.com/ecs-base:1.1.0-rc.cbacb81"                     # set at deploy time, e.g. <account>.dkr.ecr.<region>.amazonaws.com/ecs-base:<tag>
+    essential: true
+    cpu: 256
+    memory: 512
+    portMappings:
+      - containerPort: 5000
+        protocol: tcp
+    environment:
+      - name: APP_ENV
+        value: "dev"
+    secrets: []
+    logConfiguration:
+      logDriver: awslogs
+      options:
+        awslogs-group: "/ecs/ecs-base"
+        awslogs-region: "us-east-1"
+        awslogs-stream-prefix: ecs
+        awslogs-create-group: "true"
+    healthCheck:
+      command: ["CMD-SHELL", "curl -fsS http://localhost:5000/health || exit 1"]
+      interval: 30
+      timeout: 5
+      retries: 3
+      startPeriod: 30
+
+# ---------- ECS Service ----------
+ecs_cluster:              "ecs-base-cluster"
+ecs_service_name:         "ecs-base-svc"
+ecs_desired_count:        1
+ecs_launch_type:          "FARGATE"
+ecs_platform_version:     "LATEST"
+ecs_scheduling_strategy:  "REPLICA"
+
+# Networking (awsvpc mode — required)
+ecs_subnets:         []           # e.g. [subnet-aaaa, subnet-bbbb]
+ecs_security_groups: []           # e.g. [sg-0123456789abcdef0]
+ecs_assign_public_ip: false
+
+# Load balancer
+ecs_load_balancers: []
+# Example:
+#   - targetGroupArn: arn:aws:elasticloadbalancing:...:targetgroup/ecs-base/xxxx
+#     containerName: ecs-base
+#     containerPort: 5000
+
+ecs_service_registries: []
+
+ecs_health_check_grace_period: 0
+
+# Deployment
+ecs_deployment_min_healthy_percent:      100
+ecs_deployment_max_percent:              200
+ecs_deployment_circuit_breaker_enable:   false
+ecs_deployment_circuit_breaker_rollback: false
+
+ecs_capacity_provider_strategy: []
+
+ecs_force_new_deployment: true
+
+# Tagging
+ecs_service_tags:
+  Application: ecs-base
+  ManagedBy: ansible
+ecs_propagate_tags:          "TASK_DEFINITION"
+ecs_enable_ecs_managed_tags: true
+
+# Wait
+ecs_wait_for_stable: true
+ecs_wait_timeout:    600
+
+# Teardown
+ecs_deregister_taskdef_on_absent: false

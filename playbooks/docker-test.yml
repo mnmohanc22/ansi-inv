@@ -1,0 +1,7 @@
+---
+- name: playbook to test docker build and push to ECR localhost
+  hosts: localhost
+  connection: local
+  #become: true
+  roles:
+    - docker_build_push_ecs

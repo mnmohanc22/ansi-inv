@@ -1,0 +1,24 @@
+---
+# ============================================================================
+# Example: tear down a Fargate ECS service (and optionally deregister its
+# latest task definition revision).
+#   ansible-playbook -i 'localhost,' examples/playbook-teardown.yml
+# ============================================================================
+
+- name: "Tear down ECS service"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: ecs_service_taskdef
+      vars:
+        aws_profile: "lacare-prod"
+        aws_region:  "us-west-2"
+        state: "absent"
+
+        taskdef_family:    "sample-api"
+        ecs_cluster:       "lacare-platform-prod"
+        ecs_service_name:  "sample-api-svc"
+
+        ecs_deregister_taskdef_on_absent: true
+        ecs_wait_timeout: 600

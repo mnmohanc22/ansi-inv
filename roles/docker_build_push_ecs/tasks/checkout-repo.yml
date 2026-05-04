@@ -1,0 +1,50 @@
+---
+- name: Checkout GitHub repository
+  tags: [checkout]
+  block:
+    # - name: Ensure git is installed
+    #   ansible.builtin.package:
+    #     name: git
+    #     state: present
+    #   become: true
+
+    - name: Ensure checkout base directory exists
+      ansible.builtin.file:
+        path: "{{ git_checkout_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: print git branch name
+      ansible.builtin.debug:
+        msg: "Checking out branch {{ git_branch | default('main') }} from {{ git_repo_url }}"    
+
+    - name: Clone or update repository
+      ansible.builtin.git:
+        repo: "{{ git_repo_url }}"
+        dest: "{{ git_checkout_dir }}/{{ git_repo_name }}"
+        version: "{{ git_branch | default('main') }}"
+        depth: "{{ git_clone_depth | default(1) }}"
+        force: "{{ git_force_checkout | default(false) }}"
+        accept_hostkey: true
+      register: git_clone_result
+
+    - name: Get short git SHA
+      ansible.builtin.command:
+        cmd: git rev-parse --short HEAD
+        chdir: "{{ git_checkout_dir }}/{{ git_repo_name }}"
+      register: git_sha
+      changed_when: false
+
+    - name: Set git facts
+      ansible.builtin.set_fact:
+        git_short_sha: "{{ git_sha.stdout | trim }}"
+        git_repo_path: "{{ git_checkout_dir }}/{{ git_repo_name }}"
+
+    - name: Show checkout summary
+      ansible.builtin.debug:
+        msg:
+          - "Repo    : {{ git_repo_url }}"
+          - "Branch  : {{ git_branch | default('main') }}"
+          - "SHA     : {{ git_short_sha }}"
+          - "Path    : {{ git_repo_path }}"
+          - "Changed : {{ git_clone_result.changed }}"

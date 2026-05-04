@@ -1,0 +1,7 @@
+---
+- name: playbook to deploy to ECS using local docker build and push to ECR
+  hosts: localhost
+  connection: local
+  #become: true
+  roles:
+    - ecs_service_taskdef

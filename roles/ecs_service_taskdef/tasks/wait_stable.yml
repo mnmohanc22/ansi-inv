@@ -1,0 +1,35 @@
+---
+# ============================================================================
+# Block until the service finishes its rollout (or the timeout fires).
+# Uses the AWS CLI waiter directly because it provides clearer failure output
+# than polling DescribeServices manually.
+# ============================================================================
+
+- name: "Wait | services-stable on {{ ecs_cluster }}/{{ ecs_service_name }}"
+  ansible.builtin.command: >-
+    aws ecs wait services-stable
+    --cluster  {{ ecs_cluster }}
+    --services {{ ecs_service_name }}
+    --profile  {{ aws_profile }}
+    --region   {{ aws_region }}
+  changed_when: false
+  async: "{{ ecs_wait_timeout | int }}"
+  poll: 10
+  register: wait_result
+
+- name: "Wait | post-rollout deployment summary"
+  community.aws.ecs_service_info:
+    cluster: "{{ ecs_cluster }}"
+    service: "{{ ecs_service_name }}"
+    details: true
+    profile: "{{ aws_profile }}"
+    region:  "{{ aws_region }}"
+  register: post_rollout_info
+
+- name: "Wait | rollout details"
+  ansible.builtin.debug:
+    msg:
+      - "Service: {{ ecs_cluster }}/{{ ecs_service_name }}"
+      - "Running: {{ (post_rollout_info.services | first).runningCount  | default('?') }} / desired {{ (post_rollout_info.services | first).desiredCount | default('?') }}"
+      - "Pending: {{ (post_rollout_info.services | first).pendingCount  | default('?') }}"
+      - "TaskDef: {{ (post_rollout_info.services | first).taskDefinition | default('?') }}"

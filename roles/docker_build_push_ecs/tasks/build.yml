@@ -1,0 +1,74 @@
+---
+
+
+
+- name: Print Build all build varaibles 
+  block:
+    - name: Print git repo and branch variables
+      ansible.builtin.debug:
+        msg:
+          - "Repo     : {{ git_repo_url }}"
+          - "Branch   : {{ git_branch | default('main') }}"
+          - "Checkout : {{ git_checkout_dir }}/{{ git_repo_name }}"
+
+    - name: Print Docker build variables
+      ansible.builtin.debug:
+        msg:
+          - "Build context : {{ docker_build_context | default(git_checkout_dir + '/' + git_repo_name) }}"
+          - "Dockerfile    : {{ docker_dockerfile }}"
+          - "Platform      : {{ docker_platform }}"
+          - "Tag           : {{ docker_image_tag }}"
+
+    - name: Print AWS / ECR variables
+      ansible.builtin.debug:
+        msg:
+          - "AWS profile : {{ aws_profile }}"
+          - "AWS region  : {{ aws_region }}"
+          - "ECR repo    : {{ ecr_repository_name }}"
+          - "ECR image name  : {{ docker_repository_name }}"
+
+    - name: Assert required variables are set
+      ansible.builtin.assert:
+        that:
+          - git_repo_url | length > 0
+          - git_repo_name | length > 0
+          - git_checkout_dir | length > 0
+          - ecr_repository_name | length > 0
+          - docker_repository_name | length > 0
+        fail_msg: "One or more required variables are not set: git_repo_url, git_repo_name, git_checkout_dir, ecr_repository_name"
+        success_msg: "All required variables are set"
+
+
+- name: Build and tag Docker image
+  tags: [build]
+  block:
+    - name: Assemble docker build arguments
+      ansible.builtin.set_fact:
+        _docker_build_cmd: >-
+          docker build
+          --file "{{ docker_build_context }}/{{ docker_dockerfile }}"
+          --tag "{{ docker_repository_name }}:{{ docker_image_tag }}"
+          {% for key, val in (docker_build_args | default({})).items() %}
+          --build-arg "{{ key }}={{ val }}"
+          {% endfor %}
+          {% if docker_target | default('') | length > 0 %}
+          --target "{{ docker_target }}"
+          {% endif %}
+          {% if docker_pull_base | bool %}--pull{% endif %}
+          {% if docker_nocache | bool %}--no-cache{% endif %}
+          "{{ docker_build_context }}"
+
+    - name: Show docker build command
+      ansible.builtin.debug:
+        msg: "{{ _docker_build_cmd }}"
+
+    - name: Build Docker image
+      ansible.builtin.shell: "{{ _docker_build_cmd }}"
+      environment:
+        DOCKER_BUILDKIT: "0"
+      register: build_result
+      changed_when: true
+
+    - name: Show build output
+      ansible.builtin.debug:
+        msg: "{{ build_result.stdout_lines }}"

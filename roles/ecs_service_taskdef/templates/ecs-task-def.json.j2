@@ -1,0 +1,62 @@
+{
+  "family": "{{ taskdef_family }}",
+  "networkMode": "{{ taskdef_network_mode }}",
+  "requiresCompatibilities": {{ taskdef_requires_compatibilities | to_json }},
+  "cpu": "{{ taskdef_cpu }}",
+  "memory": "{{ taskdef_memory }}",
+{% if taskdef_execution_role_arn | length > 0 %}
+  "executionRoleArn": "{{ taskdef_execution_role_arn }}",
+{% endif %}
+{% if taskdef_task_role_arn | length > 0 %}
+  "taskRoleArn": "{{ taskdef_task_role_arn }}",
+{% endif %}
+{% if taskdef_runtime_platform | length > 0 %}
+  "runtimePlatform": {{ taskdef_runtime_platform | to_json }},
+{% endif %}
+{% if taskdef_volumes | length > 0 %}
+  "volumes": {{ taskdef_volumes | to_json }},
+{% endif %}
+{% if taskdef_placement_constraints | length > 0 %}
+  "placementConstraints": {{ taskdef_placement_constraints | to_json }},
+{% endif %}
+{% if taskdef_tags | length > 0 %}
+  "tags": [
+{% for key, value in taskdef_tags.items() %}
+    { "key": "{{ key }}", "value": "{{ value }}" }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  ],
+{% endif %}
+  "containerDefinitions": [
+{% for container in taskdef_containers %}
+    {
+      "name": "{{ container.name }}",
+      "image": "{{ container.image }}",
+      "essential": {{ container.essential | default(true) | to_json }}{% if container.cpu is defined %},
+      "cpu": {{ container.cpu }}{% endif %}{% if container.memory is defined %},
+      "memory": {{ container.memory }}{% endif %}{% if container.memoryReservation is defined %},
+      "memoryReservation": {{ container.memoryReservation }}{% endif %}{% if container.portMappings is defined and container.portMappings | length > 0 %},
+      "portMappings": {{ container.portMappings | to_json }}{% endif %}{% if container.environment is defined and container.environment | length > 0 %},
+      "environment": {{ container.environment | to_json }}{% endif %}{% if container.secrets is defined and container.secrets | length > 0 %},
+      "secrets": {{ container.secrets | to_json }}{% endif %}{% if container.logConfiguration is defined %},
+      "logConfiguration": {{ container.logConfiguration | to_json }}{% endif %}{% if container.healthCheck is defined %},
+      "healthCheck": {{ container.healthCheck | to_json }}{% endif %}{% if container.mountPoints is defined and container.mountPoints | length > 0 %},
+      "mountPoints": {{ container.mountPoints | to_json }}{% endif %}{% if container.volumesFrom is defined and container.volumesFrom | length > 0 %},
+      "volumesFrom": {{ container.volumesFrom | to_json }}{% endif %}{% if container.dependsOn is defined and container.dependsOn | length > 0 %},
+      "dependsOn": {{ container.dependsOn | to_json }}{% endif %}{% if container.ulimits is defined and container.ulimits | length > 0 %},
+      "ulimits": {{ container.ulimits | to_json }}{% endif %}{% if container.command is defined and container.command | length > 0 %},
+      "command": {{ container.command | to_json }}{% endif %}{% if container.entryPoint is defined and container.entryPoint | length > 0 %},
+      "entryPoint": {{ container.entryPoint | to_json }}{% endif %}{% if container.readonlyRootFilesystem is defined %},
+      "readonlyRootFilesystem": {{ container.readonlyRootFilesystem | to_json }}{% endif %}{% if container.privileged is defined %},
+      "privileged": {{ container.privileged | to_json }}{% endif %}{% if container.user is defined %},
+      "user": "{{ container.user }}"{% endif %}{% if container.workingDirectory is defined %},
+      "workingDirectory": "{{ container.workingDirectory }}"{% endif %}{% if container.linuxParameters is defined %},
+      "linuxParameters": {{ container.linuxParameters | to_json }}{% endif %}{% if container.dockerLabels is defined and container.dockerLabels | length > 0 %},
+      "dockerLabels": {{ container.dockerLabels | to_json }}{% endif %}{% if container.systemControls is defined and container.systemControls | length > 0 %},
+      "systemControls": {{ container.systemControls | to_json }}{% endif %}
+
+    }{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  ]
+}

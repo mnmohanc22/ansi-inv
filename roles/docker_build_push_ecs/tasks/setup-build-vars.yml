@@ -1,0 +1,151 @@
+---
+
+
+
+- name: "Block: Setup aws profile and region"
+  block:
+    - name: Set AWS profile from env_name
+      ansible.builtin.set_fact:
+        aws_profile: "{{ env_name if (env_name | default('') | length > 0) else (aws_profile | default('default')) }}"
+
+    - name: Set AWS region fact
+      ansible.builtin.set_fact:
+        aws_region: "{{ aws_region | default('us-east-1') }}"
+
+    - name: Show AWS profile and region
+      ansible.builtin.debug:
+        msg:
+          - "env_name    : {{ env_name | default('(not set)') }}"
+          - "AWS Profile : {{ aws_profile }}"
+          - "AWS Region  : {{ aws_region }}"
+
+    - name: "Prepare ECR repository and login"
+      ansible.builtin.import_tasks: ecr_login.yml     
+
+
+
+- name: "block : setup docker repository name and full image name"
+  block:
+
+    - name: debug git ecr repository name
+      ansible.builtin.debug:
+        msg: "ECR repository name : {{ ecr_repository_name }}" 
+
+    - name: Get ECR registry URI
+      ansible.builtin.shell: |
+        aws ecr describe-repositories \
+          --repository-names "{{ ecr_repository_name }}" \
+          --region "{{ aws_region }}" \
+          --profile "{{ aws_profile }}" \
+          --query 'repositories[0].repositoryUri' \
+          --output text
+      register: ecr_registry_uri
+      changed_when: false
+
+    - name: Show ECR registry repository URI
+      ansible.builtin.debug:
+        msg: "ECR registry URI : {{ ecr_registry_uri.stdout }}"  
+
+    - name: Set ECR registry and docker_repository_name facts
+      ansible.builtin.set_fact:
+        ecr_registry: "{{ ecr_registry_uri.stdout | trim | regex_replace('/' + ecr_repository_name + '$', '') }}"
+        docker_repository_name: "{{ ecr_registry_uri.stdout | trim }}"
+
+    - name: Show ECR registry and docker repository name
+      ansible.builtin.debug:
+        msg:
+          - "ECR registry          : {{ ecr_registry }}"
+          - "docker_repository_name: {{ docker_repository_name }}"
+          - "ecr_full_image_name   : {{ ecr_full_image_name }}"
+
+
+
+- name: Setup Docker build version tags
+  tags: [setup, build]
+  block:
+    - name: Read VERSION file
+      ansible.builtin.slurp:
+        src: "{{ git_checkout_dir }}/{{ git_repo_name }}/VERSION"
+      register: _version_file
+
+    - name: Set version fact
+      ansible.builtin.set_fact:
+        _app_version: "{{ _version_file.content | b64decode | trim }}"
+
+    - name: Get short git SHA
+      ansible.builtin.command:
+        cmd: git rev-parse --short HEAD
+        chdir: "{{ git_checkout_dir }}/{{ git_repo_name }}"
+      register: _git_sha
+      changed_when: false
+
+    - name: Set image tag for develop branch
+      ansible.builtin.set_fact:
+        docker_image_tag: "{{ _app_version }}-{{ _git_sha.stdout | trim }}"
+      when: git_branch | default('main') == 'develop'
+
+    - name: Set image tag for release branch (rc)
+      ansible.builtin.set_fact:
+        docker_image_tag: "{{ _app_version }}-rc.{{ _git_sha.stdout | trim }}"
+      when: git_branch | default('main') is match('^release\d.*')
+
+    - name: Set image tag for main branch
+      ansible.builtin.set_fact:
+        docker_image_tag: "{{ _app_version }}"
+      when: git_branch | default('main') == 'main'
+
+    - name: Set image tag for other branches
+      ansible.builtin.set_fact:
+        docker_image_tag: "{{ _app_version }}-{{ git_branch | regex_replace('[^a-zA-Z0-9._-]', '-') }}-{{ _git_sha.stdout | trim }}"
+      when:
+        - git_branch | default('main') != 'develop'
+        - git_branch | default('main') != 'main'
+        - git_branch | default('main') is not match('^release\d.*')
+
+    - name: Set docker build args with version
+      ansible.builtin.set_fact:
+        docker_build_args: "{{ docker_build_args | default({}) | combine({'APP_VERSION': _app_version}) }}"
+
+    - name: Show resolved build vars
+      ansible.builtin.debug:
+        msg:
+          - "Branch       : {{ git_branch | default('main') }}"
+          - "Version      : {{ _app_version }}"
+          - "Git SHA      : {{ _git_sha.stdout | trim }}"
+          - "Image tags   : {{ docker_image_tag }}"
+          - "Build args   : {{ docker_build_args }}"
+
+
+
+- name: "Block: Setup Docker build docker_build_context and docker_dockerfile"
+  block:
+    - name: Set docker_build_context for frontend app
+      ansible.builtin.set_fact:
+        docker_build_context: "{{ git_checkout_dir }}/{{ git_repo_name }}/frontend"
+      when:
+        - docker_build_context | default('') | length == 0
+        - app_name | default('') == 'frontend'
+
+    - name: Set docker_build_context for backend app
+      ansible.builtin.set_fact:
+        docker_build_context: "{{ git_checkout_dir }}/{{ git_repo_name }}/backend"
+      when:
+        - docker_build_context | default('') | length == 0
+        - app_name | default('') == 'backend'
+
+    - name: Set docker_build_context fallback (no app_name or unknown)
+      ansible.builtin.set_fact:
+        docker_build_context: "{{ git_checkout_dir }}/{{ git_repo_name }}"
+      when: docker_build_context | default('') | length == 0
+
+    - name: Set docker_dockerfile if not explicitly defined
+      ansible.builtin.set_fact:
+        docker_dockerfile: "Dockerfile"
+      when: docker_dockerfile | default('') | length == 0
+
+    - name: Show Docker build context and Dockerfile
+      ansible.builtin.debug:
+        msg:
+          - "app_name            : {{ app_name | default('(not set)') }}"
+          - "Docker build context : {{ docker_build_context }}"
+          - "Dockerfile          : {{ docker_dockerfile }}"

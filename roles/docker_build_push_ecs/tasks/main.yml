@@ -1,0 +1,40 @@
+---
+
+
+
+- name: "Setup Docker build version tags"
+  ansible.builtin.import_tasks: setup-build-vars.yml
+  tags: [setup, build,push,deploy]
+
+
+- name: "Include tasks to setup vars"
+  ansible.builtin.import_tasks: setup-vars.yml
+  tags: [setup, always,build,push,deploy]
+
+
+- name: "Include tasks to checkout repository and set build variables"
+  ansible.builtin.import_tasks: checkout-repo.yml
+  tags: [checkout, always,build,push,deploy]
+
+# - name: "Preflight checks"
+#   ansible.builtin.import_tasks: preflight.yml
+#   tags: [preflight,build,push,deploy]
+
+# - name: "Prepare ECR repository and login"
+#   ansible.builtin.import_tasks: ecr_login.yml
+#   tags: [ecr, login,build,push,deploy]
+
+
+- name: "Build Docker image"
+  ansible.builtin.import_tasks: build.yml
+  tags: [build,push,deploy]
+
+- name: "Push image to ECR"
+  ansible.builtin.import_tasks: push.yml
+  when: push_image | bool
+  tags: [push,deploy]
+
+- name: "Roll out new ECS task revision"
+  ansible.builtin.import_tasks: ecs_deploy.yml
+  when: ecs_deploy | bool
+  tags: [deploy, ecs]

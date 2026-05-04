@@ -1,0 +1,31 @@
+---
+- name: "Load ecs-base vars"
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/files/ecs-base.yml"
+  tags: [always,taskdef]
+
+- name: "Preflight"
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [preflight, always,taskdef]
+
+- name: "Teardown path (state: absent)"
+  ansible.builtin.import_tasks: teardown.yml
+  when: state == "absent"
+  tags: [teardown, absent]
+
+- name: "Register / update task definition"
+  ansible.builtin.import_tasks: register_taskdef.yml
+  when: state == "present"
+  tags: [taskdef]
+
+- name: "Create or update ECS service"
+  ansible.builtin.import_tasks: create_or_update_service.yml
+  when: state == "present"
+  tags: [service]
+
+- name: "Wait for service to reach steady state"
+  ansible.builtin.import_tasks: wait_stable.yml
+  when:
+    - state == "present"
+    - ecs_wait_for_stable | bool
+  tags: [wait]

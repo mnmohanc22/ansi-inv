@@ -1,0 +1,115 @@
+---
+# ============================================================================
+# Preflight: validate caller-supplied vars, tooling, and AWS profile.
+# ============================================================================
+
+- name: "Preflight | assert required variables"
+  ansible.builtin.assert:
+    that:
+      - ecr_repository_name | length > 0
+      - docker_build_context | length > 0
+      - aws_profile | length > 0
+      - aws_region | length > 0
+    fail_msg: >-
+      Required variables missing. Set ecr_repository_name, docker_build_context,
+      aws_profile, and aws_region.
+    quiet: true
+
+- name: "Preflight | assert ECS variables when ecs_deploy is true"
+  ansible.builtin.assert:
+    that:
+      - ecs_cluster | length > 0
+      - ecs_service | length > 0
+      - ecs_task_family | length > 0
+      - ecs_container_name | length > 0
+    fail_msg: >-
+      ecs_deploy is true but ecs_cluster / ecs_service / ecs_task_family /
+      ecs_container_name are not all set.
+    quiet: true
+  when: ecs_deploy | bool
+
+- name: "Preflight | check docker CLI present"
+  ansible.builtin.command: docker --version
+  register: docker_version_check
+  changed_when: false
+
+- name: "Preflight | check docker daemon reachable"
+  ansible.builtin.command: docker info --format '{% raw %}{{.ServerVersion}}{% endraw %}'
+  register: docker_daemon_check
+  changed_when: false
+  failed_when: docker_daemon_check.rc != 0
+
+- name: "Preflight | check aws CLI present"
+  ansible.builtin.command: aws --version
+  register: aws_cli_check
+  changed_when: false
+
+- name: "Preflight | confirm build context directory exists"
+  ansible.builtin.stat:
+    path: "{{ docker_build_context }}"
+  register: build_ctx_stat
+
+- name: "Preflight | fail if build context is missing or not a directory"
+  ansible.builtin.fail:
+    msg: "Build context '{{ docker_build_context }}' does not exist or is not a directory."
+  when:
+    - not build_ctx_stat.stat.exists or not build_ctx_stat.stat.isdir
+
+- name: "Preflight | confirm Dockerfile exists"
+  ansible.builtin.stat:
+    path: "{{ docker_build_context }}/{{ docker_dockerfile }}"
+  register: dockerfile_stat
+
+- name: "Preflight | fail if Dockerfile is missing"
+  ansible.builtin.fail:
+    msg: "Dockerfile '{{ docker_build_context }}/{{ docker_dockerfile }}' not found."
+  when: not dockerfile_stat.stat.exists
+
+- name: "Preflight | verify AWS profile credentials work"
+  amazon.aws.aws_caller_info:
+    profile: "{{ aws_profile }}"
+    region: "{{ aws_region }}"
+  register: caller_info
+
+- name: "Preflight | derive registry URI from caller identity"
+  ansible.builtin.set_fact:
+    aws_account_id: "{{ caller_info.account }}"
+    ecr_registry: "{{ caller_info.account }}.dkr.ecr.{{ aws_region }}.amazonaws.com"
+
+- name: "Preflight | display authenticated identity"
+  ansible.builtin.debug:
+    msg: >-
+      Profile '{{ aws_profile }}' authenticated as {{ caller_info.arn }}
+      in account {{ aws_account_id }} ({{ aws_region }}).
+      ECR registry: {{ ecr_registry }}
+
+- name: "Preflight | resolve git short SHA from build context"
+  ansible.builtin.command: git -C {{ docker_build_context }} rev-parse --short=12 HEAD
+  register: git_sha_result
+  changed_when: false
+  failed_when: false
+  when: image_tag_with_git_sha | bool
+
+- name: "Preflight | capture timestamp tag"
+  ansible.builtin.set_fact:
+    _ts_tag: "ts-{{ ansible_date_time.iso8601_basic_short | default(lookup('pipe', 'date +%Y%m%dT%H%M%S')) }}"
+  when: image_tag_with_timestamp | bool
+
+- name: "Preflight | assemble final tag list"
+  ansible.builtin.set_fact:
+    docker_image_tag: >-
+      {{
+        ([image_tag] + (image_additional_tags | default([]))
+          + ((['sha-' + git_sha_result.stdout]) if (image_tag_with_git_sha and git_sha_result is defined and git_sha_result.rc == 0 and git_sha_result.stdout | length > 0) else [])
+          + (([_ts_tag]) if (image_tag_with_timestamp | bool) else []))
+        | reject('equalto', '') | list | unique
+      }}
+
+- name: "Preflight | print build/push plan"
+  ansible.builtin.debug:
+    msg:
+      - "Repository : {{ ecr_registry }}/{{ ecr_repository_name }}"
+      - "Tags       : {{ docker_image_tag }}"
+      - "Platform   : {{ docker_platform }}"
+      - "Push       : {{ push_image }}"
+      - "ECS deploy : {{ ecs_deploy }}{{ ' -> ' + ecs_cluster + '/' + ecs_service if ecs_deploy else '' }}"

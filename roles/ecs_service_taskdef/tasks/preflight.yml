@@ -1,0 +1,140 @@
+---
+# ============================================================================
+# Preflight: validate vars, AWS credentials, and ECS prerequisites via CLI.
+# ============================================================================
+
+- name: "Preflight | assert state value"
+  ansible.builtin.assert:
+    that:
+      - state in ['present', 'absent']
+    fail_msg: "state must be 'present' or 'absent', got: {{ state }}"
+    quiet: true
+
+- name: "Preflight | assert always-required variables"
+  ansible.builtin.assert:
+    that:
+      - aws_profile      | length > 0
+      - aws_region       | length > 0
+      - taskdef_family   | length > 0
+      - ecs_cluster      | length > 0
+      - ecs_service_name | length > 0
+    fail_msg: >-
+      Required variables missing. Set aws_profile, aws_region, taskdef_family,
+      ecs_cluster, and ecs_service_name.
+    quiet: true
+
+- name: "Preflight | assert taskdef inputs (state=present)"
+  ansible.builtin.assert:
+    that:
+      - taskdef_containers | length > 0
+      - taskdef_network_mode in ['awsvpc', 'bridge', 'host', 'none']
+    fail_msg: >-
+      taskdef_containers must be a non-empty list and taskdef_network_mode
+      must be awsvpc/bridge/host/none.
+    quiet: true
+  when: state == "present"
+
+- name: "Preflight | assert awsvpc networking inputs"
+  ansible.builtin.assert:
+    that:
+      - ecs_subnets | length > 0
+    fail_msg: >-
+      taskdef_network_mode is 'awsvpc' (or launch_type is FARGATE) — at least
+      one subnet must be supplied via ecs_subnets.
+    quiet: true
+  when:
+    - state == "present"
+    - (taskdef_network_mode == 'awsvpc') or (ecs_launch_type == 'FARGATE')
+
+- name: "Preflight | assert Fargate task-level cpu/memory present"
+  ansible.builtin.assert:
+    that:
+      - taskdef_cpu    | string | length > 0
+      - taskdef_memory | string | length > 0
+    fail_msg: "Fargate task definitions require taskdef_cpu and taskdef_memory."
+    quiet: true
+  when:
+    - state == "present"
+    - "'FARGATE' in (taskdef_requires_compatibilities | default([]))"
+
+- name: "Preflight | assert each container has required keys"
+  ansible.builtin.assert:
+    that:
+      - item.name  is defined
+      - item.image is defined
+    fail_msg: "Container definition is missing 'name' or 'image': {{ item }}"
+    quiet: true
+  loop: "{{ taskdef_containers }}"
+  loop_control:
+    label: "{{ item.name | default('<unnamed>') }}"
+  when: state == "present"
+
+- name: "Preflight | check AWS CLI is installed"
+  ansible.builtin.shell: aws --version
+  register: _aws_cli_check
+  changed_when: false
+  failed_when: _aws_cli_check.rc != 0
+
+- name: "Preflight | verify AWS credentials"
+  ansible.builtin.shell: |
+    aws sts get-caller-identity \
+      --profile "{{ aws_profile }}" \
+      --region "{{ aws_region }}" \
+      --output json
+  register: _caller_identity
+  changed_when: false
+
+- name: "Preflight | parse caller identity"
+  ansible.builtin.set_fact:
+    _caller_info: "{{ _caller_identity.stdout | from_json }}"
+
+- name: "Preflight | display authenticated identity and target"
+  ansible.builtin.debug:
+    msg:
+      - "Profile  : {{ aws_profile }} ({{ _caller_info.Arn }})"
+      - "Account  : {{ _caller_info.Account }}"
+      - "Region   : {{ aws_region }}"
+      - "Cluster  : {{ ecs_cluster }}"
+      - "Service  : {{ ecs_service_name }}"
+      - "TaskDef  : {{ taskdef_family }}"
+      - "State    : {{ state }}"
+
+- name: "Preflight | verify ECS cluster exists and is ACTIVE"
+  ansible.builtin.shell: |
+    aws ecs describe-clusters \
+      --clusters "{{ ecs_cluster }}" \
+      --profile "{{ aws_profile }}" \
+      --region "{{ aws_region }}" \
+      --query 'clusters[0].status' \
+      --output text
+  register: _cluster_status
+  changed_when: false
+  failed_when: _cluster_status.stdout | trim != 'ACTIVE'
+
+- name: "Preflight | look up existing service (if any)"
+  ansible.builtin.shell: |
+    aws ecs describe-services \
+      --cluster "{{ ecs_cluster }}" \
+      --services "{{ ecs_service_name }}" \
+      --profile "{{ aws_profile }}" \
+      --region "{{ aws_region }}" \
+      --query 'services[0].status' \
+      --output text
+  register: _existing_service_raw
+  changed_when: false
+  failed_when: false
+
+- name: "Preflight | classify existing service status"
+  ansible.builtin.set_fact:
+    existing_service_status: >-
+      {{ _existing_service_raw.stdout | trim
+         if (_existing_service_raw.stdout | trim | length > 0 and _existing_service_raw.stdout | trim != 'None')
+         else 'MISSING' }}
+
+- name: "Preflight | report service state"
+  ansible.builtin.debug:
+    msg: >-
+      Existing service status: {{ existing_service_status }}
+      ({% if existing_service_status == 'ACTIVE' %}will update in place
+      {% elif existing_service_status == 'INACTIVE' %}will recreate (previously deleted)
+      {% else %}will create new{% endif %})

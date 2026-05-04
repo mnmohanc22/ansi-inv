@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  role_name: ecs_service_taskdef
+  author: "Platform Engineering"
+  description: "Create or update an AWS ECS task definition and service from declarative input, using a named AWS CLI profile on the Ansible server."
+  license: "MIT"
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+  galaxy_tags:
+    - aws
+    - ecs
+    - fargate
+    - taskdefinition
+    - service
+    - cd
+
+dependencies: []

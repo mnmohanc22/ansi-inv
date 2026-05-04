@@ -1,0 +1,60 @@
+---
+# ============================================================================
+# Teardown (state: absent):
+#   1. Delete the ECS service. The community.aws.ecs_service module will
+#      scale to 0 and delete (force=true), which is the AWS-recommended
+#      teardown sequence.
+#   2. Optionally deregister the latest ACTIVE revision of the task family.
+# ============================================================================
+
+- name: "Teardown | delete service {{ ecs_service_name }} on {{ ecs_cluster }}"
+  community.aws.ecs_service:
+    state: absent
+    name:    "{{ ecs_service_name }}"
+    cluster: "{{ ecs_cluster }}"
+    force_deletion: true
+    profile: "{{ aws_profile }}"
+    region:  "{{ aws_region }}"
+  when: existing_service_status in ['ACTIVE', 'DRAINING']
+
+- name: "Teardown | wait for service to disappear"
+  ansible.builtin.command: >-
+    aws ecs wait services-inactive
+    --cluster  {{ ecs_cluster }}
+    --services {{ ecs_service_name }}
+    --profile  {{ aws_profile }}
+    --region   {{ aws_region }}
+  changed_when: false
+  async: "{{ ecs_wait_timeout | int }}"
+  poll: 10
+  when: existing_service_status in ['ACTIVE', 'DRAINING']
+
+- name: "Teardown | look up latest task definition revision (if any)"
+  community.aws.ecs_taskdefinition_info:
+    task_definition: "{{ taskdef_family }}"
+    profile: "{{ aws_profile }}"
+    region:  "{{ aws_region }}"
+  register: latest_taskdef
+  failed_when: false
+  when: ecs_deregister_taskdef_on_absent | bool
+
+- name: "Teardown | deregister latest task definition revision"
+  community.aws.ecs_taskdefinition:
+    state: absent
+    family: "{{ taskdef_family }}"
+    revision: "{{ latest_taskdef.revision }}"
+    profile: "{{ aws_profile }}"
+    region:  "{{ aws_region }}"
+  when:
+    - ecs_deregister_taskdef_on_absent | bool
+    - latest_taskdef is defined
+    - latest_taskdef.revision is defined
+
+- name: "Teardown | summary"
+  ansible.builtin.debug:
+    msg: >-
+      Removed service {{ ecs_cluster }}/{{ ecs_service_name }}.
+      {% if ecs_deregister_taskdef_on_absent %}Latest task def revision for
+      family '{{ taskdef_family }}' was also deregistered.{% else %}Task
+      definition revisions for family '{{ taskdef_family }}' were left in
+      place.{% endif %}

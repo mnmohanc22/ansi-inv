@@ -1,0 +1,85 @@
+---
+# Intentionally empty. All tunables live in defaults/main.yml so callers can
+# override via group_vars, host_vars, extra-vars, or playbook vars.
+
+
+# # ============================================================================
+# # TASK DEFINITION
+# # ============================================================================
+# taskdef_family: ""                     # REQUIRED, e.g. "sample-api"
+# taskdef_network_mode: "awsvpc"         # awsvpc | bridge | host | none
+# taskdef_cpu:    "256"                  # task-level CPU (Fargate requires)
+# taskdef_memory: "512"                  # task-level memory (Fargate requires)
+# taskdef_task_role_arn: ""              # role assumed by the running container
+# taskdef_execution_role_arn: ""         # role used by the ECS agent (pull image, write logs)
+# taskdef_requires_compatibilities:      # ["FARGATE"] | ["EC2"] | ["EXTERNAL"]
+#   - "FARGATE"
+# taskdef_runtime_platform: {}           # e.g. { cpuArchitecture: ARM64, operatingSystemFamily: LINUX }
+# taskdef_volumes: []
+# taskdef_placement_constraints: []
+# taskdef_proxy_configuration: {}        # for App Mesh
+# taskdef_tags: {}                       # dict of key/value
+
+
+
+taskdef_containers: []
+
+# ============================================================================
+# SERVICE
+# ============================================================================
+ecs_cluster: "ecs-test"                        # REQUIRED
+ecs_service_name: ""                   # REQUIRED
+ecs_desired_count: 1
+ecs_launch_type: "FARGATE"             # ignored when ecs_capacity_provider_strategy is set
+ecs_platform_version: "LATEST"         # Fargate only
+ecs_scheduling_strategy: "REPLICA"     # REPLICA | DAEMON
+
+# Networking — required when taskdef_network_mode == awsvpc
+ecs_subnets: []
+ecs_security_groups: []
+ecs_assign_public_ip: false            # ENABLED if true, DISABLED if false
+
+# Load balancer attachments — list of dicts.
+# Use ALB/NLB target groups (preferred):
+# ecs_load_balancers:
+#   - targetGroupArn: arn:aws:elasticloadbalancing:us-west-2:...:targetgroup/sample-api/abcdef
+#     containerName: sample-api
+#     containerPort: 8080
+ecs_load_balancers: []
+
+# Service discovery (Cloud Map) — list of dicts:
+#   - registryArn: arn:aws:servicediscovery:...:service/srv-xxx
+#     containerName: sample-api
+#     containerPort: 8080
+ecs_service_registries: []
+
+# Deployment configuration
+ecs_deployment_min_healthy_percent: 100
+ecs_deployment_max_percent: 200
+ecs_deployment_circuit_breaker_enable:   false
+ecs_deployment_circuit_breaker_rollback: false
+
+# Capacity provider strategy (alternative to ecs_launch_type)
+# ecs_capacity_provider_strategy:
+#   - capacity_provider: FARGATE
+#     weight: 1
+#     base: 1
+#   - capacity_provider: FARGATE_SPOT
+#     weight: 4
+ecs_capacity_provider_strategy: []
+
+# Behavior
+ecs_force_new_deployment: true         # roll tasks even if taskdef unchanged
+ecs_health_check_grace_period: 0       # seconds; bump up for slow-booting LB-attached services
+
+# Tagging
+ecs_service_tags: {}
+ecs_propagate_tags: "TASK_DEFINITION"  # NONE | SERVICE | TASK_DEFINITION
+ecs_enable_ecs_managed_tags: true
+
+# Wait
+ecs_wait_for_stable: true
+ecs_wait_timeout: 600                  # seconds
+
+# Teardown (state: absent)
+ecs_deregister_taskdef_on_absent: false
