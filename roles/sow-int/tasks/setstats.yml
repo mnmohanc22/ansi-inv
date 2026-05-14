@@ -1,0 +1,31 @@
+---
+- name: Pass API values to next job
+  block:
+
+    - name: Show stats being passed
+      ansible.builtin.debug:
+        msg:
+          - "account_id    : {{ api_result.json.account_id }}"
+          - "workflow_status : validated"
+
+    - name: Pass API value to next job
+      ansible.builtin.set_stats:
+        data:
+          wf_account_id: "{{ api_result.json.account_id }}"
+          wf_workflow_status: "validated"
+        per_host: false
+   
+
+    - name: Print vars from set_stats
+      ansible.builtin.debug:
+        msg:
+          - "wf_account_id      : {{ wf_account_id }}"
+          - "wf_workflow_status : {{ wf_workflow_status }}"
+
+- name: Print values passed via set_stats in next job
+  block:
+    - name: Print vars from set_stats
+      ansible.builtin.debug:
+        msg:
+          - "wf_account_id      : {{ wf_account_id }}"
+          - "wf_workflow_status : {{ wf_workflow_status }}"

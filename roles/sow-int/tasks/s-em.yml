@@ -23,3 +23,56 @@
   tags:
     - always
     - email
+
+
+- name: Send  completion email
+  ansible.builtin.mail:
+    host: "{{ smtp_host }}"
+    port: "{{ smtp_port | default(25) }}"
+    to: "{{ email_to | default('ops-team@company.com') }}"
+    from: "{{ email_from | default('aap@company.com') }}"
+    subject: "Completed"
+    body: |
+       completed successfully.
+
+       ID: {{ id }}
+       AWS Account: {{ account_id }}
+       Status: SUCCESS
+
+
+- name: Send authenticated email
+  ansible.builtin.mail:
+    host: smtp.office365.com
+    port: 587
+    secure: starttls
+    username: "{{ smtp_user }}"
+    password: "{{ smtp_password }}"
+    to:
+      - ops@company.com
+      - devops@company.com
+    from: automation@company.com
+    subject: "Deployment Status"
+    body: |
+      Deployment completed successfully.
+
+      Application: payment-api
+      Version: 1.2.5
+      Environment: DEV
+
+- name: Send plain text email
+  ansible.builtin.mail:
+    host: smtp.company.com
+    port: 25
+    to: admin@company.com
+    from: ansible@company.com
+    subject: "AAP Job Notification"
+    body: |
+      Hello Team,
+
+      The patching job completed successfully.
+
+      Job ID: {{ tower_job_id }}
+      Environment: PROD
+
+      Regards,
+      Ansible Automation Platform
