@@ -84,3 +84,13 @@
       -s "Test Email" \
       -r "ansible@company.com" \
       user@company.com
+
+- name: Send email via mailx with SMTP
+  ansible.builtin.shell: |
+    echo "{{ email_body }}" | mailx \
+      -v \
+      -s "{{ email_subject }}" \
+      -r "{{ email_from }}" \
+      -S smtp="{{ smtp_host }}:{{ smtp_port | default(25) }}" \
+      "{{ email_to }}"
+  no_log: true
