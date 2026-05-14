@@ -76,3 +76,11 @@
 
       Regards,
       Ansible Automation Platform
+
+
+- name: Send email using mailx
+  ansible.builtin.shell: |
+    echo "Test email from Ansible" | mailx \
+      -s "Test Email" \
+      -r "ansible@company.com" \
+      user@company.com
