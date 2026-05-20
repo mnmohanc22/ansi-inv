@@ -1,0 +1,39 @@
+---
+- name: List all Java processes on host
+  block:
+
+    - name: Get all Java processes with PIDs
+      ansible.builtin.shell: |
+        ps -ef | grep java | grep -v grep
+      register: _java_ps
+      changed_when: false
+      failed_when: false
+      register: _java_ps
+
+    - name: print _java_ps
+      ansible.builtin.debug:
+        msg: "{{ _java_ps }}"
+
+    - name: Get Java PIDs using pgrep
+      ansible.builtin.shell: |
+        pgrep -a java
+      register: _java_pgrep
+      changed_when: false
+      failed_when: false
+
+    - name: Show Java process count
+      ansible.builtin.debug:
+        msg: "Java processes running: {{ _java_pgrep.stdout_lines | length }}"
+
+    - name: Show Java processes (ps output)
+      ansible.builtin.debug:
+        msg: "{{ _java_ps.stdout_lines }}"
+
+    - name: Show Java PIDs and commands (pgrep)
+      ansible.builtin.debug:
+        msg: "{{ _java_pgrep.stdout_lines }}"
+
+    - name: Warn if no Java processes found
+      ansible.builtin.debug:
+        msg: "WARNING: No Java processes found on {{ inventory_hostname }}"
+      when: _java_pgrep.stdout_lines | length == 0
