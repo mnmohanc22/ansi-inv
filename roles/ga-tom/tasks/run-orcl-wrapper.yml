@@ -1,0 +1,28 @@
+---
+
+
+- name: "{{ orcl_env_name }} | Execute Tomcat wrapper script"
+  block:
+
+    - name: "{{ orcl_env_name }} | Print env_name"
+      ansible.builtin.debug:
+        msg: "Stopping Tomcat for env: {{ orcl_env_name }}"
+
+    - name: "{{ orcl_env_name }} | Show resolved wrapper command"
+      ansible.builtin.debug:
+        msg: "<{{ oracl_domains_dir }}/{{ orcl_env_name }}/bin/{{ cmd_flag }}.sh"
+
+    - name: "{{ orcl_env_name }} | Run Tomcat wrapper script"
+      ansible.builtin.shell: |
+        {{ oracl_domains_dir }}/{{ orcl_env_name }}/bin/{{ cmd_flag }}.sh
+      args:
+        executable: /bin/bash
+      become_user: "{{ oracl_user }}"
+      register: orcl_wrapper_result
+      changed_when: true
+
+    - name: "{{ item }} | Display wrapper stdout"
+      ansible.builtin.debug:
+        msg: "{{ orcl_wrapper_result.stdout_lines }}"
+
+

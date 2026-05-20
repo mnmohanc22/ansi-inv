@@ -1,0 +1,234 @@
+---
+# ============================================================================
+# ga-start.yml — Start GA services in sequence per tier
+#
+# Sequence:
+#   Play 1 - Setup variables          → db
+#   Play 2 - Start Docker             → db
+#   Play 3 - Start Oracle server      → db
+#   Play 4 - Start httpd              → frontend
+#   Play 5 - Start Tomcat server      → api
+#   Play 6 - Start services           → worker
+#   Play 7 - Check status             → all
+#
+# Usage:
+#   ansible-playbook -i inventory/inventory.ini playbooks/ga-start.yml
+#   ansible-playbook -i inventory/inventory.ini playbooks/ga-start.yml --tags start-httpd,start-server
+# ============================================================================
+
+- name: "Play 1 | Setup variables"
+  hosts: db
+  gather_facts: false
+  tags: [always, setup]
+  pre_tasks:
+    - name: "Play 1 | PRE | Show host details"
+      ansible.builtin.debug:
+        msg:
+          - "Host       : {{ inventory_hostname }}"
+          - "IP         : {{ ansible_host | default(inventory_hostname) }}"
+          - "Groups     : {{ group_names | join(', ') }}"
+  tasks:
+    - name: Setup variables
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: setup-vars.yml
+  post_tasks:
+    - name: "Play 1 | POST | Variables setup complete"
+      ansible.builtin.debug:
+        msg: "Variables setup complete on {{ inventory_hostname }}"
+
+- name: "Play 2 | Start Docker service and container"
+  hosts: db
+  gather_facts: false
+  tags: [start-docker]
+  pre_tasks:
+    - name: "Play 2 | PRE | Show host details"
+      ansible.builtin.debug:
+        msg:
+          - "Host       : {{ inventory_hostname }}"
+          - "IP         : {{ ansible_host | default(inventory_hostname) }}"
+          - "Groups     : {{ group_names | join(', ') }}"
+
+    - name: "Play 2 | PRE | Check Docker is installed"
+      ansible.builtin.shell: docker --version
+      register: _docker_version
+      changed_when: false
+      failed_when: _docker_version.rc != 0
+
+    - name: "Play 2 | PRE | Show Docker version"
+      ansible.builtin.debug:
+        msg: "{{ _docker_version.stdout }}"
+  tasks:
+    - name: Start Docker
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: start-dk.yml
+  post_tasks:
+    - name: "Play 2 | POST | Verify Docker service is running"
+      ansible.builtin.shell: systemctl is-active docker
+      register: _docker_active
+      changed_when: false
+      failed_when: _docker_active.stdout | trim != 'active'
+
+    - name: "Play 2 | POST | Docker service status"
+      ansible.builtin.debug:
+        msg: "Docker service is {{ _docker_active.stdout | trim }}"
+
+- name: "Play 3 | Start Oracle server"
+  hosts: db
+  gather_facts: false
+  tags: [start-orcl-server]
+  pre_tasks:
+    - name: "Play 3 | PRE | Show host details"
+      ansible.builtin.debug:
+        msg:
+          - "Host       : {{ inventory_hostname }}"
+          - "IP         : {{ ansible_host | default(inventory_hostname) }}"
+          - "Groups     : {{ group_names | join(', ') }}"
+
+    - name: "Play 3 | PRE | Check Oracle listener port"
+      ansible.builtin.shell: ss -tlnp | grep 1521 || true
+      register: _orcl_port
+      changed_when: false
+
+    - name: "Play 3 | PRE | Show Oracle port status"
+      ansible.builtin.debug:
+        msg: "Oracle port 1521: {{ 'already open' if _orcl_port.stdout | length > 0 else 'not yet open' }}"
+  tasks:
+    - name: Start Oracle
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: start-orcl-server.yml
+  post_tasks:
+    - name: "Play 3 | POST | Verify Oracle listener port is open"
+      ansible.builtin.shell: ss -tlnp | grep 1521
+      register: _orcl_verify
+      changed_when: false
+      failed_when: _orcl_verify.rc != 0
+
+    - name: "Play 3 | POST | Oracle listener status"
+      ansible.builtin.debug:
+        msg: "Oracle listener is up on port 1521"
+
+- name: "Play 4 | Start httpd"
+  hosts: frontend
+  gather_facts: false
+  tags: [start-httpd]
+  pre_tasks:
+    - name: "Play 4 | PRE | Show host details"
+      ansible.builtin.debug:
+        msg:
+          - "Host       : {{ inventory_hostname }}"
+          - "IP         : {{ ansible_host | default(inventory_hostname) }}"
+          - "Groups     : {{ group_names | join(', ') }}"
+
+    - name: "Play 4 | PRE | Check httpd is installed"
+      ansible.builtin.shell: httpd -v
+      register: _httpd_version
+      changed_when: false
+      failed_when: _httpd_version.rc != 0
+
+    - name: "Play 4 | PRE | Show httpd version"
+      ansible.builtin.debug:
+        msg: "{{ _httpd_version.stdout_lines[0] }}"
+  tasks:
+    - name: Start httpd
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: start-httpd.yml
+  post_tasks:
+    - name: "Play 4 | POST | Verify httpd is active"
+      ansible.builtin.shell: systemctl is-active httpd
+      register: _httpd_active
+      changed_when: false
+      failed_when: _httpd_active.stdout | trim != 'active'
+
+    - name: "Play 4 | POST | httpd service status"
+      ansible.builtin.debug:
+        msg: "httpd service is {{ _httpd_active.stdout | trim }}"
+
+- name: "Play 5 | Start Tomcat server"
+  hosts: api
+  gather_facts: false
+  tags: [start-server]
+  pre_tasks:
+    - name: "Play 5 | PRE | Show host details"
+      ansible.builtin.debug:
+        msg:
+          - "Host       : {{ inventory_hostname }}"
+          - "IP         : {{ ansible_host | default(inventory_hostname) }}"
+          - "Groups     : {{ group_names | join(', ') }}"
+
+    - name: "Play 5 | PRE | Check Java is installed"
+      ansible.builtin.shell: java -version
+      register: _java_version
+      changed_when: false
+      failed_when: _java_version.rc != 0
+
+    - name: "Play 5 | PRE | Show Java version"
+      ansible.builtin.debug:
+        msg: "{{ _java_version.stderr_lines[0] }}"
+  tasks:
+    - name: Start Tomcat
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: start-server.yml
+  post_tasks:
+    - name: "Play 5 | POST | Verify Tomcat port is open"
+      ansible.builtin.shell: ss -tlnp | grep 8080
+      register: _tomcat_port
+      changed_when: false
+      failed_when: _tomcat_port.rc != 0
+
+    - name: "Play 5 | POST | Tomcat port status"
+      ansible.builtin.debug:
+        msg: "Tomcat is listening on port 8080"
+
+- name: "Play 6 | Start services"
+  hosts: worker
+  gather_facts: false
+  tags: [start-services]
+  pre_tasks:
+    - name: "Play 6 | PRE | Show host details"
+      ansible.builtin.debug:
+        msg:
+          - "Host       : {{ inventory_hostname }}"
+          - "IP         : {{ ansible_host | default(inventory_hostname) }}"
+          - "Groups     : {{ group_names | join(', ') }}"
+  tasks:
+    - name: Start services
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: start-services.yml
+  post_tasks:
+    - name: "Play 6 | POST | Services start complete"
+      ansible.builtin.debug:
+        msg: "Services started on {{ inventory_hostname }}"
+
+- name: "Play 7 | Check status"
+  hosts: all
+  gather_facts: false
+  tags: [check-status]
+  pre_tasks:
+    - name: "Play 7 | PRE | Show target host"
+      ansible.builtin.debug:
+        msg: "Checking service status on {{ inventory_hostname }}"
+  tasks:
+    - name: Check server status
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: check-server.yml
+
+    - name: Check httpd status
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: check-httpd-status.yml
+
+    - name: Check services status
+      ansible.builtin.include_role:
+        name: ga-tom
+        tasks_from: check-services.yml
+  post_tasks:
+    - name: "Play 7 | POST | All checks complete"
+      ansible.builtin.debug:
+        msg: "All service checks complete on {{ inventory_hostname }}"

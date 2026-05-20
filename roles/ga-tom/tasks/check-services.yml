@@ -1,0 +1,11 @@
+---
+
+- name: "Loop through svc_list and status each service with systemctl wrapper"
+  ansible.builtin.include_tasks: check-service-status.yml
+  loop: "{{ svc_list }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item }}"
+    vars:
+      svc_name: "{{ item }}"
+      cmd_flag: "status"

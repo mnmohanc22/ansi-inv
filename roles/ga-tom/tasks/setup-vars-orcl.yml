@@ -1,0 +1,27 @@
+
+
+- name: Read orcl env list from host_vars
+  block:
+
+    - name: Assert services is defined
+      ansible.builtin.assert:
+        that:
+          - orcl_env_list is defined
+          - orcl_env_list | length > 0
+        fail_msg: "services must be defined in host_vars as a list."
+        success_msg: "services has {{ orcl_env_list | length }} value(s)."
+
+    - name: Set fact for orcl_env
+      ansible.builtin.set_fact:
+        orcl_env: "{{ orcl_env_list }}"
+
+    - name: Show orcl_env
+      ansible.builtin.debug:
+        msg:
+          - "Host      : {{ inventory_hostname }}"
+          - "orcl_env  : {{ orcl_env }}"
+
+    - name: Print each orcl_env
+      ansible.builtin.debug:
+        msg: "orcl_env : {{ item }}"
+      loop: "{{ orcl_env }}"

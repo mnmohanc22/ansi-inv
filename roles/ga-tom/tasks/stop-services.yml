@@ -1,0 +1,11 @@
+---
+
+- name: "Loop through svc_list and stop each service with systemctl wrapper"
+  ansible.builtin.include_tasks: run-systemctl-wrapper.yml
+  loop: "{{ svc_list }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item }}"
+    vars:
+      svc_name: "{{ item }}"
+      cmd_flag: "stop"

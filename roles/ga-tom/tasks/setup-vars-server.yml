@@ -1,0 +1,57 @@
+---
+# ============================================================================
+# setup-vars: read tomcat environment variable list and wrapper flag list
+# from host_vars, set facts consumed by downstream tasks.
+#
+# Expected host_vars structure:
+#
+#   tomcat_env_name:
+#     - dev
+#     - sit
+# ============================================================================
+
+- name: Read tomcat_env_name list from host_vars
+  block:
+
+    - name: Assert tomcat_env_name is defined
+      ansible.builtin.assert:
+        that:
+          - tomcat_env_name is defined
+          - tomcat_env_name | length > 0
+        fail_msg: "tomcat_env_name must be defined in host_vars as a list."
+        success_msg: "tomcat_env_name has {{ tomcat_env_name | length }} value(s)."
+
+    - name: Set fact for env_names
+      ansible.builtin.set_fact:
+        env_names: "{{ tomcat_env_name }}"
+
+    - name: Show env_names
+      ansible.builtin.debug:
+        msg:
+          - "Host      : {{ inventory_hostname }}"
+          - "env_names : {{ env_names }}"
+
+    - name: Print each env_name
+      ansible.builtin.debug:
+        msg: "env_name : {{ item }}"
+      loop: "{{ env_names }}"
+
+
+
+- name: Check Tomcat wrapper script
+  block:
+
+    - name: Verify wrapper script exists
+      ansible.builtin.stat:
+        path: "{{ wrapper_script }}"
+      register: wrapper_file
+
+    - name: Fail if wrapper script missing
+      ansible.builtin.fail:
+        msg: "Wrapper script not found: {{ wrapper_script }}"
+      when: not wrapper_file.stat.exists
+
+    - name: Ensure wrapper script is executable
+      ansible.builtin.file:
+        path: "{{ wrapper_script }}"
+        mode: "0755"

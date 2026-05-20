@@ -1,0 +1,39 @@
+---
+# ============================================================================
+# setup-vars: read tomcat environment variable list and wrapper flag list
+# from host_vars, set facts consumed by downstream tasks.
+#
+# Expected host_vars structure:
+#
+#   tomcat_env_name:
+#     - dev
+#     - sit
+# ============================================================================
+
+- name: Read services list from host_vars
+  block:
+
+    - name: Assert services is defined
+      ansible.builtin.assert:
+        that:
+          - svc_list is defined
+          - svc_list | length > 0
+        fail_msg: "services must be defined in host_vars as a list."
+        success_msg: "services has {{ svc_list | length }} value(s)."
+
+    - name: Set fact for svc_names
+      ansible.builtin.set_fact:
+        svc_names: "{{ svc_list }}"
+
+    - name: Show svc_names
+      ansible.builtin.debug:
+        msg:
+          - "Host      : {{ inventory_hostname }}"
+          - "svc_names : {{ svc_names }}"
+
+    - name: Print each svc_name
+      ansible.builtin.debug:
+        msg: "svc_name : {{ item }}"
+      loop: "{{ svc_names }}"
+
+

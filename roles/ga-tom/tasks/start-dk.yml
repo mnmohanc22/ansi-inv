@@ -1,0 +1,67 @@
+---
+- name: Read container_name from host_vars
+  block:
+
+    - name: Assert container_name is defined
+      ansible.builtin.assert:
+        that:
+          - container_name is defined
+          - container_name | length > 0
+        fail_msg: "container_name must be defined in host_vars."
+        success_msg: "container_name is '{{ container_name }}'."
+
+    - name: Set docker_container_name fact
+      ansible.builtin.set_fact:
+        docker_container_name: "{{ container_name }}"
+
+    - name: Show container name
+      ansible.builtin.debug:
+        msg: "docker_container_name : {{ docker_container_name }}"
+
+
+- name: Start Docker service
+  block:
+
+    - name: Start Docker service via systemctl
+      ansible.builtin.shell: systemctl start docker
+      register: _docker_service
+      changed_when: true
+      become: true
+      become_user: root
+
+    - name: Show Docker service start result
+      ansible.builtin.debug:
+        msg: "Docker service started"
+
+
+
+- name: Start Docker container
+  block:
+
+    - name: Check if container is running
+      ansible.builtin.shell: |
+        docker inspect --format '{{ "{{" }}.State.Running{{ "}}" }}' "{{ docker_container_name }}"
+      register: _container_running
+      changed_when: false
+      failed_when: false
+
+    - name: Start container
+      ansible.builtin.shell: docker start "{{ docker_container_name }}"
+      register: _container_start
+      changed_when: true
+      when:
+        - _container_running.rc == 0
+        - _container_running.stdout | trim == 'true'
+
+    - name: Show container start result
+      ansible.builtin.debug:
+        msg: "Container '{{ docker_container_name }}' {{ 'started' if (_container_running.rc == 0 and _container_running.stdout | trim == 'true') else 'was not running' }}"
+
+    - name: Verify container is started
+      ansible.builtin.shell: |
+        docker inspect --format '{{ "{{" }}.State.Running{{ "}}" }}' "{{ docker_container_name }}"
+      register: _container_verify
+      changed_when: false
+      failed_when:
+        - _container_verify.rc == 0
+        - _container_verify.stdout | trim == 'true'

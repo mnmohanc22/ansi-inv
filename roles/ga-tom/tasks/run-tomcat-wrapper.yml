@@ -1,0 +1,33 @@
+---
+
+
+- name: "{{ env_name }} | Execute Tomcat wrapper script"
+  block:
+
+    - name: "{{ env_name }} | Print env_name"
+      ansible.builtin.debug:
+        msg: "Stopping Tomcat for env: {{ env_name }}"
+
+    - name: import task check tomcat status
+      ansible.builtin.include_tasks: check-tomcat-status.yml
+      vars:
+        env_name: "{{ env_name }}"
+
+    - name: "{{ env_name }} | Show resolved wrapper command"
+      ansible.builtin.debug:
+        msg: "{{ wrapper_script }} {{ cmd_flag  }}"
+
+    - name: "{{ env_name }} | Run Tomcat wrapper script"
+      ansible.builtin.shell: |
+        {{ wrapper_script }} {{ cmd_flag }}
+      args:
+        executable: /bin/bash
+      become_user: "{{ tomcat_user }}"
+      register: tomcat_wrapper_result
+      changed_when: true
+
+    - name: "{{ item }} | Display wrapper stdout"
+      ansible.builtin.debug:
+        msg: "{{ tomcat_wrapper_result.stdout_lines }}"
+
+

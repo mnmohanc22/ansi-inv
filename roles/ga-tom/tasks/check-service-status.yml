@@ -1,0 +1,27 @@
+
+
+
+
+- name: check service status
+  block:
+
+    - name: "Check service status — Setup variables"
+      ansible.builtin.import_tasks: setup-vars-services.yml
+
+    - name: print svc_name for this block
+      ansible.builtin.debug:
+        msg: "Checking service status for svc_name: {{ svc_name }}"
+
+    - name: Verify service status with systemctl wrapper
+      ansible.builtin.shell: |
+        sudo systemctl status {{ svc_name }}
+      args:
+        executable: /bin/bash
+      become_user: "{{ svc_user }}"
+      register: svc_status_result
+      changed_when: false
+      failed_when: svc_status_result.rc != 0
+
+    - name: "{{ svc_name }} | Display service status stdout"
+      ansible.builtin.debug:
+        msg: "{{ svc_status_result.stdout_lines }}"       

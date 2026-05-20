@@ -1,0 +1,11 @@
+---
+
+- name: "Loop through orcl_env_list stop server for {{ item }}"
+  ansible.builtin.include_tasks: run-orcl-wrapper.yml
+  loop: "{{ orcl_env_list }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item }}"
+    vars:
+      orcl_env_name: "{{ item }}"
+      cmd_flag: "stop"

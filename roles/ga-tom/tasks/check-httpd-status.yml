@@ -1,0 +1,15 @@
+---
+- name: Check httpd service
+  block:
+
+    - name: Check httpd service status
+      ansible.builtin.shell: systemctl status httpd
+      register: _httpd_status
+      changed_when: false
+      failed_when: false
+      become: true
+      become_user: "{{ apache_user }}"
+
+    - name: Show httpd status result
+      ansible.builtin.debug:
+        msg: "{{ _httpd_status.stdout_lines }}"

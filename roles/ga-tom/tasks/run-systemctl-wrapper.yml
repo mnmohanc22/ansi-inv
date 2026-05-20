@@ -1,0 +1,26 @@
+
+- name: "{{ svc_name }} | Execute systemctl wrapper script"
+  block:
+
+    - name: "{{ svc_name }} | Print svc_name"
+      ansible.builtin.debug:
+        msg: "  svc name: {{ svc_name }}"
+
+    - name: "{{ svc_name }} | Show resolved wrapper command"
+      ansible.builtin.debug:
+        msg: "sudo systemctl {{ cmd_flag  }} {{ svc_name }} "
+
+    - name: "{{ svc_name }} | Run  wrapper script"
+      ansible.builtin.shell: |
+        sudo systemctl {{ cmd_flag  }} {{ svc_name }}
+      args:
+        executable: /bin/bash
+      become_user: "{{ svc_user }}"
+      register: svc_wrapper_result
+      changed_when: true
+
+    - name: "{{ item }} | Display wrapper stdout"
+      ansible.builtin.debug:
+        msg: "{{ svc_wrapper_result.stdout_lines }}"
+
+

@@ -1,0 +1,11 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for tx-ansi
+
+tom_scripts_dir: "/opt/tx-ansi/scripts"
+wrapper_script: "{{ tom_scripts_dir }}/wrapper.sh"
+
+obiee_user: oracle
+domain_name: bi_domain
+middleware_home: /u01/app/oracle/middleware
+domain_home: "{{ middleware_home }}/user_projects/domains/{{ domain_name }}"

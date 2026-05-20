@@ -1,0 +1,28 @@
+- name: check tomcat status
+  block:
+
+    - name: print env_name for this block
+      ansible.builtin.debug:
+        msg: "Checking Tomcat status for env_name: {{ env_name }}"
+
+    - name: Verify Tomcat process with env_name filter
+      ansible.builtin.shell: |
+        ps -ef | grep tomcat | grep -v grep | grep {{ env_name }}
+      register: tomcat_process
+      changed_when: false
+      failed_when: tomcat_process.rc != 0
+
+    - name: Print running Tomcat processes for env_name
+      ansible.builtin.debug:
+        msg: "{{ tomcat_process.stdout_lines }}"
+
+    - name: check process id
+      ansible.builtin.shell: |
+        ps -ef | grep tomcat | grep -v grep | grep {{ env_name }} | awk '{print $2}'
+      register: tomcat_pid
+      changed_when: false
+      failed_when: tomcat_pid.rc != 0
+
+    - name: Print Tomcat process ID
+      ansible.builtin.debug:
+        msg: "{{ tomcat_pid.stdout_lines }}"  

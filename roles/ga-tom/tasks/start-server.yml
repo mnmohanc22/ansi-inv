@@ -1,0 +1,13 @@
+---
+- name: Loop through env_names and start server
+  block:
+
+    - name: "Run run-tomcat-wrapper.yml for each env_name with cmd_flag 'start'"
+      ansible.builtin.include_tasks: run-tomcat-wrapper.yml
+      loop: "{{ env_names }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item }}"
+      vars:
+        env_name: "{{ item }}"
+        cmd_flag: "start"

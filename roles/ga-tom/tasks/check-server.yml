@@ -1,0 +1,15 @@
+---
+- name: Check server status
+  block:
+
+    - name: Setup server variables
+      ansible.builtin.import_tasks: setup-vars-server.yml
+
+    - name: Loop through env_names and check Tomcat instance status
+      ansible.builtin.include_tasks: check-tomcat-instance-status.yml
+      loop: "{{ env_names }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item }}"
+      vars:
+        env_name: "{{ item }}"

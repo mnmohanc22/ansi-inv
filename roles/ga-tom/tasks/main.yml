@@ -1,0 +1,88 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for tx-ansi
+
+
+- name: "Setup variables for Tomcat tasks"
+  ansible.builtin.include_tasks: setup-vars.yml
+  tags:
+    - setup
+
+- name: "import tasks to check server status  "
+  ansible.builtin.include_tasks: check-server.yml 
+  tags:
+    - check-server-status
+
+- name: "import tasks to start server"
+  ansible.builtin.include_tasks: start-server.yml
+  tags:
+    - start-server
+
+- name: "import tasks to stop server"
+  ansible.builtin.include_tasks: stop-server.yml
+  tags:
+    - stop-server
+
+
+- name: "import tasks to check service status"
+  ansible.builtin.include_tasks: check-services.yml
+  tags:
+    - check-service-status
+
+- name: "import tasks to start services"
+  ansible.builtin.include_tasks: start-services.yml
+  tags:
+    - start-services  
+
+- name: "import tasks to stop services"
+  ansible.builtin.include_tasks: stop-services.yml
+  tags:
+    - stop-services
+
+- name: "import tasks to restart services"
+  ansible.builtin.include_tasks: restart-services.yml
+  tags:
+    - restart-services            
+
+- name: "import tasks to check orcl server status"
+  ansible.builtin.include_tasks: check-orcl-status.yml
+  tags:
+    - check-orcl-status
+
+- name: "import tasks to start orcl server"
+  ansible.builtin.include_tasks: start-orcl-server.yml
+  tags:
+    - start-orcl-server 
+
+- name: "import tasks to stop orcl server"
+  ansible.builtin.include_tasks: stop-orcl-server.yml
+  tags:
+    - stop-orcl-server    
+
+
+- name: "import tasks to start httpd server "
+  ansible.builtin.include_tasks: start-httpd.yml
+  tags:
+    - start-httpd
+
+- name: "import tasks to stop httpd server "
+  ansible.builtin.include_tasks: stop-httpd.yml
+  tags:
+    - stop-httpd
+
+- name: "import tasks to check httpd server status "
+  ansible.builtin.include_tasks: check-httpd-status.yml
+  tags:
+    - check-httpd-status
+
+
+- name: "import tasks to start docker container "
+  ansible.builtin.include_tasks: start-dk.yml
+  tags:
+    - start-docker  
+   
+- name: "import tasks to stop docker container "
+  ansible.builtin.include_tasks: stop-dk.yml
+  tags:
+    - stop-docker   
+

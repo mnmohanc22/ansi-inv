@@ -1,0 +1,36 @@
+---
+- name: Stop httpd service
+  block:
+
+    - name: Check httpd service status
+      ansible.builtin.shell: systemctl is-active httpd
+      register: _httpd_status
+      changed_when: false
+      failed_when: false
+      become: true
+      become_user: "{{ apache_user }}"
+      register: _httpd_status
+
+    - name: Show httpd status result
+      ansible.builtin.debug:
+        msg: "httpd is currently {{ _httpd_status.stdout | trim }}"  
+
+    - name: Stop httpd service
+      ansible.builtin.shell: systemctl stop httpd
+      register: _httpd_stop
+      changed_when: true
+      when: _httpd_status.stdout | trim == 'active'
+      become: true
+      become_user: "{{ apache_user }}"
+
+    - name: Show httpd stop result
+      ansible.builtin.debug:
+        msg: "httpd {{ 'stopped' if _httpd_status.stdout | trim == 'active' else 'was already stopped' }}"
+
+    - name: Verify httpd is stopped
+      ansible.builtin.shell: systemctl is-active httpd
+      register: _httpd_verify
+      changed_when: false
+      failed_when: _httpd_verify.stdout | trim == 'active'
+      become: true
+      become_user: "{{ apache_user }}"
