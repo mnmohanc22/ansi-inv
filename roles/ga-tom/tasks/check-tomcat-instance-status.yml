@@ -7,7 +7,7 @@
 
     - name: Verify Tomcat process with env_name filter
       ansible.builtin.shell: |
-        ps -ef | grep tomcat | grep -v grep | grep {{ env_name }}
+        ps -ef | grep java | grep -v grep | grep {{ env_name }}
       register: tomcat_process
       changed_when: false
       failed_when: tomcat_process.rc != 0

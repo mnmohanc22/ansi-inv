@@ -9,3 +9,8 @@ obiee_user: oracle
 domain_name: bi_domain
 middleware_home: /u01/app/oracle/middleware
 domain_home: "{{ middleware_home }}/user_projects/domains/{{ domain_name }}"
+
+server_flags:
+  - "a"
+  - "c"
+  - "b"

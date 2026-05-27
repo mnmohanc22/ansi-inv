@@ -13,21 +13,37 @@
       vars:
         env_name: "{{ env_name }}"
 
-    - name: "{{ env_name }} | Show resolved wrapper command"
+    - name: "{{ env_name }} | Assemble server_flags from list"
+      ansible.builtin.set_fact:
+        _server_flags_str: "{{ server_flags | default([]) | join(' ') }}"
+
+    - name: "{{ env_name }} | Show wrapper commands to run"
       ansible.builtin.debug:
-        msg: "{{ wrapper_script }} {{ cmd_flag  }}"
+        msg: "{{ wrapper_script }} {{ cmd_flag }} {{ flag_item }}"
+      loop: "{{ server_flags | default([]) }}"
+      loop_control:
+        loop_var: flag_item
+        label: "{{ flag_item }}"
 
     - name: "{{ env_name }} | Run Tomcat wrapper script"
       ansible.builtin.shell: |
-        {{ wrapper_script }} {{ cmd_flag }}
+        {{ wrapper_script }} {{ cmd_flag }} {{ flag_item }}
       args:
         executable: /bin/bash
+      become: true
       become_user: "{{ tomcat_user }}"
       register: tomcat_wrapper_result
       changed_when: true
+      loop: "{{ server_flags | default([]) }}"
+      loop_control:
+        loop_var: flag_item
+        label: "{{ flag_item }}"
 
-    - name: "{{ item }} | Display wrapper stdout"
+    - name: "{{ env_name }} | Display wrapper stdout"
       ansible.builtin.debug:
-        msg: "{{ tomcat_wrapper_result.stdout_lines }}"
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ tomcat_wrapper_result.results }}"
+      loop_control:
+        label: "{{ item.flag_item }}"
 
 
