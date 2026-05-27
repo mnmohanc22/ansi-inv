@@ -1,0 +1,74 @@
+---
+
+
+
+
+- name: "{{ orcl_env_name }} | check Oracle instance status"
+  block:
+
+    - name: "{{ orcl_env_name }} | Print env_name"
+      ansible.builtin.debug:
+        msg: "check orcl for env: {{ orcl_env_name }}"
+
+    - name: Check OBIEE managed servers
+      ansible.builtin.shell: |
+        ps -ef | grep "{{ orcl_env_name }}" | egrep "obis1|obips1|bi_server1" | grep -v grep
+      args:
+        executable: /bin/bash
+      become: true
+      become_user: "{{ obiee_user }}"
+      register: managed_status
+      failed_when: false
+      changed_when: false
+
+    - name: Display OBIEE managed server status
+      ansible.builtin.debug:
+        msg: "OBIEE Managed Servers are {{ 'RUNNING' if managed_status.rc == 0 else 'STOPPED' }}"
+
+    - name: Print running OBIEE processes
+      ansible.builtin.debug:
+        msg: "{{ managed_status.stdout_lines }}"
+     
+
+   
+
+# - name: Check Oracle / OBIEE status
+#   block:
+
+#     - name: print orcl_env_name
+#       ansible.builtin.debug:
+#         msg: "Checking  status for orcl_env_name: {{ orcl_env_name }}"
+
+#     - name: set fact domain_home
+#       ansible.builtin.set_fact:
+#         domain_home: "{{ middleware_home }}/user_projects/domains/{{ domain_name }}"      
+
+#     - name: Verify domain directory exists
+#       ansible.builtin.stat:
+#         path: "{{ domain_home }}"
+#       register: domain_dir
+
+#     - name: Fail if domain does not exist
+#       ansible.builtin.fail:
+#         msg: "OBIEE domain {{ domain_name }} does not exist"
+#       when: not domain_dir.stat.exists
+
+#     - name: Check WebLogic AdminServer status
+#       ansible.builtin.shell: |
+#         ps -ef | grep "{{ domain_name }}" | grep AdminServer | grep -v grep
+#       args:
+#         executable: /bin/bash
+#       become: true
+#       become_user: "{{ obiee_user }}"
+#       register: adminserver_status
+#       failed_when: false
+#       changed_when: false
+
+#     - name: print   adminserver_status
+#       ansible.builtin.debug:
+#         msg: "adminserver_status is {{ adminserver_status }}"
+
+
+
+
+   

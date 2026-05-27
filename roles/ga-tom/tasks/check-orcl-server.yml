@@ -1,0 +1,11 @@
+---
+
+- name: "Loop through orcl_env_list check server for {{ item }}"
+  ansible.builtin.include_tasks: check-orcl-instance-status.yml
+  loop: "{{ orcl_env_list }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item }}"
+    vars:
+      orcl_env_name: "{{ item }}"
+   
