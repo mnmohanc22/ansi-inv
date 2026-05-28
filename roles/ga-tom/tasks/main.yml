@@ -3,6 +3,20 @@
 # tasks file for tx-ansi
 
 
+- name: "Validate and execute operation"
+  block:
+    - name: Validate operation
+      ansible.builtin.assert:
+        that:
+          - operation is defined
+          - operation in ['start', 'stop', 'status', 'restart']
+        fail_msg: "Invalid operation. Use start, stop, status, or restart."
+
+    - name: Include operation task file
+      ansible.builtin.include_tasks: "start-server.yml"
+  when: operation is defined and operation == 'start'
+
+
 - name: "Setup variables for Tomcat tasks"
   ansible.builtin.include_tasks: setup-vars.yml
   tags:
