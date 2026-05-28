@@ -1,11 +1,16 @@
 ---
 
-- name: "Loop through env_names — check-tomcat-status & stop server for {{ item }}"
-  ansible.builtin.include_tasks: run-tomcat-wrapper.yml
-  loop: "{{ env_names }}"
-  loop_control:
-    loop_var: item
-    label: "{{ item }}"
-    vars:
-      env_name: "{{ item }}"
-      cmd_flag: "stop"
+- name: "Loop through env_names — check-tomcat-status & stop server"
+  block:
+    - name: "Stop Tomcat for each environment"
+      ansible.builtin.include_tasks: run-tomcat-wrapper.yml
+      loop: "{{ env_names }}"
+      loop_control:
+        loop_var: item
+        label: "{{ item }}"
+      vars:
+        env_name: "{{ item }}"
+        cmd_flag: "stop"
+  tags:
+    - tomcat_stop
+    - tomcat_management

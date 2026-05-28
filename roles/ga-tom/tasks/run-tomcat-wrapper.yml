@@ -34,6 +34,7 @@
       become_user: "{{ tomcat_user }}"
       register: tomcat_wrapper_result
       changed_when: true
+      ignore_errors: true
       loop: "{{ server_flags | default([]) }}"
       loop_control:
         loop_var: flag_item
@@ -45,5 +46,19 @@
       loop: "{{ tomcat_wrapper_result.results }}"
       loop_control:
         label: "{{ item.flag_item }}"
+      ignore_errors: true
+
+    - name: "{{ env_name }} | Kill remaining Tomcat JVMs"
+      ansible.builtin.shell: |
+        kill -9 {{ tomcat_pids.stdout_lines | join(' ') }}
+      become: true
+      become_user: "{{ tomcat_user }}"
+      ignore_errors: true
+      when:
+        - tomcat_pids is defined
+        - tomcat_pids.stdout_lines is defined
+        - tomcat_pids.stdout_lines | length > 0
+      register: kill_result
+     
 
 

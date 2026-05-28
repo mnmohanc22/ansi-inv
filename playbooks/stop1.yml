@@ -1,0 +1,38 @@
+---
+- name: Stop Tomcat
+  hosts: tomcat_servers
+  vars:
+    operation: stop
+  pre_tasks:
+    - name: "Display operation"
+      ansible.builtin.debug:
+        msg: "Starting operation: {{ operation }}"
+
+  roles:
+    - role: tomcat
+      tags:
+        - "{{ operation }}"
+
+  post_tasks:
+    - name: "Display operation completion"
+      ansible.builtin.debug:
+        msg: "Completed operation: {{ operation }}"
+
+- name: Stop Informatica
+  hosts: informatica_servers
+  vars:
+    operation: stop
+  pre_tasks:
+    - name: "Display operation"
+      ansible.builtin.debug:
+        msg: "Starting operation: {{ operation }}"
+
+  roles:
+    - role: informatica_iir
+      tags:
+        - "{{ operation }}"
+
+  post_tasks:
+    - name: "Display operation completion"
+      ansible.builtin.debug:
+        msg: "Completed operation: {{ operation }}"

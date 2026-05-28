@@ -26,3 +26,25 @@
     - name: Print Tomcat process ID
       ansible.builtin.debug:
         msg: "{{ tomcat_pid.stdout_lines }}"  
+
+
+
+# - name: Verify Tomcat processes stopped
+#   ansible.builtin.shell: |
+#     ps -ef | \
+#     grep java | \
+#     grep "{{ tomcat_base }}" | \
+#     grep -v grep
+#   register: final_check
+#   changed_when: false
+#   failed_when: false
+
+# - name: Final verification
+#   ansible.builtin.debug:
+#     msg: "All Tomcat JVMs stopped successfully"
+#   when: final_check.stdout == ""
+
+# - name: Show remaining stuck processes
+#   ansible.builtin.debug:
+#     var: final_check.stdout_lines
+#   when: final_check.stdout != ""
