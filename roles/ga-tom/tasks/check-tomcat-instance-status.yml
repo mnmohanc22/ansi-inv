@@ -23,9 +23,24 @@
       changed_when: false
       failed_when: tomcat_pid.rc != 0
 
+    - name: Set fact for pid_list
+      ansible.builtin.set_fact:
+        pid_list: "{{ tomcat_pid.stdout_lines }}"
+
     - name: Print Tomcat process ID
       ansible.builtin.debug:
-        msg: "{{ tomcat_pid.stdout_lines }}"  
+        msg: "{{ pid_list }}"
+
+    - name: "{{ env_name }} | Kill remaining Tomcat processes if not stopped"
+      ansible.builtin.shell: |
+        kill -9 {{ pid_list | join(' ') }}
+      become: true
+      become_user: "{{ tomcat_user }}"
+      when:
+        - pid_list is defined
+        - pid_list | length > 0
+      register: kill_result
+      ignore_errors: true  
 
 
 
@@ -48,3 +63,54 @@
 #   ansible.builtin.debug:
 #     var: final_check.stdout_lines
 #   when: final_check.stdout != ""
+
+
+- name: Wait for startup message
+  ansible.builtin.shell: |
+    grep -q "Server startup in" {{ tomcat_home }}/logs/catalina.out
+  register: startup_check
+  retries: 30
+  delay: 10
+  until: startup_check.rc == 0
+  changed_when: false
+
+
+- name: Verify application port
+  ansible.builtin.wait_for:
+    port: "{{ tomcat_port }}"
+    host: "{{ inventory_hostname }}"
+    timeout: 60
+
+
+
+- name: Verify application health
+  ansible.builtin.uri:
+    url: "http://{{ inventory_hostname }}:{{ tomcat_port }}/health"
+    status_code: 200
+  register: app_health
+  retries: 12
+  delay: 10
+  until: app_health.status == 200
+##
+
+
+
+- name: Wait for Tomcat startup message
+  ansible.builtin.shell: |
+    grep -q "Server startup in" {{ tomcat_home }}/logs/catalina.out
+  register: startup_check
+  retries: 30
+  delay: 10
+  until: startup_check.rc == 0
+  changed_when: false
+  failed_when: false
+
+- name: Display startup status
+  ansible.builtin.debug:
+    msg: "Tomcat startup message found"
+  when: startup_check.rc == 0
+
+- name: Display warning
+  ansible.builtin.debug:
+    msg: "WARNING: Tomcat startup message not found in catalina.out"
+  when: startup_check.rc != 0
