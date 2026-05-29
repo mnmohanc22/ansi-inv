@@ -27,9 +27,20 @@
       ansible.builtin.set_fact:
         pid_list: "{{ tomcat_pid.stdout_lines }}"
 
+    - name: Print pid_list type
+      ansible.builtin.debug:
+        msg: "pid_list type: {{ pid_list | type_debug }}"
+
     - name: Print Tomcat process ID
       ansible.builtin.debug:
         msg: "{{ pid_list }}"
+
+    - name: "{{ env_name }} | Print each process ID"
+      ansible.builtin.debug:
+        msg: "Process ID: {{ item }}"
+      loop: "{{ pid_list }}"
+      loop_control:
+        label: "{{ item }}"
 
     - name: "{{ env_name }} | Kill remaining Tomcat processes if not stopped"
       ansible.builtin.shell: |
@@ -114,3 +125,18 @@
   ansible.builtin.debug:
     msg: "WARNING: Tomcat startup message not found in catalina.out"
   when: startup_check.rc != 0
+
+
+- name: Include common process kill tasks
+  ansible.builtin.include_tasks: common_process_kill.yml
+  vars:
+    app_name: "tomcat"
+    process_list:
+      - "Dcatalina.base={{ tomcat_home }}"
+      - "{{ tomcat_home }}"  
+
+- name: Kill remaining Tomcat processes
+  ansible.builtin.include_tasks: common_kill_pids.yml
+  vars:
+    app_name: "tomcat"
+    pid_list: "{{ tomcat_pids.stdout_lines }}"      

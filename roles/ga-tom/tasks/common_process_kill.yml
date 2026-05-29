@@ -1,0 +1,50 @@
+# roles/tomcat/tasks/common_process_kill.yml
+---
+- name: "{{ app_name }} | Kill process management"
+  block:
+
+    - name: Check remaining {{ app_name }} processes
+      ansible.builtin.shell: |
+        ps -ef | grep "{{ item }}" | grep -v grep
+      loop: "{{ process_list }}"
+      register: process_check
+      failed_when: false
+      changed_when: false
+
+    - name: Collect {{ app_name }} PIDs
+      ansible.builtin.shell: |
+        ps -ef | grep "{{ item }}" | grep -v grep | awk '{print $2}'
+      loop: "{{ process_list }}"
+      register: process_pids
+      failed_when: false
+      changed_when: false
+
+    - name: Kill remaining {{ app_name }} processes
+      ansible.builtin.shell: |
+        kill -9 {{ item.stdout_lines | join(' ') }}
+      loop: "{{ process_pids.results }}"
+      when:
+        - item.stdout_lines is defined
+        - item.stdout_lines | length > 0
+      become: true
+      ignore_errors: true
+
+    - name: Verify {{ app_name }} processes stopped
+      ansible.builtin.shell: |
+        ps -ef | grep "{{ item }}" | grep -v grep
+      loop: "{{ process_list }}"
+      register: final_process_check
+      failed_when: false
+      changed_when: false
+
+    - name: Show {{ app_name }} final process status
+      ansible.builtin.debug:
+        msg: "{{ item.item }} stopped"
+      loop: "{{ final_process_check.results }}"
+      when: item.rc != 0
+
+    - name: Show {{ app_name }} still running processes
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ final_process_check.results }}"
+      when: item.rc == 0

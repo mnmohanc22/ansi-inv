@@ -1,0 +1,71 @@
+---
+# Common tasks to kill multiple application processes
+# Usage: include_tasks: kill-process-list.yml
+# Required variables:
+#   - process_list: List of process IDs to kill
+#   - app_name: Application name for logging
+#   - app_user: User to run kill command as (optional, default: root)
+
+- name: "{{ app_name }} | Kill process list"
+  block:
+
+    - name: "{{ app_name }} | Print process list type"
+      ansible.builtin.debug:
+        msg: "process_list type: {{ process_list | type_debug }}"
+
+    - name: "{{ app_name }} | Display all process IDs"
+      ansible.builtin.debug:
+        msg: "{{ process_list }}"
+
+    - name: "{{ app_name }} | Print each process ID"
+      ansible.builtin.debug:
+        msg: "Process ID: {{ item }}"
+      loop: "{{ process_list }}"
+      loop_control:
+        label: "{{ item }}"
+      when:
+        - process_list is defined
+        - process_list | length > 0
+
+    - name: "{{ app_name }} | Kill processes with SIGTERM first"
+      ansible.builtin.shell: |
+        kill -15 {{ process_list | join(' ') }}
+      become: true
+      become_user: "{{ app_user | default('root') }}"
+      when:
+        - process_list is defined
+        - process_list | length > 0
+      register: sigterm_result
+      ignore_errors: true
+      changed_when: sigterm_result.rc == 0
+
+    - name: "{{ app_name }} | Wait for graceful shutdown"
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: "{{ app_name }} | Verify processes stopped"
+      ansible.builtin.shell: |
+        ps -p {{ process_list | join(',') }} > /dev/null 2>&1
+      register: verify_stopped
+      failed_when: false
+      changed_when: false
+
+    - name: "{{ app_name }} | Force kill remaining processes if still running"
+      ansible.builtin.shell: |
+        kill -9 {{ process_list | join(' ') }}
+      become: true
+      become_user: "{{ app_user | default('root') }}"
+      when:
+        - process_list is defined
+        - process_list | length > 0
+        - verify_stopped.rc == 0
+      register: sigkill_result
+      ignore_errors: true
+      changed_when: sigkill_result.rc == 0
+
+    - name: "{{ app_name }} | Display kill results"
+      ansible.builtin.debug:
+        msg: |
+          SIGTERM result: {{ sigterm_result.rc }}
+          SIGKILL result: {{ sigkill_result.rc if sigkill_result is defined else 'Not executed' }}
+          Processes killed successfully for {{ app_name }}

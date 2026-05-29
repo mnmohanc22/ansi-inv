@@ -1,0 +1,56 @@
+# common_kill_pids.yml
+
+- name: "{{ app_name }} | Kill PIDs management"
+  block:
+
+    - name: Show PIDs to kill
+      ansible.builtin.debug:
+        msg: "{{ app_name }} PIDs: {{ pid_list }}"
+
+    - name: "{{ app_name }} | Graceful kill with SIGTERM"
+      ansible.builtin.shell: |
+        kill {{ pid_list | join(' ') }}
+      become: true
+      become_user: "{{ app_user | default('root') }}"
+      when:
+        - pid_list is defined
+        - pid_list | length > 0
+      ignore_errors: true
+
+    - name: Wait for processes to exit gracefully
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: "{{ app_name }} | Force kill remaining processes"
+      ansible.builtin.shell: |
+        ps -p {{ item }} >/dev/null 2>&1 && kill -9 {{ item }} || true
+      loop: "{{ pid_list }}"
+      become: true
+      become_user: "{{ app_user | default('root') }}"
+      when:
+        - pid_list is defined
+        - pid_list | length > 0
+      changed_when: false
+
+    - name: "{{ app_name }} | Verify PIDs no longer exist"
+      ansible.builtin.shell: |
+        ps -p {{ item }} > /dev/null 2>&1
+      loop: "{{ pid_list }}"
+      register: pid_verify
+      failed_when: false
+      changed_when: false
+      when:
+        - pid_list is defined
+        - pid_list | length > 0
+
+    - name: "{{ app_name }} | Display verification results"
+      ansible.builtin.debug:
+        msg: "PID {{ item.item }} stopped"
+      loop: "{{ pid_verify.results }}"
+      when: item.rc != 0
+
+    - name: "{{ app_name }} | Display still running PIDs"
+      ansible.builtin.debug:
+        msg: "WARNING: PID {{ item.item }} still running"
+      loop: "{{ pid_verify.results }}"
+      when: item.rc == 0
