@@ -1,0 +1,113 @@
+---
+# ─── tasks/preflight.yml ─────────────────────────────────────────────────────
+
+- name: "[PREFLIGHT] Assert supported OS family"
+  assert:
+    that:
+      - ansible_os_family in supported_os_families
+    fail_msg: "Unsupported OS family: {{ ansible_os_family }}. Role supports: {{ supported_os_families | join(', ') }}"
+    success_msg: "OS family check passed: {{ ansible_os_family }}"
+
+- name: "[PREFLIGHT] Assert supported RHEL major version"
+  assert:
+    that:
+      - ansible_distribution_major_version in supported_os_major_versions
+    fail_msg: "Unsupported RHEL version {{ ansible_distribution_major_version }}. Supported: {{ supported_os_major_versions | join(', ') }}"
+    success_msg: "RHEL {{ ansible_distribution_major_version }} is supported"
+
+- name: "[PREFLIGHT] Assert oracle_user exists on target"
+  getent:
+    database: passwd
+    key: "{{ oracle_user }}"
+  register: oracle_user_check
+  failed_when: oracle_user_check.failed is defined and oracle_user_check.failed
+
+- name: "[PREFLIGHT] Assert oracle_group exists on target"
+  getent:
+    database: group
+    key: "{{ oracle_group }}"
+
+- name: "[PREFLIGHT] Verify OHS Oracle Home exists"
+  stat:
+    path: "{{ oracle_home_ohs }}"
+  register: ohs_home_stat
+  when: patch_ohs | bool
+
+- name: "[PREFLIGHT] Fail if OHS Oracle Home is missing"
+  fail:
+    msg: "OHS Oracle Home not found at {{ oracle_home_ohs }}"
+  when:
+    - patch_ohs | bool
+    - not ohs_home_stat.stat.exists
+
+- name: "[PREFLIGHT] Verify WCC Oracle Home exists"
+  stat:
+    path: "{{ oracle_home_wcc }}"
+  register: wcc_home_stat
+  when: patch_wcc | bool
+
+- name: "[PREFLIGHT] Fail if WCC Oracle Home is missing"
+  fail:
+    msg: "WCC Oracle Home not found at {{ oracle_home_wcc }}"
+  when:
+    - patch_wcc | bool
+    - not wcc_home_stat.stat.exists
+
+- name: "[PREFLIGHT] Verify WEC Oracle Home exists"
+  stat:
+    path: "{{ oracle_home_wec }}"
+  register: wec_home_stat
+  when: patch_wec | bool
+
+- name: "[PREFLIGHT] Fail if WEC Oracle Home is missing"
+  fail:
+    msg: "WEC Oracle Home not found at {{ oracle_home_wec }}"
+  when:
+    - patch_wec | bool
+    - not wec_home_stat.stat.exists
+
+- name: "[PREFLIGHT] Verify OPatch binary exists in OHS home"
+  stat:
+    path: "{{ oracle_home_ohs }}/{{ opatch_binary }}"
+  register: opatch_ohs_stat
+  when: patch_ohs | bool
+
+- name: "[PREFLIGHT] Fail if OPatch missing in OHS home"
+  fail:
+    msg: "OPatch binary not found at {{ oracle_home_ohs }}/{{ opatch_binary }}"
+  when:
+    - patch_ohs | bool
+    - not opatch_ohs_stat.stat.exists
+
+- name: "[PREFLIGHT] Check OPatch version in OHS home"
+  command: "{{ oracle_home_ohs }}/{{ opatch_binary }} version"
+  become: true
+  become_user: "{{ oracle_user }}"
+  register: opatch_version_out
+  changed_when: false
+  when: patch_ohs | bool
+
+- name: "[PREFLIGHT] Log OPatch version"
+  debug:
+    msg: "OPatch version: {{ opatch_version_out.stdout_lines[0] | default('unknown') }}"
+  when: patch_ohs | bool
+
+- name: "[PREFLIGHT] Assert adequate disk space in patch_stage_dir parent"
+  shell: |
+    df -BG "$(dirname {{ patch_stage_dir }})" | awk 'NR==2{gsub("G",""); print $4}'
+  register: free_gb
+  changed_when: false
+
+- name: "[PREFLIGHT] Warn if disk space below 5 GB"
+  debug:
+    msg: "WARNING: Only {{ free_gb.stdout | trim }} GB free in stage area. Ensure sufficient space."
+  when: (free_gb.stdout | trim | int) < 5
+
+- name: "[PREFLIGHT] Verify wls_admin_password vault variable is defined"
+  assert:
+    that:
+      - wls_admin_password is defined
+      - wls_admin_password | length > 0
+    fail_msg: "wls_admin_password must be defined (use ansible-vault encrypted group_var)"
+  when: patch_wcc | bool or patch_wec | bool
+  no_log: true

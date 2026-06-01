@@ -1,0 +1,51 @@
+---
+# ─── tasks/cleanup.yml ───────────────────────────────────────────────────────
+
+- name: "[CLEANUP] Remove extracted OHS patch directories"
+  file:
+    path:  "{{ patch_stage_dir }}/{{ item.patch_id }}"
+    state: absent
+  loop: "{{ ohs_patches }}"
+  become: true
+  when:
+    - patch_ohs | bool
+    - ohs_patches | length > 0
+
+- name: "[CLEANUP] Remove extracted WCC patch directories"
+  file:
+    path:  "{{ patch_stage_dir }}/{{ item.patch_id }}"
+    state: absent
+  loop: "{{ wcc_patches }}"
+  become: true
+  when:
+    - patch_wcc | bool
+    - wcc_patches | length > 0
+
+- name: "[CLEANUP] Remove extracted WEC patch directories"
+  file:
+    path:  "{{ patch_stage_dir }}/{{ item.patch_id }}"
+    state: absent
+  loop: "{{ wec_patches }}"
+  become: true
+  when:
+    - patch_wec | bool
+    - wec_patches | length > 0
+
+- name: "[CLEANUP] Remove patch ZIP files from staging"
+  file:
+    path:  "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    state: absent
+  loop: "{{ ohs_patches + wcc_patches + wec_patches }}"
+  become: true
+
+- name: "[CLEANUP] Remove WLST temp scripts"
+  file:
+    path:  "{{ patch_stage_dir }}/{{ item }}"
+    state: absent
+  loop:
+    - "stop_{{ wcc_managed_server }}.py"
+    - "start_{{ wcc_managed_server }}.py"
+    - "stop_{{ wec_managed_server }}.py"
+    - "start_{{ wec_managed_server }}.py"
+  become: true
+  ignore_errors: true

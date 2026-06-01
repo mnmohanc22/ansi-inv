@@ -1,0 +1,9 @@
+# ─── inventories/prod/hosts ──────────────────────────────────────────────────
+[fmw_servers]
+fmw01.example.com  ansible_user=oracle  ansible_become=true
+fmw02.example.com  ansible_user=oracle  ansible_become=true
+
+[fmw_servers:vars]
+oracle_base=/u01/app/oracle
+patch_stage_dir=/u01/patch_stage
+patch_log_dir=/var/log/oracle/patch

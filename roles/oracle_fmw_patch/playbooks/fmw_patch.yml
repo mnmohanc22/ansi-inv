@@ -1,0 +1,63 @@
+---
+# ─── playbooks/fmw_patch.yml ─────────────────────────────────────────────────
+# Usage:
+#   ansible-playbook playbooks/fmw_patch.yml -i inventories/prod/hosts \
+#     -e @patch_vars/jan2024.yml --vault-id prod@prompt
+#
+# Dry-run (conflict check only, no patch applied):
+#   ansible-playbook playbooks/fmw_patch.yml ... -e opatch_conflict_check_only=true
+#
+# Patch a single component only:
+#   ansible-playbook playbooks/fmw_patch.yml ... -e patch_wcc=false -e patch_wec=false
+#
+# Only run backup + inventory (no patching):
+#   ansible-playbook playbooks/fmw_patch.yml ... --tags backup,inventory
+
+- name: Oracle FMW 12c Patch Management - OHS / WCC / WEC
+  hosts: fmw_servers
+  gather_facts: true
+  any_errors_fatal: false     # patch one server, continue others
+  serial: 1                   # rolling: patch one host at a time
+
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/vault.yml"   # wls_admin_password (vault-encrypted)
+
+  roles:
+    - role: oracle_fmw_patch
+      vars:
+        # ── Oracle Homes ──────────────────────────────────────────────
+        oracle_home_ohs: /u01/app/oracle/product/12.2.1.4/ohs
+        oracle_home_wcc: /u01/app/oracle/product/12.2.1.4/wcc
+        oracle_home_wec: /u01/app/oracle/product/12.2.1.4/wec
+
+        # ── WLS connectivity ──────────────────────────────────────────
+        wls_admin_url:   "t3://{{ ansible_hostname }}:7001"
+        wls_admin_user:  weblogic
+        # wls_admin_password : from vault
+
+        # ── Patches to apply (Jan 2024 CPU example) ───────────────────
+        ohs_patches:
+          - patch_id:    "35648110"
+            patch_zip:   "p35648110_122140_Linux-x86-64.zip"
+            description: "OHS Jan 2024 PSU"
+
+        wcc_patches:
+          - patch_id:    "35742608"
+            patch_zip:   "p35742608_122140_Generic.zip"
+            description: "WCC Jan 2024 Bundle Patch"
+
+        wec_patches:
+          - patch_id:    "35742609"
+            patch_zip:   "p35742609_122140_Generic.zip"
+            description: "WEC Jan 2024 Bundle Patch"
+
+        # ── Component flags ───────────────────────────────────────────
+        patch_ohs: true
+        patch_wcc: true
+        patch_wec: true
+
+        # ── Feature flags ─────────────────────────────────────────────
+        backup_enabled:              true
+        cleanup_stage_after_patch:   true
+        run_patch_inventory:         true
+        opatch_conflict_check_only:  false

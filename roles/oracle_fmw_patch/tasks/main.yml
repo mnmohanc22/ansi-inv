@@ -1,0 +1,112 @@
+---
+# ─── oracle_fmw_patch / tasks / main.yml ────────────────────────────────────
+# Orchestration entry point.  Calls sub-task files in dependency order.
+
+- name: Validate platform and prerequisites
+  import_tasks: preflight.yml
+  tags: [preflight, always]
+
+- name: Prepare patch staging directory and logging
+  import_tasks: prepare.yml
+  tags: [prepare, always]
+
+- name: Pre-patch inventory snapshot
+  import_tasks: inventory.yml
+  vars:
+    inventory_phase: "pre"
+  when: run_patch_inventory | bool
+  tags: [inventory, pre_patch]
+
+- name: Pre-patch backup
+  import_tasks: backup.yml
+  when: backup_enabled | bool
+  tags: [backup]
+
+# ─── OHS ────────────────────────────────────────────────────────────────────
+- name: Stop OHS before patching
+  include_tasks: stop_ohs.yml
+  when: patch_ohs | bool and (ohs_patches | length > 0)
+  tags: [ohs, stop]
+
+- name: Apply OHS patches
+  include_tasks: patch_component.yml
+  vars:
+    component_label: "Oracle HTTP Server (OHS)"
+    component_home:  "{{ oracle_home_ohs }}"
+    patch_list:      "{{ ohs_patches }}"
+  when: patch_ohs | bool and (ohs_patches | length > 0)
+  tags: [ohs, patch]
+
+- name: Start OHS after patching
+  include_tasks: start_ohs.yml
+  when: patch_ohs | bool and (ohs_patches | length > 0)
+  tags: [ohs, start]
+
+# ─── WCC ────────────────────────────────────────────────────────────────────
+- name: Stop WCC Managed Server before patching
+  include_tasks: stop_managed.yml
+  vars:
+    managed_server: "{{ wcc_managed_server }}"
+    component_label: "WCC"
+  when: patch_wcc | bool and (wcc_patches | length > 0)
+  tags: [wcc, stop]
+
+- name: Apply WCC patches
+  include_tasks: patch_component.yml
+  vars:
+    component_label: "WebCenter Content (WCC)"
+    component_home:  "{{ oracle_home_wcc }}"
+    patch_list:      "{{ wcc_patches }}"
+  when: patch_wcc | bool and (wcc_patches | length > 0)
+  tags: [wcc, patch]
+
+- name: Start WCC Managed Server after patching
+  include_tasks: start_managed.yml
+  vars:
+    managed_server: "{{ wcc_managed_server }}"
+    component_label: "WCC"
+  when: patch_wcc | bool and (wcc_patches | length > 0)
+  tags: [wcc, start]
+
+# ─── WEC ────────────────────────────────────────────────────────────────────
+- name: Stop WEC Managed Server before patching
+  include_tasks: stop_managed.yml
+  vars:
+    managed_server: "{{ wec_managed_server }}"
+    component_label: "WEC"
+  when: patch_wec | bool and (wec_patches | length > 0)
+  tags: [wec, stop]
+
+- name: Apply WEC patches
+  include_tasks: patch_component.yml
+  vars:
+    component_label: "WebCenter Enterprise Capture (WEC)"
+    component_home:  "{{ oracle_home_wec }}"
+    patch_list:      "{{ wec_patches }}"
+  when: patch_wec | bool and (wec_patches | length > 0)
+  tags: [wec, patch]
+
+- name: Start WEC Managed Server after patching
+  include_tasks: start_managed.yml
+  vars:
+    managed_server: "{{ wec_managed_server }}"
+    component_label: "WEC"
+  when: patch_wec | bool and (wec_patches | length > 0)
+  tags: [wec, start]
+
+# ─── Post-patch ──────────────────────────────────────────────────────────────
+- name: Post-patch inventory snapshot
+  import_tasks: inventory.yml
+  vars:
+    inventory_phase: "post"
+  when: run_patch_inventory | bool
+  tags: [inventory, post_patch]
+
+- name: Post-patch validation
+  import_tasks: validate.yml
+  tags: [validate, post_patch]
+
+- name: Cleanup staging area
+  import_tasks: cleanup.yml
+  when: cleanup_stage_after_patch | bool
+  tags: [cleanup]

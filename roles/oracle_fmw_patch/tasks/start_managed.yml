@@ -1,0 +1,32 @@
+---
+# ─── tasks/start_managed.yml ─────────────────────────────────────────────────
+
+- name: "[{{ component_label }} START] Generate WLST start script"
+  template:
+    src:   wlst_start_server.py.j2
+    dest:  "{{ patch_stage_dir }}/start_{{ managed_server }}.py"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode:  "0640"
+  become: true
+
+- name: "[{{ component_label }} START] Execute WLST start script"
+  command: >
+    {{ oracle_home_wcc }}/oracle_common/common/bin/wlst.sh
+    {{ patch_stage_dir }}/start_{{ managed_server }}.py
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_wcc }}"
+    MW_HOME:     "{{ oracle_home_wcc }}"
+  register: wlst_start_result
+  failed_when: wlst_start_result.rc != 0
+  no_log: true
+
+- name: "[{{ component_label }} START] Wait for managed server port (max 300s)"
+  wait_for:
+    host:    "{{ ansible_hostname }}"
+    port:    8001
+    state:   started
+    timeout: 300
+  ignore_errors: true

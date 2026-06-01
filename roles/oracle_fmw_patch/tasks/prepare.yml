@@ -1,0 +1,116 @@
+---
+# ─── tasks/prepare.yml ───────────────────────────────────────────────────────
+
+- name: "[PREPARE] Create patch staging directory"
+  file:
+    path: "{{ patch_stage_dir }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0750"
+  become: true
+
+- name: "[PREPARE] Create patch log directory"
+  file:
+    path: "{{ patch_log_dir }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0750"
+  become: true
+
+- name: "[PREPARE] Initialize patch log file"
+  copy:
+    dest: "{{ patch_log_dir }}/{{ patch_log_file }}"
+    content: |
+      ==========================================
+      Oracle FMW Patch Run
+      Date      : {{ ansible_date_time.iso8601 }}
+      Host      : {{ inventory_hostname }}
+      Ansible   : {{ ansible_version.full }}
+      ==========================================
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0640"
+  become: true
+
+- name: "[PREPARE] Copy OHS patch ZIPs to staging (from role files/)"
+  copy:
+    src:   "{{ item.patch_zip }}"
+    dest:  "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode:  "0640"
+  loop: "{{ ohs_patches }}"
+  become: true
+  when:
+    - patch_ohs | bool
+    - ohs_patches | length > 0
+
+- name: "[PREPARE] Copy WCC patch ZIPs to staging"
+  copy:
+    src:   "{{ item.patch_zip }}"
+    dest:  "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode:  "0640"
+  loop: "{{ wcc_patches }}"
+  become: true
+  when:
+    - patch_wcc | bool
+    - wcc_patches | length > 0
+
+- name: "[PREPARE] Copy WEC patch ZIPs to staging"
+  copy:
+    src:   "{{ item.patch_zip }}"
+    dest:  "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode:  "0640"
+  loop: "{{ wec_patches }}"
+  become: true
+  when:
+    - patch_wec | bool
+    - wec_patches | length > 0
+
+- name: "[PREPARE] Unzip OHS patches"
+  unarchive:
+    src:        "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    dest:       "{{ patch_stage_dir }}"
+    remote_src: true
+    owner:      "{{ oracle_user }}"
+    group:      "{{ oracle_group }}"
+    creates:    "{{ patch_stage_dir }}/{{ item.patch_id }}"
+  loop: "{{ ohs_patches }}"
+  become: true
+  when:
+    - patch_ohs | bool
+    - ohs_patches | length > 0
+
+- name: "[PREPARE] Unzip WCC patches"
+  unarchive:
+    src:        "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    dest:       "{{ patch_stage_dir }}"
+    remote_src: true
+    owner:      "{{ oracle_user }}"
+    group:      "{{ oracle_group }}"
+    creates:    "{{ patch_stage_dir }}/{{ item.patch_id }}"
+  loop: "{{ wcc_patches }}"
+  become: true
+  when:
+    - patch_wcc | bool
+    - wcc_patches | length > 0
+
+- name: "[PREPARE] Unzip WEC patches"
+  unarchive:
+    src:        "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+    dest:       "{{ patch_stage_dir }}"
+    remote_src: true
+    owner:      "{{ oracle_user }}"
+    group:      "{{ oracle_group }}"
+    creates:    "{{ patch_stage_dir }}/{{ item.patch_id }}"
+  loop: "{{ wec_patches }}"
+  become: true
+  when:
+    - patch_wec | bool
+    - wec_patches | length > 0

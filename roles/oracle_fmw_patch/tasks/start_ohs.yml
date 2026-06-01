@@ -1,0 +1,32 @@
+---
+# ─── tasks/start_ohs.yml ─────────────────────────────────────────────────────
+
+- name: "[OHS START] Check if OHS systemd unit exists"
+  stat:
+    path: "/etc/systemd/system/{{ ohs_service_name }}.service"
+  register: ohs_unit_stat_start
+  become: true
+
+- name: "[OHS START] Start OHS via systemd"
+  systemd:
+    name:    "{{ ohs_service_name }}"
+    state:   started
+    enabled: true
+  become: true
+  when: ohs_unit_stat_start.stat.exists
+
+- name: "[OHS START] Start OHS via opmnctl (non-systemd)"
+  command: "{{ oracle_home_ohs }}/bin/opmnctl startall"
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_ohs }}"
+  when: not ohs_unit_stat_start.stat.exists
+
+- name: "[OHS START] Wait for OHS to accept connections (max 120s)"
+  wait_for:
+    host:    "{{ ansible_hostname }}"
+    port:    7777
+    state:   started
+    timeout: 120
+  ignore_errors: true

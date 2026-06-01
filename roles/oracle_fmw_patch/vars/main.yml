@@ -1,0 +1,23 @@
+---
+# OPatch minimum required version for FMW 12.2.1.4
+opatch_min_version: "13.9.4"
+
+# Supported RHEL major versions
+supported_os_families: ["RedHat"]
+supported_os_major_versions: ["7", "8"]
+
+# OPatch apply sub-directory name inside the unzipped patch
+# Oracle patches unzip to <patch_id>/ by convention
+opatch_apply_dir_pattern: "{{ patch_stage_dir }}/{{ item.patch_id }}"
+
+# Component identifiers used in log messages and inventory checks
+component_map:
+  ohs:
+    label:      "Oracle HTTP Server (OHS)"
+    home_var:   "oracle_home_ohs"
+  wcc:
+    label:      "WebCenter Content (WCC)"
+    home_var:   "oracle_home_wcc"
+  wec:
+    label:      "WebCenter Enterprise Capture (WEC)"
+    home_var:   "oracle_home_wec"

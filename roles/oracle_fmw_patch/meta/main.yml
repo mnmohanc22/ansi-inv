@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: oracle_fmw_patch
+  author: IAM Middleware Team
+  description: >
+    Production-grade patch management for Oracle Fusion Middleware 12c components:
+    Oracle HTTP Server (OHS), WebCenter Content (WCC), and WebCenter Enterprise
+    Capture (WEC) on RHEL 7.9 / RHEL 8.x via OPatch.
+  min_ansible_version: "2.9"
+  platforms:
+    - name: EL
+      versions:
+        - "7"
+        - "8"
+
+dependencies: []

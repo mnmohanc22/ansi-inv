@@ -1,0 +1,65 @@
+---
+# ─── tasks/inventory.yml ─────────────────────────────────────────────────────
+# Variable: inventory_phase  ("pre" or "post")
+
+- name: "[INVENTORY] {{ inventory_phase | upper }} - OHS lspatches"
+  command: >
+    {{ oracle_home_ohs }}/{{ opatch_binary }} lspatches {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_ohs }}"
+  register: inv_ohs
+  changed_when: false
+  when: patch_ohs | bool
+
+- name: "[INVENTORY] {{ inventory_phase | upper }} - WCC lspatches"
+  command: >
+    {{ oracle_home_wcc }}/{{ opatch_binary }} lspatches {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_wcc }}"
+  register: inv_wcc
+  changed_when: false
+  when: patch_wcc | bool
+
+- name: "[INVENTORY] {{ inventory_phase | upper }} - WEC lspatches"
+  command: >
+    {{ oracle_home_wec }}/{{ opatch_binary }} lspatches {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_wec }}"
+  register: inv_wec
+  changed_when: false
+  when: patch_wec | bool
+
+- name: "[INVENTORY] Write {{ inventory_phase }} snapshot to log"
+  lineinfile:
+    path:   "{{ patch_log_dir }}/{{ patch_log_file }}"
+    line:   |
+      --- {{ inventory_phase | upper }} PATCH INVENTORY [{{ ansible_date_time.iso8601 }}] ---
+      OHS:
+      {{ inv_ohs.stdout | default('N/A') }}
+      WCC:
+      {{ inv_wcc.stdout | default('N/A') }}
+      WEC:
+      {{ inv_wec.stdout | default('N/A') }}
+    create: true
+  become: true
+
+- name: "[INVENTORY] Display {{ inventory_phase }} OHS patch list"
+  debug:
+    msg: "{{ inv_ohs.stdout_lines | default([]) }}"
+  when: patch_ohs | bool
+
+- name: "[INVENTORY] Display {{ inventory_phase }} WCC patch list"
+  debug:
+    msg: "{{ inv_wcc.stdout_lines | default([]) }}"
+  when: patch_wcc | bool
+
+- name: "[INVENTORY] Display {{ inventory_phase }} WEC patch list"
+  debug:
+    msg: "{{ inv_wec.stdout_lines | default([]) }}"
+  when: patch_wec | bool

@@ -1,0 +1,89 @@
+---
+# ─── Oracle Home Paths ──────────────────────────────────────────────────────
+oracle_base: /u01/app/oracle
+oracle_home_ohs:   "{{ oracle_base }}/product/12.2.1.4/ohs"
+oracle_home_wcc:   "{{ oracle_base }}/product/12.2.1.4/wcc"
+oracle_home_wec:   "{{ oracle_base }}/product/12.2.1.4/wec"
+
+# OPatch binary relative path (same layout under each Oracle Home)
+opatch_binary: "OPatch/opatch"
+
+# ─── OS / Process Owners ────────────────────────────────────────────────────
+oracle_user:  oracle
+oracle_group: oinstall
+
+# ─── Patch Staging ──────────────────────────────────────────────────────────
+# Directory on the target host where patch ZIPs will be staged
+patch_stage_dir: /u01/patch_stage
+
+# Set to true to remove staged files after a successful patch application
+cleanup_stage_after_patch: true
+
+# ─── Patch Definitions ──────────────────────────────────────────────────────
+# List of patches for each component.  Each entry:
+#   patch_id   : Oracle patch number (string)
+#   patch_zip  : filename of the zip in files/ (or full path if pre-staged)
+#   description: human-readable label (used in log messages)
+ohs_patches: []
+# Example:
+# ohs_patches:
+#   - patch_id: "35648110"
+#     patch_zip: "p35648110_122140_Linux-x86-64.zip"
+#     description: "OHS Jan 2024 PSU"
+
+wcc_patches: []
+# wcc_patches:
+#   - patch_id: "35742608"
+#     patch_zip: "p35742608_122140_Generic.zip"
+#     description: "WCC Jan 2024 Bundle Patch"
+
+wec_patches: []
+# wec_patches:
+#   - patch_id: "35742609"
+#     patch_zip: "p35742609_122140_Generic.zip"
+#     description: "WEC Jan 2024 Bundle Patch"
+
+# ─── Component Feature Flags ─────────────────────────────────────────────────
+patch_ohs: true
+patch_wcc: true
+patch_wec: true
+
+# ─── Managed Process / Service Names (systemd or Node Manager) ───────────────
+# If using systemd wrappers, set the unit names here.
+# If using WLST / NodeManager to stop/start, see handlers/main.yml.
+ohs_service_name:  "ohs_component1"   # systemd unit or NM component name
+wcc_managed_server: "UCM_server1"
+wec_managed_server: "IBR_server1"
+admin_server_name:  "AdminServer"
+
+# Node Manager / WLST settings (used in handlers)
+wls_domain_home:  "{{ oracle_base }}/admin/domain"
+wls_nm_host:      "localhost"
+wls_nm_port:      5556
+wls_admin_url:    "t3://localhost:7001"
+wls_admin_user:   "weblogic"
+# wls_admin_password: vault-encrypted - do NOT set here; use group_vars/vault
+
+# ─── OPatch Options ──────────────────────────────────────────────────────────
+opatch_conflict_check_only: false   # set true for a dry-run conflict check
+opatch_extra_args: ""               # e.g. "-invPtrLoc /u01/app/oraInventory/oraInst.loc"
+opatch_ocm_response_file: ""        # path to OCM response file if required
+
+# ─── Pre/Post Validation ─────────────────────────────────────────────────────
+# Run opatch lspatches before and after to log installed patches
+run_patch_inventory: true
+
+# Fail the play if any component is already at the target patch level (idempotency guard)
+fail_if_already_patched: false
+
+# ─── Backup Settings ─────────────────────────────────────────────────────────
+backup_enabled: true
+backup_base_dir: /u01/backups/fmw_patch
+# Backup only binary dirs, not runtime data
+backup_dirs_ohs: ["{{ oracle_home_ohs }}/bin", "{{ oracle_home_ohs }}/lib"]
+backup_dirs_wcc: ["{{ oracle_home_wcc }}/ucm"]
+backup_dirs_wec: ["{{ oracle_home_wec }}/ibr"]
+
+# ─── Logging ────────────────────────────────────────────────────────────────
+patch_log_dir:  /var/log/oracle/patch
+patch_log_file: "fmw_patch_{{ ansible_date_time.date }}.log"

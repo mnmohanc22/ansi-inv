@@ -1,0 +1,27 @@
+---
+# ─── handlers/main.yml ───────────────────────────────────────────────────────
+# Handlers are available but the role uses explicit stop/start tasks
+# to ensure controlled ordering and error trapping.
+# These are provided as convenience for ad-hoc notify usage.
+
+- name: restart ohs
+  block:
+    - name: Stop OHS (handler)
+      command: "{{ oracle_home_ohs }}/bin/opmnctl stopall"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+      ignore_errors: true
+
+    - name: Start OHS (handler)
+      command: "{{ oracle_home_ohs }}/bin/opmnctl startall"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+  become: true

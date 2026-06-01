@@ -1,0 +1,72 @@
+---
+# ─── tasks/validate.yml ──────────────────────────────────────────────────────
+
+- name: "[VALIDATE] OPatch final lsinventory on OHS"
+  command: >
+    {{ oracle_home_ohs }}/{{ opatch_binary }} lsinventory
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_ohs }}"
+  register: final_inv_ohs
+  changed_when: false
+  when: patch_ohs | bool
+
+- name: "[VALIDATE] OPatch final lsinventory on WCC"
+  command: >
+    {{ oracle_home_wcc }}/{{ opatch_binary }} lsinventory
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_wcc }}"
+  register: final_inv_wcc
+  changed_when: false
+  when: patch_wcc | bool
+
+- name: "[VALIDATE] OPatch final lsinventory on WEC"
+  command: >
+    {{ oracle_home_wec }}/{{ opatch_binary }} lsinventory
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_wec }}"
+  register: final_inv_wec
+  changed_when: false
+  when: patch_wec | bool
+
+- name: "[VALIDATE] HTTP health check on OHS"
+  uri:
+    url:            "http://{{ ansible_hostname }}:7777/"
+    method:         GET
+    status_code:    [200, 301, 302, 401, 403, 404]
+    timeout:        10
+    validate_certs: false
+  register: ohs_health
+  until:   ohs_health.status in [200, 301, 302, 401, 403, 404]
+  retries: 6
+  delay:   10
+  when:
+    - patch_ohs | bool
+    - not (opatch_conflict_check_only | bool)
+  ignore_errors: true
+
+- name: "[VALIDATE] Log OHS health result"
+  debug:
+    msg: "OHS health check HTTP status: {{ ohs_health.status | default('SKIPPED') }}"
+  when: patch_ohs | bool
+
+- name: "[VALIDATE] Write final summary to patch log"
+  lineinfile:
+    path:   "{{ patch_log_dir }}/{{ patch_log_file }}"
+    line: |
+      ==========================================
+      PATCH RUN COMPLETE: {{ ansible_date_time.iso8601 }}
+      OHS lsinventory: {{ final_inv_ohs.stdout | default('N/A') | truncate(200) }}
+      WCC lsinventory: {{ final_inv_wcc.stdout | default('N/A') | truncate(200) }}
+      WEC lsinventory: {{ final_inv_wec.stdout | default('N/A') | truncate(200) }}
+      ==========================================
+    create: true
+  become: true

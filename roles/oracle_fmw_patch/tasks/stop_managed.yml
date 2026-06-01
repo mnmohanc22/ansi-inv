@@ -1,0 +1,38 @@
+---
+# ─── tasks/stop_managed.yml ──────────────────────────────────────────────────
+# Variables:
+#   managed_server  : name of the managed server to stop
+#   component_label : label for log messages
+
+- name: "[{{ component_label }} STOP] Generate WLST stop script"
+  template:
+    src:   wlst_stop_server.py.j2
+    dest:  "{{ patch_stage_dir }}/stop_{{ managed_server }}.py"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode:  "0640"
+  become: true
+
+- name: "[{{ component_label }} STOP] Execute WLST stop script"
+  command: >
+    {{ oracle_home_wcc }}/oracle_common/common/bin/wlst.sh
+    {{ patch_stage_dir }}/stop_{{ managed_server }}.py
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_wcc }}"
+    MW_HOME:     "{{ oracle_home_wcc }}"
+  register: wlst_stop_result
+  failed_when:
+    - wlst_stop_result.rc != 0
+    - "'already in SHUTDOWN' not in (wlst_stop_result.stdout | lower)"
+    - "'not currently running' not in (wlst_stop_result.stdout | lower)"
+  no_log: true   # avoid exposing wls_admin_password in logs
+
+- name: "[{{ component_label }} STOP] Wait for managed server to stop (max 180s)"
+  wait_for:
+    host:    "{{ ansible_hostname }}"
+    port:    8001
+    state:   stopped
+    timeout: 180
+  ignore_errors: true

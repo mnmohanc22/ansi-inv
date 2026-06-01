@@ -1,0 +1,135 @@
+---
+# ─── tasks/patch_component.yml ───────────────────────────────────────────────
+# Variables expected by caller:
+#   component_label : human-readable name (for logging)
+#   component_home  : ORACLE_HOME path
+#   patch_list      : list of {patch_id, patch_zip, description}
+
+- name: "[PATCH] {{ component_label }} - Check already-applied patches"
+  command: >
+    {{ component_home }}/{{ opatch_binary }} lspatches
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ component_home }}"
+    PATH: "{{ component_home }}/bin:{{ ansible_env.PATH }}"
+  register: existing_patches
+  changed_when: false
+  failed_when: existing_patches.rc not in [0]
+
+- name: "[PATCH] {{ component_label }} - Log existing patch inventory"
+  lineinfile:
+    path:   "{{ patch_log_dir }}/{{ patch_log_file }}"
+    line:   "[{{ ansible_date_time.time }}] PRE  {{ component_label }}: {{ existing_patches.stdout }}"
+    create: true
+  become: true
+
+- name: "[PATCH] {{ component_label }} - OPatch conflict check"
+  command: >
+    {{ component_home }}/{{ opatch_binary }} prereq CheckConflictAgainstOHWithDetail
+    -phBaseDir {{ patch_stage_dir }}/{{ item.patch_id }}
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ component_home }}"
+    PATH: "{{ component_home }}/bin:{{ ansible_env.PATH }}"
+  loop: "{{ patch_list }}"
+  loop_control:
+    label: "{{ item.patch_id }} - {{ item.description }}"
+  register: conflict_check
+  changed_when: false
+  failed_when: conflict_check.rc != 0
+
+- name: "[PATCH] {{ component_label }} - OPatch system prereq check"
+  command: >
+    {{ component_home }}/{{ opatch_binary }} prereq CheckSystemSpace
+    -phBaseDir {{ patch_stage_dir }}/{{ item.patch_id }}
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ component_home }}"
+    PATH: "{{ component_home }}/bin:{{ ansible_env.PATH }}"
+  loop: "{{ patch_list }}"
+  loop_control:
+    label: "{{ item.patch_id }}"
+  register: space_check
+  changed_when: false
+  failed_when: space_check.rc != 0
+
+- name: "[PATCH] {{ component_label }} - Skip patch application (dry-run mode)"
+  debug:
+    msg: >
+      DRY-RUN: Would apply patch {{ item.patch_id }} ({{ item.description }})
+      to {{ component_home }}. Re-run with opatch_conflict_check_only=false to apply.
+  loop: "{{ patch_list }}"
+  loop_control:
+    label: "{{ item.patch_id }}"
+  when: opatch_conflict_check_only | bool
+
+- name: "[PATCH] {{ component_label }} - Apply patch {{ item.patch_id }}"
+  command: >
+    {{ component_home }}/{{ opatch_binary }} apply
+    {{ patch_stage_dir }}/{{ item.patch_id }}
+    -silent
+    -oh {{ component_home }}
+    {{ ('-ocmrf ' + opatch_ocm_response_file) if opatch_ocm_response_file else '' }}
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ component_home }}"
+    PATH: "{{ component_home }}/bin:{{ ansible_env.PATH }}"
+  loop: "{{ patch_list }}"
+  loop_control:
+    label: "{{ item.patch_id }} - {{ item.description }}"
+  register: patch_apply_result
+  when: not (opatch_conflict_check_only | bool)
+  changed_when: patch_apply_result.rc == 0
+  failed_when:
+    - patch_apply_result.rc is defined
+    - patch_apply_result.rc != 0
+    - "'already installed' not in (patch_apply_result.stdout | lower)"
+
+- name: "[PATCH] {{ component_label }} - Log patch apply result"
+  lineinfile:
+    path:  "{{ patch_log_dir }}/{{ patch_log_file }}"
+    line: >-
+      [{{ ansible_date_time.time }}] APPLIED {{ component_label }}
+      patch={{ item.item.patch_id }}
+      rc={{ item.rc | default('skipped') }}
+      msg={{ (item.stdout_lines | last) | default('dry-run') }}
+    create: true
+  loop: "{{ patch_apply_result.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.patch_id | default('n/a') }}"
+  become: true
+  when: not (opatch_conflict_check_only | bool)
+
+- name: "[PATCH] {{ component_label }} - Verify patch applied via lspatches"
+  command: >
+    {{ component_home }}/{{ opatch_binary }} lspatches
+    {{ opatch_extra_args }}
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ component_home }}"
+    PATH: "{{ component_home }}/bin:{{ ansible_env.PATH }}"
+  register: post_patch_inventory
+  changed_when: false
+  when: not (opatch_conflict_check_only | bool)
+
+- name: "[PATCH] {{ component_label }} - Assert each patch_id appears in lspatches output"
+  assert:
+    that:
+      - item.patch_id in post_patch_inventory.stdout
+    fail_msg: >
+      Patch {{ item.patch_id }} not found in post-apply lspatches output for
+      {{ component_label }} ({{ component_home }}).
+    success_msg: "Patch {{ item.patch_id }} confirmed applied to {{ component_label }}"
+  loop: "{{ patch_list }}"
+  loop_control:
+    label: "{{ item.patch_id }}"
+  when: not (opatch_conflict_check_only | bool)

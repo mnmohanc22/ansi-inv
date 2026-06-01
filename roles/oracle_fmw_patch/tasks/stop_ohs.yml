@@ -1,0 +1,39 @@
+---
+# ─── tasks/stop_ohs.yml ──────────────────────────────────────────────────────
+
+- name: "[OHS STOP] Check if OHS systemd unit exists"
+  stat:
+    path: "/etc/systemd/system/{{ ohs_service_name }}.service"
+  register: ohs_unit_stat
+  become: true
+
+# ── Path A: systemd-managed OHS ──────────────────────────────────────────────
+- name: "[OHS STOP] Stop OHS via systemd"
+  systemd:
+    name:  "{{ ohs_service_name }}"
+    state: stopped
+  become: true
+  when: ohs_unit_stat.stat.exists
+  register: ohs_systemd_stop
+
+# ── Path B: opmnctl / WLST-based OHS (no systemd unit) ──────────────────────
+- name: "[OHS STOP] Stop OHS via opmnctl (non-systemd)"
+  command: "{{ oracle_home_ohs }}/bin/opmnctl stopall"
+  become: true
+  become_user: "{{ oracle_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home_ohs }}"
+  register: ohs_opmnctl_stop
+  when: not ohs_unit_stat.stat.exists
+  failed_when:
+    - ohs_opmnctl_stop.rc is defined
+    - ohs_opmnctl_stop.rc != 0
+    - "'not running' not in (ohs_opmnctl_stop.stderr | lower)"
+
+- name: "[OHS STOP] Wait for OHS port to become unreachable (max 60s)"
+  wait_for:
+    host:    "{{ ansible_hostname }}"
+    port:    7777
+    state:   stopped
+    timeout: 60
+  ignore_errors: true  # non-fatal; port may differ per environment

@@ -1,0 +1,68 @@
+---
+# ─── tasks/backup.yml ────────────────────────────────────────────────────────
+
+- name: "[BACKUP] Create timestamped backup root"
+  set_fact:
+    backup_run_dir: "{{ backup_base_dir }}/{{ ansible_date_time.date }}_{{ ansible_date_time.epoch }}"
+
+- name: "[BACKUP] Create backup directory"
+  file:
+    path:  "{{ backup_run_dir }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode:  "0750"
+  become: true
+
+- name: "[BACKUP] Backup OHS binary directories"
+  archive:
+    path:   "{{ item }}"
+    dest:   "{{ backup_run_dir }}/ohs_{{ item | basename }}_backup.tar.gz"
+    format: gz
+    owner:  "{{ oracle_user }}"
+    group:  "{{ oracle_group }}"
+    mode:   "0640"
+  loop: "{{ backup_dirs_ohs }}"
+  become: true
+  become_user: "{{ oracle_user }}"
+  when:
+    - patch_ohs | bool
+    - ohs_patches | length > 0
+  register: ohs_backup
+  ignore_errors: true   # non-fatal - log and continue
+
+- name: "[BACKUP] Backup WCC directories"
+  archive:
+    path:   "{{ item }}"
+    dest:   "{{ backup_run_dir }}/wcc_{{ item | basename }}_backup.tar.gz"
+    format: gz
+    owner:  "{{ oracle_user }}"
+    group:  "{{ oracle_group }}"
+    mode:   "0640"
+  loop: "{{ backup_dirs_wcc }}"
+  become: true
+  become_user: "{{ oracle_user }}"
+  when:
+    - patch_wcc | bool
+    - wcc_patches | length > 0
+  ignore_errors: true
+
+- name: "[BACKUP] Backup WEC directories"
+  archive:
+    path:   "{{ item }}"
+    dest:   "{{ backup_run_dir }}/wec_{{ item | basename }}_backup.tar.gz"
+    format: gz
+    owner:  "{{ oracle_user }}"
+    group:  "{{ oracle_group }}"
+    mode:   "0640"
+  loop: "{{ backup_dirs_wec }}"
+  become: true
+  become_user: "{{ oracle_user }}"
+  when:
+    - patch_wec | bool
+    - wec_patches | length > 0
+  ignore_errors: true
+
+- name: "[BACKUP] Log backup location"
+  debug:
+    msg: "Backup written to {{ backup_run_dir }}"

@@ -1,0 +1,23 @@
+- name: "List patches from Oracle homes"
+  block:
+
+    - name: Print Oracle homes
+      ansible.builtin.debug:
+        msg: "Oracle Homes: {{ oracle_homes }}"
+
+    - name: Get patches from all Oracle homes
+      ansible.builtin.shell: |
+        {{ item }}/OPatch/opatch lspatches
+      loop: "{{ oracle_homes }}"
+      register: patch_results
+      become: true
+      become_user: oracle
+      changed_when: false
+      failed_when: false
+
+    - name: Show patch results
+      ansible.builtin.debug:
+        msg:
+          - "Oracle Home: {{ item.item }}"
+          - "{{ item.stdout_lines }}"
+      loop: "{{ patch_results.results }}"
