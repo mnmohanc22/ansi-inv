@@ -66,3 +66,7 @@
 - name: "[BACKUP] Log backup location"
   debug:
     msg: "Backup written to {{ backup_run_dir }}"
+
+- name: "[BACKUP] Set current_date_backup fact"
+  set_fact:
+    current_date_backup: "{{ backup_run_dir }}"
