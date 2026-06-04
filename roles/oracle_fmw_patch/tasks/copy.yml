@@ -1,0 +1,96 @@
+---
+# ─── tasks/copy.yml ────────────────────────────────────────────────────────
+# Copy patch files from artifact host to target servers
+
+- name: "[COPY] Copy patch files from artifact host"
+  block:
+
+    - name: "[COPY] Display artifact host information"
+      ansible.builtin.debug:
+        msg: |
+          Artifact Host: {{ artifact_host }}
+          Artifact Path: {{ artifact_path }}
+          Target Path: {{ target_patch_path }}
+
+    - name: "[COPY] Create target patch directory"
+      ansible.builtin.file:
+        path: "{{ target_patch_path }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+      become: true
+
+    - name: "[COPY] Copy OHS patch files"
+      ansible.builtin.synchronize:
+        src: "{{ artifact_path }}/ohs/"
+        dest: "{{ target_patch_path }}/ohs/"
+        mode: push
+        rsync_opts:
+          - "--archive"
+          - "--verbose"
+          - "--checksum"
+      delegate_to: "{{ artifact_host }}"
+      when:
+        - patch_ohs | bool
+        - ohs_patches | length > 0
+      register: ohs_copy_result
+      ignore_errors: true
+
+    - name: "[COPY] Copy WCC patch files"
+      ansible.builtin.synchronize:
+        src: "{{ artifact_path }}/wcc/"
+        dest: "{{ target_patch_path }}/wcc/"
+        mode: push
+        rsync_opts:
+          - "--archive"
+          - "--verbose"
+          - "--checksum"
+      delegate_to: "{{ artifact_host }}"
+      when:
+        - patch_wcc | bool
+        - wcc_patches | length > 0
+      register: wcc_copy_result
+      ignore_errors: true
+
+    - name: "[COPY] Copy WEC patch files"
+      ansible.builtin.synchronize:
+        src: "{{ artifact_path }}/wec/"
+        dest: "{{ target_patch_path }}/wec/"
+        mode: push
+        rsync_opts:
+          - "--archive"
+          - "--verbose"
+          - "--checksum"
+      delegate_to: "{{ artifact_host }}"
+      when:
+        - patch_wec | bool
+        - wec_patches | length > 0
+      register: wec_copy_result
+      ignore_errors: true
+
+    - name: "[COPY] Verify patch files copied successfully"
+      ansible.builtin.find:
+        paths: "{{ target_patch_path }}"
+        file_type: file
+        recurse: yes
+      register: copied_files
+
+    - name: "[COPY] Display copied files summary"
+      ansible.builtin.debug:
+        msg: |
+          Total files copied: {{ copied_files.matched }}
+          Files:
+          {% for file in copied_files.files %}
+            - {{ file.path }}
+          {% endfor %}
+
+    - name: "[COPY] Set patch files fact"
+      ansible.builtin.set_fact:
+        copied_patch_files: "{{ target_patch_path }}"
+        patch_files_count: "{{ copied_files.matched }}"
+
+  when:
+    - artifact_host is defined
+    - artifact_path is defined
+    - target_patch_path is defined
