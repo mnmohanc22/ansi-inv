@@ -1,0 +1,93 @@
+---
+# ─── tasks/check-cert.yml ───────────────────────────────────────────────────
+# Check certificate by subject name and thumbprint
+
+- name: "Check certificate by subject name and thumbprint"
+  block:
+
+    - name: "Display certificate search criteria"
+      ansible.builtin.debug:
+        msg: |
+          Certificate Search:
+          - Subject Name: {{ cert_subject_name | default('Not specified') }}
+          - Thumbprint (SHA1): {{ cert_thumbprint | default('Not specified') }}
+
+    - name: "Find certificate by subject name"
+      ansible.builtin.shell: |
+        for cert_file in /etc/pki/ca-trust/source/anchors/*.pem /etc/pki/ca-trust/source/anchors/*.crt /etc/pki/tls/certs/*.pem; do
+          [ -f "$cert_file" ] && openssl x509 -noout -subject -in "$cert_file" | grep -q "{{ cert_subject_name }}" && echo "$cert_file"
+        done
+      become: true
+      register: cert_by_subject
+      changed_when: false
+      when:
+        - cert_subject_name is defined
+        - cert_subject_name != ""
+
+    - name: "Get thumbprint of found certificate by subject"
+      ansible.builtin.shell: |
+        openssl x509 -noout -fingerprint -sha1 -in "{{ item }}"
+      loop: "{{ cert_by_subject.stdout_lines }}"
+      become: true
+      register: cert_thumbprint_by_subject
+      changed_when: false
+      when:
+        - cert_by_subject.stdout_lines is defined
+        - cert_by_subject.stdout_lines | length > 0
+
+    - name: "Display certificate found by subject name"
+      ansible.builtin.debug:
+        msg: |
+          Certificate Found by Subject: {{ item.item }}
+          Thumbprint: {{ item.stdout }}
+      loop: "{{ cert_thumbprint_by_subject.results }}"
+      when:
+        - cert_thumbprint_by_subject is defined
+        - item.stdout is defined
+
+    - name: "Find certificate by thumbprint"
+      ansible.builtin.shell: |
+        for cert_file in /etc/pki/ca-trust/source/anchors/*.pem /etc/pki/ca-trust/source/anchors/*.crt /etc/pki/tls/certs/*.pem; do
+          [ -f "$cert_file" ] && openssl x509 -noout -fingerprint -sha1 -in "$cert_file" | grep -q "{{ cert_thumbprint }}" && echo "$cert_file"
+        done
+      become: true
+      register: cert_by_thumbprint
+      changed_when: false
+      when:
+        - cert_thumbprint is defined
+        - cert_thumbprint != ""
+
+    - name: "Get subject of found certificate by thumbprint"
+      ansible.builtin.shell: |
+        openssl x509 -noout -subject -issuer -dates -in "{{ item }}"
+      loop: "{{ cert_by_thumbprint.stdout_lines }}"
+      become: true
+      register: cert_details_by_thumbprint
+      changed_when: false
+      when:
+        - cert_by_thumbprint.stdout_lines is defined
+        - cert_by_thumbprint.stdout_lines | length > 0
+
+    - name: "Display certificate found by thumbprint"
+      ansible.builtin.debug:
+        msg: |
+          Certificate Found by Thumbprint: {{ item.item }}
+          {{ item.stdout }}
+      loop: "{{ cert_details_by_thumbprint.results }}"
+      when:
+        - cert_details_by_thumbprint is defined
+        - item.stdout is defined
+
+    - name: "Set certificate found facts"
+      ansible.builtin.set_fact:
+        cert_found_by_subject: "{{ cert_by_subject.stdout_lines | default([]) }}"
+        cert_found_by_thumbprint: "{{ cert_by_thumbprint.stdout_lines | default([]) }}"
+      when:
+        - (cert_subject_name is defined and cert_subject_name != "") or (cert_thumbprint is defined and cert_thumbprint != "")
+
+  when:
+    - cert_subject_name is defined or cert_thumbprint is defined
+  tags:
+    - lx_cer
+    - certificates
+    - check_cert

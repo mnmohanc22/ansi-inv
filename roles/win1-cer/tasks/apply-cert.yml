@@ -1,0 +1,154 @@
+---
+# ─── tasks/apply-cert.yml ───────────────────────────────────────────────────
+# Add the ROOT CA certificate to the Windows "Trusted Root Certification
+# Authorities" store (store_name: Root) on LocalMachine.
+
+- name: "Add root certificate to Trusted Root Certification Authorities"
+  block:
+
+    - name: "Display root certificate apply information"
+      ansible.builtin.debug:
+        msg: |
+          Add Root CA to Trusted Root Certification Authorities:
+          - Root Certificate File: {{ root_cert_file }}
+          - Source Path:           {{ win_root_cert_path }}
+          - Store Location:        {{ windows_cert_store_location | default('LocalMachine') }}
+          - Store Name:            Root (Trusted Root Certification Authorities)
+
+    - name: "Render apply-cert script for root certificate"
+      ansible.windows.win_template:
+        src: apply-cert.ps1
+        dest: "{{ dest_tmp_dir }}\\apply_root_cert.ps1"
+      vars:
+        apply_cert_path: "{{ win_root_cert_path }}"
+        apply_cert_store_path: "Cert:\\{{ windows_cert_store_location | default('LocalMachine') }}\\Root"
+
+    - name: "Import root certificate into Trusted Root Certification Authorities (Root) store"
+      ansible.windows.win_shell: |
+        & "{{ dest_tmp_dir }}\\apply_root_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: root_cert_apply
+      changed_when: "(root_cert_apply.stdout | from_json).changed | bool"
+
+    - name: "Parse root certificate import result"
+      ansible.builtin.set_fact:
+        _root_apply: "{{ root_cert_apply.stdout | from_json }}"
+
+    - name: "Display root certificate import result"
+      ansible.builtin.debug:
+        msg: |
+          Root Certificate Import Result:
+          - Changed:    {{ _root_apply.changed }}
+          - Thumbprint: {{ _root_apply.thumbprint }}
+          - Subject:    {{ _root_apply.subject }}
+
+    - name: "Get installed root certificate details from Root store"
+      ansible.windows.win_shell: |
+        Get-ChildItem -Path Cert:\{{ windows_cert_store_location | default('LocalMachine') }}\Root |
+          Where-Object { $_.Thumbprint -eq '{{ _root_apply.thumbprint }}' } |
+          Select-Object -Property FriendlyName, Subject, Thumbprint,
+            @{ Name = 'Expiry'; Expression = { $_.NotAfter.ToString('yyyy-MM-dd') } },
+            @{ Name = 'Issuer'; Expression = { $_.Issuer } } |
+          ConvertTo-Json -Compress
+      args:
+        executable: powershell.exe
+      register: applied_root_cert_details
+      changed_when: false
+      when:
+        - _root_apply.thumbprint is defined
+        - _root_apply.thumbprint | length > 0
+
+    - name: "Display installed root certificate details"
+      ansible.builtin.debug:
+        msg: "{{ applied_root_cert_details.stdout | default('No details available') }}"
+      when:
+        - applied_root_cert_details.stdout is defined
+        - applied_root_cert_details.stdout | trim | length > 0
+
+    - name: "Set root certificate apply facts"
+      ansible.builtin.set_fact:
+        root_cert_applied: "{{ root_cert_apply is succeeded }}"
+        root_cert_apply_changed: "{{ _root_apply.changed }}"
+        root_cert_thumbprint: "{{ _root_apply.thumbprint }}"
+
+  tags:
+    - win1_cer
+    - certificates
+    - apply
+    - apply_cert
+
+- name: "Add intermediate certificate to Intermediate Certification Authorities"
+  block:
+
+    - name: "Display intermediate certificate apply information"
+      ansible.builtin.debug:
+        msg: |
+          Add Intermediate CA to Intermediate Certification Authorities:
+          - Intermediate Certificate File: {{ intermediate_cert_file }}
+          - Source Path:                   {{ win_intermediate_cert_path }}
+          - Store Location:                {{ windows_cert_store_location | default('LocalMachine') }}
+          - Store Name:                    CA (Intermediate Certification Authorities)
+
+    - name: "Render apply-cert script for intermediate certificate"
+      ansible.windows.win_template:
+        src: apply-cert.ps1
+        dest: "{{ dest_tmp_dir }}\\apply_intermediate_cert.ps1"
+      vars:
+        apply_cert_path: "{{ win_intermediate_cert_path }}"
+        apply_cert_store_path: "Cert:\\{{ windows_cert_store_location | default('LocalMachine') }}\\CA"
+
+    - name: "Import intermediate certificate into Intermediate Certification Authorities (CA) store"
+      ansible.windows.win_shell: |
+        & "{{ dest_tmp_dir }}\\apply_intermediate_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: intermediate_cert_apply
+      changed_when: "(intermediate_cert_apply.stdout | from_json).changed | bool"
+
+    - name: "Parse intermediate certificate import result"
+      ansible.builtin.set_fact:
+        _intermediate_apply: "{{ intermediate_cert_apply.stdout | from_json }}"
+
+    - name: "Display intermediate certificate import result"
+      ansible.builtin.debug:
+        msg: |
+          Intermediate Certificate Import Result:
+          - Changed:    {{ _intermediate_apply.changed }}
+          - Thumbprint: {{ _intermediate_apply.thumbprint }}
+          - Subject:    {{ _intermediate_apply.subject }}
+
+    - name: "Get installed intermediate certificate details from CA store"
+      ansible.windows.win_shell: |
+        Get-ChildItem -Path Cert:\{{ windows_cert_store_location | default('LocalMachine') }}\CA |
+          Where-Object { $_.Thumbprint -eq '{{ _intermediate_apply.thumbprint }}' } |
+          Select-Object -Property FriendlyName, Subject, Thumbprint,
+            @{ Name = 'Expiry'; Expression = { $_.NotAfter.ToString('yyyy-MM-dd') } },
+            @{ Name = 'Issuer'; Expression = { $_.Issuer } } |
+          ConvertTo-Json -Compress
+      args:
+        executable: powershell.exe
+      register: applied_intermediate_cert_details
+      changed_when: false
+      when:
+        - _intermediate_apply.thumbprint is defined
+        - _intermediate_apply.thumbprint | length > 0
+
+    - name: "Display installed intermediate certificate details"
+      ansible.builtin.debug:
+        msg: "{{ applied_intermediate_cert_details.stdout | default('No details available') }}"
+      when:
+        - applied_intermediate_cert_details.stdout is defined
+        - applied_intermediate_cert_details.stdout | trim | length > 0
+
+    - name: "Set intermediate certificate apply facts"
+      ansible.builtin.set_fact:
+        intermediate_cert_applied: "{{ intermediate_cert_apply is succeeded }}"
+        intermediate_cert_apply_changed: "{{ _intermediate_apply.changed }}"
+        intermediate_cert_thumbprint: "{{ _intermediate_apply.thumbprint }}"
+
+  tags:
+    - win1_cer
+    - certificates
+    - apply
+    - apply_cert

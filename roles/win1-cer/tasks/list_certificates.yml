@@ -1,0 +1,104 @@
+---
+# ─── tasks/list_certificates.yml ────────────────────────────────────────────
+# List all certificates from the Windows ROOT (Trusted Root Certification
+# Authorities) and CA (Intermediate Certification Authorities) stores.
+
+- name: "List certificates from Trusted Root Certification Authorities (Root)"
+  block:
+
+    - name: "Render list-cert script for Root store"
+      ansible.windows.win_template:
+        src: list-cert.ps1
+        dest: "{{ dest_tmp_dir }}\\list_root_cert.ps1"
+      vars:
+        list_cert_store_path: "{{ windows_root_cert_store_path }}"
+
+    - name: "Get certificates from Root store"
+      ansible.windows.win_shell: |
+        & "{{ dest_tmp_dir }}\\list_root_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: root_cert_list_result
+      changed_when: false
+
+    - name: "Set Root store certificate list fact"
+      ansible.builtin.set_fact:
+        _root_cert_list: "{{ (root_cert_list_result.stdout | default('[]', true)) | from_json }}"
+
+    - name: "Normalize Root store cert list to array"
+      ansible.builtin.set_fact:
+        _root_cert_list: "{{ [_root_cert_list] if _root_cert_list is mapping else _root_cert_list }}"
+
+    - name: "Display Root store certificate count"
+      ansible.builtin.debug:
+        msg: "Trusted Root Certification Authorities ({{ windows_root_cert_store_path }}): {{ _root_cert_list | length }} certificate(s) found"
+
+    - name: "Display Root store certificates"
+      ansible.builtin.debug:
+        msg: >-
+          FriendlyName: {{ item.FriendlyName | default('N/A') }}
+          | Subject: {{ item.Subject }}
+          | Thumbprint: {{ item.Thumbprint }}
+          | Expiry: {{ item.Expiry }}
+          | Issuer: {{ item.Issuer }}
+      loop: "{{ _root_cert_list }}"
+      loop_control:
+        label: "{{ item.Thumbprint }}"
+      when: _root_cert_list | length > 0
+
+  tags:
+    - win1_cer
+    - certificates
+    - list
+    - list_certs
+    - list_root
+
+- name: "List certificates from Intermediate Certification Authorities (CA)"
+  block:
+
+    - name: "Render list-cert script for CA (Intermediate) store"
+      ansible.windows.win_template:
+        src: list-cert.ps1
+        dest: "{{ dest_tmp_dir }}\\list_intermediate_cert.ps1"
+      vars:
+        list_cert_store_path: "{{ windows_intermediate_cert_store_path }}"
+
+    - name: "Get certificates from CA (Intermediate) store"
+      ansible.windows.win_shell: |
+        & "{{ dest_tmp_dir }}\\list_intermediate_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: intermediate_cert_list_result
+      changed_when: false
+
+    - name: "Set CA store certificate list fact"
+      ansible.builtin.set_fact:
+        _intermediate_cert_list: "{{ (intermediate_cert_list_result.stdout | default('[]', true)) | from_json }}"
+
+    - name: "Normalize CA store cert list to array"
+      ansible.builtin.set_fact:
+        _intermediate_cert_list: "{{ [_intermediate_cert_list] if _intermediate_cert_list is mapping else _intermediate_cert_list }}"
+
+    - name: "Display CA store certificate count"
+      ansible.builtin.debug:
+        msg: "Intermediate Certification Authorities ({{ windows_intermediate_cert_store_path }}): {{ _intermediate_cert_list | length }} certificate(s) found"
+
+    - name: "Display CA store certificates"
+      ansible.builtin.debug:
+        msg: >-
+          FriendlyName: {{ item.FriendlyName | default('N/A') }}
+          | Subject: {{ item.Subject }}
+          | Thumbprint: {{ item.Thumbprint }}
+          | Expiry: {{ item.Expiry }}
+          | Issuer: {{ item.Issuer }}
+      loop: "{{ _intermediate_cert_list }}"
+      loop_control:
+        label: "{{ item.Thumbprint }}"
+      when: _intermediate_cert_list | length > 0
+
+  tags:
+    - win1_cer
+    - certificates
+    - list
+    - list_certs
+    - list_intermediate

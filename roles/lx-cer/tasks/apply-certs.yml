@@ -1,0 +1,102 @@
+- name: "Apply certificates to system trust store"
+  block:
+
+    - name: "Create target certificate directory"
+      ansible.builtin.file:
+        path: "{{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      become: true
+
+    - name: "Copy certificates from staging to target directory"
+      ansible.builtin.copy:
+        src: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}/{{ item.path | basename }}"
+        dest: "{{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}/{{ item.path | basename }}"
+        owner: root
+        group: root
+        mode: "0644"
+        remote_src: yes
+      loop: "{{ staged_certs.files }}"
+      become: true
+      register: certs_to_target
+      ignore_errors: true
+
+    - name: "Verify root certificate copied"
+      ansible.builtin.stat:
+        path: "{{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}/{{ root_cert_file }}"
+      become: true
+      register: root_cert_stat
+      when:
+        - root_cert_file is defined
+        - root_cert_file != ""
+
+    - name: "Verify intermediate certificate copied"
+      ansible.builtin.stat:
+        path: "{{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}/{{ intermediate_cert_file }}"
+      become: true
+      register: intermediate_cert_stat
+      when:
+        - intermediate_cert_file is defined
+        - intermediate_cert_file != ""
+
+    - name: "Display certificate copy results"
+      ansible.builtin.debug:
+        msg: |
+          Certificate Copy Results:
+          - Root Certificate: {{ 'COPIED' if root_cert_stat.stat.exists else 'NOT FOUND' }}
+          - Intermediate Certificate: {{ 'COPIED' if intermediate_cert_stat.stat.exists else 'NOT FOUND' }}
+          
+          Certificates saved to: {{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}
+
+    - name: "Get certificate details from copied files"
+      ansible.builtin.shell: |
+        openssl x509 -noout -subject -issuer -dates -in "{{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}/{{ item }}"
+      loop:
+        - "{{ root_cert_file | default('') }}"
+        - "{{ intermediate_cert_file | default('') }}"
+      become: true
+      register: copied_cert_details
+      changed_when: false
+      when: item != ""
+      ignore_errors: true
+
+    - name: "Display copied certificate details"
+      ansible.builtin.debug:
+        msg: |
+          Certificate: {{ item.item }}
+          {{ item.stdout }}
+      loop: "{{ copied_cert_details.results }}"
+      when:
+        - item.stdout is defined
+        - item.stdout != ""
+
+    - name: "Update CA trust database"
+      ansible.builtin.command: update-ca-trust
+      become: true
+      # when:
+      #   - certs_to_target is changed
+      register: ca_trust_update
+
+    - name: "Clean up staging directory"
+      ansible.builtin.file:
+        path: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}"
+        state: absent
+      become: true
+      # when:
+      #   - certs_to_target is changed
+
+    - name: "Set certificate copy facts"
+      ansible.builtin.set_fact:
+        certs_copied: true
+        certs_copy_path: "{{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}"
+        certs_ca_trust_updated: "{{ ca_trust_update is changed }}"
+        certs_staging_path: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}"
+
+  when:
+    - staged_certs.matched > 0
+  tags:
+    - lx_cer
+    - certificates
+    - apply_certs

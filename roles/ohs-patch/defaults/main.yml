@@ -1,0 +1,21 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for ohs-patch
+
+# ─── Oracle Home / OHS Paths ────────────────────────────────────────────────
+oracle_base: /u01/app/oracle
+oracle_home_ohs: "{{ oracle_base }}/product/12.2.1.4/ohs"
+
+# OPatch binary relative path under the Oracle Home
+opatch_binary: "OPatch/opatch"
+
+# OHS httpd binary relative path under the Oracle Home (used for version check)
+ohs_httpd_binary: "ohs/bin/httpd"
+
+# ─── OS / Process Owners ────────────────────────────────────────────────────
+oracle_user: oracle
+oracle_group: oinstall
+
+# ─── Expected / Minimum Versions ────────────────────────────────────────────
+# Minimum OPatch version required for FMW 12.2.1.4 patching
+opatch_min_version: "13.9.4"

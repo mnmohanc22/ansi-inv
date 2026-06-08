@@ -1,0 +1,181 @@
+---
+# ─── tasks/check-current.yml ────────────────────────────────────────────────
+# Check the CURRENT version of the Oracle OHS server and the OPatch version
+# installed in the OHS Oracle Home.
+
+- name: "Check current OHS and OPatch versions"
+  block:
+
+    - name: "Display version check configuration"
+      ansible.builtin.debug:
+        msg: |
+          OHS Version Check Configuration:
+          - Oracle Home (OHS): {{ oracle_home_ohs }}
+          - Oracle User:       {{ oracle_user }}
+          - OPatch Binary:     {{ oracle_home_ohs }}/{{ opatch_binary }}
+          - HTTPD Binary:      {{ oracle_home_ohs }}/{{ ohs_httpd_binary }}
+
+    # ─── Check current OHS version ──────────────────────────────────────────
+    - name: "Verify OHS httpd binary exists"
+      ansible.builtin.stat:
+        path: "{{ oracle_home_ohs }}/{{ ohs_httpd_binary }}"
+      register: ohs_httpd_stat
+
+    - name: "Fail if OHS httpd binary is not present"
+      ansible.builtin.fail:
+        msg: >-
+          OHS httpd binary not found at
+          {{ oracle_home_ohs }}/{{ ohs_httpd_binary }}.
+          Verify oracle_home_ohs is correct.
+      when:
+        - not ohs_httpd_stat.stat.exists
+
+    - name: "Check current version of Oracle OHS server"
+      ansible.builtin.command: "{{ oracle_home_ohs }}/{{ ohs_httpd_binary }} -version"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: ohs_version_result
+      changed_when: false
+      failed_when: ohs_version_result.rc != 0
+
+    - name: "Extract OHS server version"
+      ansible.builtin.set_fact:
+        # Parse the "Server version: Oracle-HTTP-Server/2.4.x ..." line
+        ohs_current_version: >-
+          {{ (ohs_version_result.stdout | regex_search('Server version:[^\n]+'))
+             | default('Unknown', true) | trim }}
+
+    - name: "Display current OHS server version"
+      ansible.builtin.debug:
+        msg: |
+          Current Oracle OHS Server Version:
+          ─────────────────────────────────────────────────────────────
+          {{ ohs_version_result.stdout | trim }}
+          ─────────────────────────────────────────────────────────────
+
+    # ─── Check OPatch version ───────────────────────────────────────────────
+    - name: "Verify OPatch binary exists in OHS home"
+      ansible.builtin.stat:
+        path: "{{ oracle_home_ohs }}/{{ opatch_binary }}"
+      register: opatch_stat
+
+    - name: "Fail if OPatch binary is not present"
+      ansible.builtin.fail:
+        msg: >-
+          OPatch binary not found at
+          {{ oracle_home_ohs }}/{{ opatch_binary }}.
+      when:
+        - not opatch_stat.stat.exists
+
+    - name: "Check OPatch version of Oracle OHS server"
+      ansible.builtin.command: "{{ oracle_home_ohs }}/{{ opatch_binary }} version -oh {{ oracle_home_ohs }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: opatch_version_result
+      changed_when: false
+      failed_when: opatch_version_result.rc != 0
+
+    - name: "Extract OPatch version number"
+      ansible.builtin.set_fact:
+        # OPatch prints "OPatch Version: 13.9.4.2.x"
+        opatch_current_version: >-
+          {{ (opatch_version_result.stdout | regex_search('OPatch Version:\s*([0-9.]+)', '\1'))
+             | first | default('Unknown', true) }}
+
+    - name: "Display OPatch version"
+      ansible.builtin.debug:
+        msg: |
+          OPatch Version (OHS Home):
+          ─────────────────────────────────────────────────────────────
+          - OPatch Version:  {{ opatch_current_version }}
+          - Minimum Required:{{ opatch_min_version }}
+          - Oracle Home:     {{ oracle_home_ohs }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Warn if OPatch version is below the minimum required"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: OPatch version {{ opatch_current_version }} is below the
+          minimum required {{ opatch_min_version }}. Update OPatch before patching.
+      when:
+        - opatch_current_version != 'Unknown'
+        - opatch_current_version is version(opatch_min_version, '<')
+
+    # ─── Set facts for downstream tasks ─────────────────────────────────────
+    - name: "Set current version facts"
+      ansible.builtin.set_fact:
+        ohs_version_checked: true
+        ohs_version_output: "{{ ohs_version_result.stdout | trim }}"
+        opatch_version_output: "{{ opatch_version_result.stdout | trim }}"
+
+  tags:
+    - ohs_patch
+    - check
+    - check_current
+    - version
+
+# ─── List installed patches in the OHS Oracle Home ──────────────────────────
+- name: "List installed patches in the OHS Oracle Home"
+  block:
+
+    - name: "Display installed-patch check configuration"
+      ansible.builtin.debug:
+        msg: |
+          Installed Patch Check Configuration:
+          - Oracle Home (OHS): {{ oracle_home_ohs }}
+          - OPatch Binary:     {{ oracle_home_ohs }}/{{ opatch_binary }}
+
+    - name: "List installed patches via opatch lspatches"
+      ansible.builtin.command: "{{ oracle_home_ohs }}/{{ opatch_binary }} lspatches -oh {{ oracle_home_ohs }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: opatch_lspatches_result
+      changed_when: false
+      failed_when: opatch_lspatches_result.rc != 0
+
+    - name: "Display installed patches"
+      ansible.builtin.debug:
+        msg: |
+          Installed Patches (OHS Home):
+          ─────────────────────────────────────────────────────────────
+          - Oracle Home: {{ oracle_home_ohs }}
+          {% if opatch_lspatches_result.stdout_lines | length > 0 %}
+          {% for line in opatch_lspatches_result.stdout_lines %}
+          - {{ line }}
+          {% endfor %}
+          {% else %}
+          - No patches installed.
+          {% endif %}
+          ─────────────────────────────────────────────────────────────
+
+    # ─── Detailed inventory via opatch lsinventory ──────────────────────────
+    - name: "List detailed patch inventory via opatch lsinventory"
+      ansible.builtin.command: "{{ oracle_home_ohs }}/{{ opatch_binary }} lsinventory -oh {{ oracle_home_ohs }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: opatch_lsinventory_result
+      changed_when: false
+      failed_when: opatch_lsinventory_result.rc != 0
+
+    - name: "Display detailed patch inventory"
+      ansible.builtin.debug:
+        msg: |
+          Detailed Patch Inventory (OHS Home):
+          ─────────────────────────────────────────────────────────────
+          {{ opatch_lsinventory_result.stdout | trim }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set installed-patch facts"
+      ansible.builtin.set_fact:
+        ohs_patches_checked: true
+        ohs_installed_patches: "{{ opatch_lspatches_result.stdout_lines | default([]) }}"
+        ohs_installed_patches_output: "{{ opatch_lspatches_result.stdout | trim }}"
+        ohs_lsinventory_output: "{{ opatch_lsinventory_result.stdout | trim }}"
+        ohs_lsinventory_lines: "{{ opatch_lsinventory_result.stdout_lines | default([]) }}"
+
+  tags:
+    - ohs_patch
+    - check
+    - check_current
+    - list_patches
+    - patches

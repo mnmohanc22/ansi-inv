@@ -1,0 +1,74 @@
+---
+# ─── tasks/copy-certs.yml ───────────────────────────────────────────────────
+# Copy certificate files from artifacts host to target host
+
+- name: "Copy certificates from artifacts host to staging directory"
+  block:
+
+    - name: "Display certificate copy information"
+      ansible.builtin.debug:
+        msg: |
+          Certificate Copy Configuration:
+          - Temp Directory: {{ tmp_cert_staging_path | default('/tmp/certs_staging') }}
+          - Target Cert Path: {{ target_cert_path | default('/etc/pki/ca-trust/source/anchors/') }}
+          - Root Certificate: {{ root_cert_file | default('Not specified') }}
+          - Intermediate Certificate: {{ intermediate_cert_file | default('Not specified') }}
+
+    - name: "Create temporary staging directory"
+      ansible.builtin.file:
+        path: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      become: true
+
+    - name: "Copy root certificate to temp staging directory"
+      ansible.builtin.copy:
+        src: "{{ root_cert_file }}"
+        dest: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}/{{ root_cert_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      when:
+        - root_cert_file is defined
+        - root_cert_file != ""
+      register: root_cert_staging
+      ignore_errors: true
+
+    - name: "Copy intermediate certificate to temp staging directory"
+      ansible.builtin.copy:
+        src: "{{ intermediate_cert_file }}"
+        dest: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}/{{ intermediate_cert_file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      when:
+        - intermediate_cert_file is defined
+        - intermediate_cert_file != ""
+      register: intermediate_cert_staging
+      ignore_errors: true
+
+    - name: "Verify certificates in staging directory"
+      ansible.builtin.find:
+        paths: "{{ tmp_cert_staging_path | default('/tmp/certs_staging') }}"
+        file_type: file
+        patterns: "*.pem,*.crt,*.cer"
+      become: true
+      register: staged_certs
+
+    - name: "Display staged certificate files"
+      ansible.builtin.debug:
+        msg: |
+          Staged Certificates ({{ staged_certs.matched }} found):
+          {% for cert in staged_certs.files %}
+            - {{ cert.path | basename }} ({{ cert.size }} bytes)
+          {% endfor %}
+
+  tags:
+    - lx_cer
+    - certificates
+    - copy_certs
+

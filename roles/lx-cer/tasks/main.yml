@@ -1,0 +1,113 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for lx-cer
+
+# - name: "Import root and intermediate certificates to RHEL trust store"
+#   block:
+
+#     - name: "Display certificate information"
+#       ansible.builtin.debug:
+#         msg: |
+#           Root Certificate: {{ root_cert_file }}
+#           Intermediate Certificate: {{ intermediate_cert_file }}
+#           Trust Store Path: /etc/pki/ca-trust/source/anchors/
+
+#     - name: "Copy root certificate to trust store"
+#       ansible.builtin.copy:
+#         src: "{{ root_cert_file }}"
+#         dest: "/etc/pki/ca-trust/source/anchors/{{ root_cert_file | basename }}"
+#         owner: root
+#         group: root
+#         mode: "0644"
+#       become: true
+#       when:
+#         - root_cert_file is defined
+#         - root_cert_file != ""
+#       register: root_cert_copy
+
+#     - name: "Copy intermediate certificate to trust store"
+#       ansible.builtin.copy:
+#         src: "{{ intermediate_cert_file }}"
+#         dest: "/etc/pki/ca-trust/source/anchors/{{ intermediate_cert_file | basename }}"
+#         owner: root
+#         group: root
+#         mode: "0644"
+#       become: true
+#       when:
+#         - intermediate_cert_file is defined
+#         - intermediate_cert_file != ""
+#       register: intermediate_cert_copy
+
+#     - name: "Update CA trust database"
+#       ansible.builtin.command: update-ca-trust
+#       become: true
+#       when:
+#         - root_cert_copy is changed or intermediate_cert_copy is changed
+#       register: ca_trust_update
+
+#     - name: "Verify root certificate in trust store"
+#       ansible.builtin.shell: |
+#         openssl x509 -noout -subject -in "/etc/pki/ca-trust/source/anchors/{{ root_cert_file | basename }}"
+#       become: true
+#       when:
+#         - root_cert_file is defined
+#         - root_cert_file != ""
+#       register: root_cert_verify
+#       changed_when: false
+
+#     - name: "Verify intermediate certificate in trust store"
+#       ansible.builtin.shell: |
+#         openssl x509 -noout -subject -in "/etc/pki/ca-trust/source/anchors/{{ intermediate_cert_file | basename }}"
+#       become: true
+#       when:
+#         - intermediate_cert_file is defined
+#         - intermediate_cert_file != ""
+#       register: intermediate_cert_verify
+#       changed_when: false
+
+#     - name: "Display certificate verification results"
+#       ansible.builtin.debug:
+#         msg: |
+#           Root Certificate Subject: {{ root_cert_verify.stdout }}
+#           Intermediate Certificate Subject: {{ intermediate_cert_verify.stdout }}
+#           CA Trust Database Updated: {{ ca_trust_update is changed }}
+
+#   when:
+#     - root_cert_file is defined or intermediate_cert_file is defined
+#   tags:
+#     - lx_cer
+#     - certificates
+#     - ca_trust
+
+# ─── Import certificate management task files ───────────────────────────────
+
+- name: "Import certificate copy tasks"
+  ansible.builtin.import_tasks: copy-certs.yml
+  tags:
+    - lx_cer
+    - certificates
+    - copy_certs
+    - apply_certs
+
+
+- name: "Import certificate apply-cert tasks"
+  ansible.builtin.import_tasks: apply-certs.yml
+  tags:
+    - lx_cer
+    - certificates
+    - apply_certs
+    
+
+- name: "Import certificate check tasks"
+  ansible.builtin.import_tasks: check-cert.yml
+  tags:
+    - lx_cer
+    - certificates
+    - check_cert
+
+- name: "Import certificate list tasks"
+  ansible.builtin.import_tasks: list-cert.yml
+  tags:
+    - lx_cer
+    - certificates
+    - list_certs

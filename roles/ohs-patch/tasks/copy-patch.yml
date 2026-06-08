@@ -1,0 +1,151 @@
+---
+# ─── tasks/copy-patch.yml ───────────────────────────────────────────────────
+# Copy patch zip files from the controller to the target server's stage dir and
+# extract each one into a per-patch directory ({{ patch_stage_dir }}/{{ patch_id }}).
+
+# ─── Copy patch zip files to the stage directory ────────────────────────────
+- name: "Copy OHS patches from patch_id_list to the stage directory"
+  block:
+
+    - name: "Fail if patch_id_list is empty"
+      ansible.builtin.fail:
+        msg: "patch_id_list is empty or undefined. Define patches in vars/main.yml."
+      when:
+        - patch_id_list | default([]) | length == 0
+
+    - name: "Display copy configuration"
+      ansible.builtin.debug:
+        msg: |
+          Patch Copy Configuration:
+          - Source Dir (controller): {{ patch_src_dir }}
+          - Stage Dir (target):      {{ patch_stage_dir }}
+          - Total Patches:           {{ patch_id_list | length }}
+
+    - name: "Create patch stage directory"
+      ansible.builtin.file:
+        path: "{{ patch_stage_dir }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+      become: true
+
+    - name: "Copy patch zip files to the stage directory"
+      ansible.builtin.copy:
+        src: "{{ patch_src_dir }}/{{ item.patch_zip }}"
+        dest: "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0644"
+      become: true
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_zip }}"
+      register: patch_copy_result
+
+    - name: "Display copy summary"
+      ansible.builtin.debug:
+        msg: |
+          Patch Copy Summary:
+          ─────────────────────────────────────────────────────────────
+          - Stage Dir:       {{ patch_stage_dir }}
+          - Patches Copied:  {{ patch_copy_result.results | length }}
+          {% for item in patch_id_list %}
+            - {{ item.patch_zip }} -> {{ patch_stage_dir }}/{{ item.patch_zip }}
+          {% endfor %}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set copied patch facts"
+      ansible.builtin.set_fact:
+        ohs_patches_copied: "{{ patch_id_list | map(attribute='patch_zip') | list }}"
+
+  tags:
+    - ohs_patch
+    - copy
+    - copy_patch
+    - patches
+
+# ─── Extract patch zip files into per-patch directories ─────────────────────
+- name: "Extract OHS patches into per-patch directories"
+  block:
+
+    - name: "Fail if patch_id_list is empty"
+      ansible.builtin.fail:
+        msg: "patch_id_list is empty or undefined. Define patches in vars/main.yml."
+      when:
+        - patch_id_list | default([]) | length == 0
+
+    - name: "Display extract configuration"
+      ansible.builtin.debug:
+        msg: |
+          Patch Extract Configuration:
+          - Stage Dir (target): {{ patch_stage_dir }}
+          - Total Patches:      {{ patch_id_list | length }}
+
+    - name: "Ensure required packages for extraction are present"
+      ansible.builtin.package:
+        name: unzip
+        state: present
+      become: true
+
+    - name: "Create per-patch extraction directories"
+      ansible.builtin.file:
+        path: "{{ patch_stage_dir }}/{{ item.patch_id }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+      become: true
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+
+    - name: "Extract patch zip files into per-patch directories"
+      ansible.builtin.unarchive:
+        src: "{{ patch_stage_dir }}/{{ item.patch_zip }}"
+        dest: "{{ patch_stage_dir }}/{{ item.patch_id }}"
+        remote_src: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+      register: patch_extract_result
+
+    - name: "Verify extracted patch directories"
+      ansible.builtin.find:
+        paths: "{{ patch_stage_dir }}/{{ item.patch_id }}"
+        file_type: directory
+      become: true
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+      register: patch_extracted_dirs
+
+    - name: "Display extract summary"
+      ansible.builtin.debug:
+        msg: |
+          Patch Extract Summary:
+          ─────────────────────────────────────────────────────────────
+          - Stage Dir:          {{ patch_stage_dir }}
+          - Patches Extracted:
+          {% for item in patch_id_list %}
+            - {{ item.patch_id }} -> {{ patch_stage_dir }}/{{ item.patch_id }}
+          {% endfor %}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set extracted patch facts"
+      ansible.builtin.set_fact:
+        ohs_patch_dirs: >-
+          {{ patch_id_list
+             | map(attribute='patch_id')
+             | map('regex_replace', '^(.*)$', patch_stage_dir ~ '/\1')
+             | list }}
+
+  tags:
+    - ohs_patch
+    - extract
+    - patches
+

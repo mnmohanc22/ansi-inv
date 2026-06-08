@@ -1,0 +1,42 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for win1-cer
+
+- name: "Setup and display certificate variables"
+  ansible.builtin.import_tasks: setup-vars.yml
+  tags:
+    - win1_cer
+    - certificates
+    - setup
+
+- name: "List certificates from Root and Intermediate stores"
+  ansible.builtin.import_tasks: list_certificates.yml
+  tags:
+    - win1_cer
+    - certificates
+    - list
+    - list_certs
+
+- name: "Copy root and intermediate certificates to Windows host"
+  ansible.builtin.import_tasks: copy-certs.yml
+  tags:
+    - win1_cer
+    - certificates
+    - copy
+    - copy_certs
+
+- name: "Apply certificates to Root and Intermediate trust stores"
+  ansible.builtin.import_tasks: apply-cert.yml
+  tags:
+    - win1_cer
+    - certificates
+    - apply
+    - apply_cert
+
+- name: "Check root and intermediate certificates in trust stores"
+  ansible.builtin.import_tasks: check_cert.yml
+  tags:
+    - win1_cer
+    - certificates
+    - check
+    - check_cert

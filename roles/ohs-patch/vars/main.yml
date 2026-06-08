@@ -1,0 +1,24 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for ohs-patch
+
+
+ohs_oracle_home: /u01/app/oracle/product/fmw
+ohs_domain_home: /u01/app/oracle/config/domains/base_domain
+ohs_component_name: ohs1
+
+patch_stage_dir: /u01/patches/ohs
+#patch_zip: p12345678_122140_Generic.zip
+#patch_id: "12345678"
+
+oracle_user: oracle
+oracle_group: oinstall
+
+patch_id_list:
+  - patch_id: "12345678"
+    patch_zip: "p12345678_122140_Generic.zip"
+  - patch_id: "23456789"
+    patch_zip: "p23456789_122140_Generic.zip"
+
+# Source directory (on the Ansible controller) that holds the patch zip files
+patch_src_dir: files/patches

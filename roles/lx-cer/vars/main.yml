@@ -1,0 +1,18 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for lx-cer
+
+root_cert_file: rootCA.crt
+intermediate_cert_file: intermediateCA.crt
+
+
+tmp_cert_staging_path: /tmp/certs_staging
+
+target_cert_path: /etc/pki/ca-trust/source/anchors
+
+root_ca_subject: PRIME LLC Lab Root CA
+#rootsha1_fingerprint: 1F:38:35:86:89:C5:45:76:F6:41:9F:16:12:11:69:6A:A4:78:02:91
+rootsha1_fingerprint: 1F38358689C54576F6419F161211696AA4780291
+
+intermediate_ca_subject: PRIME LLC Lab Intermediate CA
+intermediate_sha1_fingerprint: A7C11B31FD17E9EAB830A3D58ED07C3DC14F2153

@@ -1,0 +1,69 @@
+---
+# ─── tasks/is-patch-installed.yml ───────────────────────────────────────────
+# For each patch in patch_id_list, determine whether it is already installed
+# in the OHS Oracle Home (via opatch lspatches). Sets per-patch status facts
+# so downstream apply tasks can skip already-installed patches.
+
+- name: "Check if patches from patch_id_list are already installed"
+  block:
+
+    - name: "Fail if patch_id_list is empty"
+      ansible.builtin.fail:
+        msg: "patch_id_list is empty or undefined. Define patches in vars/main.yml."
+      when:
+        - patch_id_list | default([]) | length == 0
+
+    - name: "Get installed patches via opatch lspatches"
+      ansible.builtin.command: "{{ oracle_home_ohs }}/{{ opatch_binary }} lspatches -oh {{ oracle_home_ohs }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: installed_patches_raw
+      changed_when: false
+      failed_when: installed_patches_raw.rc != 0
+
+    - name: "Reset patch status fact"
+      ansible.builtin.set_fact:
+        ohs_patch_status: []
+
+    - name: "Build per-patch installation status"
+      ansible.builtin.set_fact:
+        ohs_patch_status: >-
+          {{ ohs_patch_status + [{
+               'patch_id': item.patch_id,
+               'patch_zip': item.patch_zip,
+               'installed': (item.patch_id in installed_patches_raw.stdout)
+             }] }}
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+
+    - name: "Set installed / missing patch facts"
+      ansible.builtin.set_fact:
+        ohs_patches_installed: >-
+          {{ ohs_patch_status | selectattr('installed') | map(attribute='patch_id') | list }}
+        ohs_patches_missing: >-
+          {{ ohs_patch_status | rejectattr('installed') | map(attribute='patch_id') | list }}
+
+    - name: "Display per-patch installation status"
+      ansible.builtin.debug:
+        msg: "Patch ID: {{ item.patch_id }} | Zip: {{ item.patch_zip }} | Installed: {{ item.installed }}"
+      loop: "{{ ohs_patch_status }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+
+    - name: "Display installation summary"
+      ansible.builtin.debug:
+        msg: |
+          Patch Installation Status (OHS Home):
+          ─────────────────────────────────────────────────────────────
+          - Oracle Home:        {{ oracle_home_ohs }}
+          - Total Patches:      {{ ohs_patch_status | length }}
+          - Already Installed:  {{ ohs_patches_installed | length }} {{ ohs_patches_installed }}
+          - Not Installed:      {{ ohs_patches_missing | length }} {{ ohs_patches_missing }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - check
+    - is_patch_installed
+    - patches

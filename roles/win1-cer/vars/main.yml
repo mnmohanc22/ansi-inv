@@ -1,0 +1,32 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for win1-cer
+
+dest_tmp_dir: 'C:\Temp'
+
+root_cert_file: rootCA.crt
+intermediate_cert_file: intermediateCA.crt
+
+# Full destination paths on the Windows host (single-quoted so the backslash
+# is treated literally and avoids Jinja2 escaping issues).
+win_root_cert_path: '{{ dest_tmp_dir }}\{{ root_cert_file }}'
+win_intermediate_cert_path: '{{ dest_tmp_dir }}\{{ intermediate_cert_file }}'
+
+
+root_ca_subject: PRIME LLC Lab Root CA
+#rootsha1_fingerprint: 1F:38:35:86:89:C5:45:76:F6:41:9F:16:12:11:69:6A:A4:78:02:91
+rootsha1_fingerprint: 1F38358689C54576F6419F161211696AA4780291
+
+intermediate_ca_subject: PRIME LLC Lab Intermediate CA
+intermediate_sha1_fingerprint: A7C11B31FD17E9EAB830A3D58ED07C3DC14F2153
+
+windows_cert_store_location: LocalMachine
+
+
+windows_root_cert_store_path: "Cert:\\{{ windows_cert_store_location }}\\Root"
+windows_root_cert_friendly_name: "PRIME LLC Lab Root CA"
+
+windows_intermediate_cert_store_path: "Cert:\\{{ windows_cert_store_location }}\\CA"
+windows_intermediate_cert_friendly_name: "PRIME LLC Lab Intermediate CA"
+
+

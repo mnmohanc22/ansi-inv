@@ -1,0 +1,39 @@
+---
+# ─── tasks/setup-vars.yml ───────────────────────────────────────────────────
+# Display and validate the patch list (patch_id_list) configured for this run.
+
+- name: "List configured patches (patch_id_list)"
+  block:
+
+    - name: "Fail if patch_id_list is empty"
+      ansible.builtin.fail:
+        msg: "patch_id_list is empty or undefined. Define patches in vars/main.yml."
+      when:
+        - patch_id_list | default([]) | length == 0
+
+    - name: "Display patch list summary"
+      ansible.builtin.debug:
+        msg: |
+          Configured Patches:
+          ─────────────────────────────────────────────────────────────
+          - Patch Stage Dir: {{ patch_stage_dir }}
+          - Total Patches:   {{ patch_id_list | length }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "List each patch (patch_id and patch_zip)"
+      ansible.builtin.debug:
+        msg: "Patch ID: {{ item.patch_id }} | Zip: {{ item.patch_zip }}"
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+
+    - name: "Set patch-list facts"
+      ansible.builtin.set_fact:
+        ohs_patch_ids: "{{ patch_id_list | map(attribute='patch_id') | list }}"
+        ohs_patch_zips: "{{ patch_id_list | map(attribute='patch_zip') | list }}"
+
+  tags:
+    - ohs_patch
+    - setup
+    - setup_vars
+    - list_patch_ids

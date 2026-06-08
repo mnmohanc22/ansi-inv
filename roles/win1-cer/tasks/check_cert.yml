@@ -1,0 +1,92 @@
+---
+# ─── tasks/check_cert.yml ───────────────────────────────────────────────────
+# Check whether the ROOT and INTERMEDIATE CA certificates already exist in
+# their respective Windows certificate stores. The check_cert.ps1 template is
+# rendered once per certificate, with windows_cert_store_path and
+# windows_cert_friendly_name passed in for each.
+
+- name: "Check root certificate in Trusted Root Certification Authorities"
+  block:
+
+    - name: "Render check_cert script for root certificate"
+      ansible.windows.win_template:
+        src: check_cert.ps1
+        dest: "{{ dest_tmp_dir }}\\check_root_cert.ps1"
+      vars:
+        windows_cert_store_path: "{{ windows_root_cert_store_path }}"
+        windows_cert_friendly_name: "{{ windows_root_cert_friendly_name }}"
+
+    - name: "Run check_cert script for root certificate"
+      ansible.windows.win_shell: |
+        & "{{ dest_tmp_dir }}\\check_root_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: root_cert_check_result
+      changed_when: false
+
+    - name: "Set root certificate check fact"
+      ansible.builtin.set_fact:
+        _root_cert_check: "{{ root_cert_check_result.stdout | from_json }}"
+
+    - name: "Display root certificate check result"
+      ansible.builtin.debug:
+        msg: |
+          Root CA Presence Check ({{ windows_root_cert_friendly_name }}):
+          ─────────────────────────────────────────────────────────────
+            - Store:      {{ windows_root_cert_store_path }}
+            - Exists:     {{ _root_cert_check.exists }}
+            - Thumbprint: {{ _root_cert_check.thumbprint | default('N/A') }}
+            - Subject:    {{ _root_cert_check.subject | default('N/A') }}
+            - Expiry:     {{ _root_cert_check.expiry | default('N/A') }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - win1_cer
+    - certificates
+    - check
+    - check_cert
+    - check_root
+
+- name: "Check intermediate certificate in Intermediate Certification Authorities"
+  block:
+
+    - name: "Render check_cert script for intermediate certificate"
+      ansible.windows.win_template:
+        src: check_cert.ps1
+        dest: "{{ dest_tmp_dir }}\\check_intermediate_cert.ps1"
+      vars:
+        windows_cert_store_path: "{{ windows_intermediate_cert_store_path }}"
+        windows_cert_friendly_name: "{{ windows_intermediate_cert_friendly_name }}"
+
+    - name: "Run check_cert script for intermediate certificate"
+      ansible.windows.win_shell: |
+        & "{{ dest_tmp_dir }}\\check_intermediate_cert.ps1"
+      args:
+        executable: powershell.exe
+      register: intermediate_cert_check_result
+      changed_when: false
+
+    - name: "Set intermediate certificate check fact"
+      ansible.builtin.set_fact:
+        _intermediate_cert_check: "{{ intermediate_cert_check_result.stdout | from_json }}"
+
+    - name: "Display intermediate certificate check result"
+      ansible.builtin.debug:
+        msg: |
+          Intermediate CA Presence Check ({{ windows_intermediate_cert_friendly_name }}):
+          ─────────────────────────────────────────────────────────────
+            - Store:      {{ windows_intermediate_cert_store_path }}
+            - Exists:     {{ _intermediate_cert_check.exists }}
+            - Thumbprint: {{ _intermediate_cert_check.thumbprint | default('N/A') }}
+            - Subject:    {{ _intermediate_cert_check.subject | default('N/A') }}
+            - Expiry:     {{ _intermediate_cert_check.expiry | default('N/A') }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - win1_cer
+    - certificates
+    - check
+    - check_cert
+    - check_intermediate
+
+

@@ -1,0 +1,75 @@
+---
+# ─── tasks/copy-certs.yml ───────────────────────────────────────────────────
+# Copy the root and intermediate certificate files to the destination temp
+# directory (dest_tmp_dir) on the Windows server.
+
+- name: "Copy root and intermediate certificates to Windows temp directory"
+  block:
+
+    - name: "Display certificate copy information"
+      ansible.builtin.debug:
+        msg: |
+          Windows Certificate Copy Configuration:
+          - Destination Temp Dir:      {{ dest_tmp_dir }}
+          - Root Certificate:          {{ root_cert_file }}
+          - Intermediate Certificate:  {{ intermediate_cert_file }}
+
+    - name: "Ensure destination temp directory exists on Windows"
+      ansible.windows.win_file:
+        path: "{{ dest_tmp_dir }}"
+        state: directory
+
+    - name: "Copy root certificate to Windows temp directory"
+      ansible.windows.win_copy:
+        src: "{{ root_cert_file }}"
+        dest: "{{ dest_tmp_dir }}\\{{ root_cert_file }}"
+      register: root_cert_copy
+      when:
+        - root_cert_file is defined
+        - root_cert_file | length > 0
+
+    - name: "Copy intermediate certificate to Windows temp directory"
+      ansible.windows.win_copy:
+        src: "{{ intermediate_cert_file }}"
+        dest: "{{ dest_tmp_dir }}\\{{ intermediate_cert_file }}"
+      register: intermediate_cert_copy
+      when:
+        - intermediate_cert_file is defined
+        - intermediate_cert_file | length > 0
+
+    - name: "Verify root certificate copied"
+      ansible.windows.win_stat:
+        path: "{{ dest_tmp_dir }}\\{{ root_cert_file }}"
+      register: root_cert_stat
+      when:
+        - root_cert_file is defined
+        - root_cert_file | length > 0
+
+    - name: "Verify intermediate certificate copied"
+      ansible.windows.win_stat:
+        path: "{{ dest_tmp_dir }}\\{{ intermediate_cert_file }}"
+      register: intermediate_cert_stat
+      when:
+        - intermediate_cert_file is defined
+        - intermediate_cert_file | length > 0
+
+    - name: "Display certificate copy results"
+      ansible.builtin.debug:
+        msg: |
+          Windows Certificate Copy Results:
+          - Root Certificate:         {{ 'COPIED' if root_cert_stat.stat.exists | default(false) else 'NOT FOUND' }}
+            Path: {{ dest_tmp_dir }}\{{ root_cert_file }}
+          - Intermediate Certificate: {{ 'COPIED' if intermediate_cert_stat.stat.exists | default(false) else 'NOT FOUND' }}
+            Path: {{ dest_tmp_dir }}\{{ intermediate_cert_file }}
+
+    - name: "Set certificate copy facts"
+      ansible.builtin.set_fact:
+        win_certs_copied: "{{ (root_cert_stat.stat.exists | default(false)) and (intermediate_cert_stat.stat.exists | default(false)) }}"
+        win_root_cert_path: "{{ dest_tmp_dir }}\\{{ root_cert_file }}"
+        win_intermediate_cert_path: "{{ dest_tmp_dir }}\\{{ intermediate_cert_file }}"
+
+  tags:
+    - win1_cer
+    - certificates
+    - copy
+    - copy_certs

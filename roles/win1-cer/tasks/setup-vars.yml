@@ -1,0 +1,9 @@
+# --- Setup ---
+
+- name: print vars
+  debug:
+    msg: |
+      windows_root_cert_friendly_name: {{ windows_root_cert_friendly_name }}
+      windows_intermediate_cert_friendly_name: {{ windows_intermediate_cert_friendly_name }}
+      windows_root_cert_store_path: {{ windows_root_cert_store_path }}
+      windows_intermediate_cert_store_path: {{ windows_intermediate_cert_store_path }}  

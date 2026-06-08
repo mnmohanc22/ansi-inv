@@ -1,0 +1,96 @@
+---
+# ─── tasks/list-cert.yml ────────────────────────────────────────────────────
+# List certificates in RHEL system trust store
+
+- name: "List certificates in RHEL system trust store"
+  block:
+
+    - name: "Display trust store location"
+      ansible.builtin.debug:
+        msg: |
+          RHEL Trust Store Paths:
+          - Source Anchors: /etc/pki/ca-trust/source/anchors/
+          - Extracted CAs: /etc/pki/ca-trust/extracted/
+          - System Certs: /etc/pki/tls/certs/
+
+    - name: "List certificates in source anchors"
+      ansible.builtin.find:
+        paths: /etc/pki/ca-trust/source/anchors/
+        file_type: file
+        patterns: "*.pem,*.crt,*.cer"
+      become: true
+      register: source_anchors_certs
+
+    - name: "Display source anchor certificates"
+      ansible.builtin.debug:
+        msg: |
+          Source Anchor Certificates ({{ source_anchors_certs.matched }} found):
+          {% for cert in source_anchors_certs.files %}
+            - {{ cert.path | basename }}
+          {% endfor %}
+
+    - name: "Get certificate details from source anchors"
+      ansible.builtin.shell: |
+        openssl x509 -noout -subject -issuer -dates -in "{{ item.path }}"
+      loop: "{{ source_anchors_certs.files }}"
+      become: true
+      register: source_cert_details
+      changed_when: false
+
+    - name: "Display detailed certificate information"
+      ansible.builtin.debug:
+        msg: |
+          Certificate: {{ item.item.path | basename }}
+          {{ item.stdout }}
+      loop: "{{ source_cert_details.results }}"
+      when: item.stdout is defined
+
+    - name: "List system default CA certificates"
+      ansible.builtin.find:
+        paths: /etc/pki/ca-trust/extracted/
+        file_type: file
+        patterns: "*.pem"
+      become: true
+      register: extracted_certs
+
+    - name: "Display extracted CA certificates count"
+      ansible.builtin.debug:
+        msg: "Extracted CA Certificates: {{ extracted_certs.matched }} found in /etc/pki/ca-trust/extracted/"
+
+    - name: "List legacy system certificates"
+      ansible.builtin.find:
+        paths: /etc/pki/tls/certs/
+        file_type: file
+        patterns: "*.pem,*.crt"
+      become: true
+      register: legacy_certs
+
+    - name: "Display legacy certificates count"
+      ansible.builtin.debug:
+        msg: "Legacy System Certificates: {{ legacy_certs.matched }} found in /etc/pki/tls/certs/"
+
+    - name: "Verify CA bundle"
+      ansible.builtin.shell: |
+        openssl crl2pkcs7 -nocrl -certfile /etc/pki/tls/certs/ca-bundle.crt | openssl pkcs7 -print_certs -text -noout | grep Subject | wc -l
+      become: true
+      register: ca_bundle_count
+      changed_when: false
+
+    - name: "Display CA bundle summary"
+      ansible.builtin.debug:
+        msg: |
+          CA Bundle Summary:
+          - Total certificates in bundle: {{ ca_bundle_count.stdout }}
+          - Location: /etc/pki/tls/certs/ca-bundle.crt
+
+    - name: "Set certificates list fact"
+      ansible.builtin.set_fact:
+        rhel_source_anchors: "{{ source_anchors_certs.matched }}"
+        rhel_extracted_certs: "{{ extracted_certs.matched }}"
+        rhel_legacy_certs: "{{ legacy_certs.matched }}"
+        rhel_ca_bundle_count: "{{ ca_bundle_count.stdout | int }}"
+
+  tags:
+    - lx_cer
+    - certificates
+    - list_certs

@@ -1,0 +1,80 @@
+---
+# ─── tasks/check-cert.yml ───────────────────────────────────────────────────
+# Verify the ROOT CA certificate is present in the system trust store WITHOUT
+# relying on a specific file name.
+#   * Subject presence is checked with `trust list | grep "<CN>"`.
+# The expected Subject (root_ca_subject) must be found for verification to pass.
+
+- name: "Check root CA exists in trust store by subject"
+  block:
+
+    - name: "Extract expected root CA common name (CN) from subject"
+      ansible.builtin.set_fact:
+        root_ca_cn: "{{ root_ca_subject | regex_replace('^.*CN[ ]*=[ ]*([^,]+).*$', '\\1') | trim }}"
+
+    - name: "Display root certificate verification criteria"
+      ansible.builtin.debug:
+        msg: |
+          Root CA Certificate Verification:
+          - Trust Store Path:          {{ target_cert_path | default('/etc/pki/ca-trust/source/anchors') }}
+          - Expected Subject:          {{ root_ca_subject }}
+          - Subject CN (trust list):   {{ root_ca_cn }}
+
+    - name: "Check subject (SA name) presence via trust list"
+      ansible.builtin.shell: |
+        set -o pipefail
+        trust list | grep -F "{{ root_ca_cn }}"
+      args:
+        executable: /bin/bash
+      become: true
+      register: trust_list_subject
+      changed_when: false
+      failed_when: false
+
+    - name: display trust list subject search result
+      ansible.builtin.debug:
+        msg: |
+          Trust List Subject Search Result:
+          - Return Code: {{ trust_list_subject.rc }}
+          - Output: {{ trust_list_subject.stdout | trim }}
+          - Error: {{ trust_list_subject.stderr | trim }}  
+
+    - name: "Set subject presence fact from trust list output"
+      ansible.builtin.set_fact:
+        root_subject_present: "{{ trust_list_subject.rc == 0 and (trust_list_subject.stdout | trim | length > 0) }}"
+
+    - name: "Compute overall root CA verification result"
+      ansible.builtin.set_fact:
+        root_cert_found: "{{ root_subject_present | bool }}"
+
+    - name: "Display root certificate verification results"
+      ansible.builtin.debug:
+        msg: |
+          Root CA Certificate Verification Results:
+          ─────────────────────────────────────────────────────────────
+          Subject match (trust list):  {{ 'PASS' if root_subject_present else 'FAIL' }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Assert root CA certificate exists in the trust store"
+      ansible.builtin.assert:
+        that:
+          - root_cert_found | bool
+        success_msg: >-
+          Root CA certificate found in trust store
+          (subject CN '{{ root_ca_cn }}' present among trusted anchors).
+        fail_msg: |
+          Root CA certificate NOT found in trust store
+          {{ target_cert_path | default('/etc/pki/ca-trust/source/anchors') }}.
+          - Subject present (trust list):  {{ root_subject_present }}
+          - Expected Subject CN:           {{ root_ca_cn }}
+
+    - name: "Set root certificate verification facts"
+      ansible.builtin.set_fact:
+        root_cert_verified: "{{ root_cert_found | bool }}"
+        root_cert_verified_cn: "{{ root_ca_cn }}"
+
+  tags:
+    - lx_cer
+    - certificates
+    - check_cert
+
