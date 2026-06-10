@@ -9,7 +9,7 @@ do
 
     echo "Checking $HOST:$PORT ..."
 
-    OUTPUT=$(timeout $TIMEOUT telnet "$HOST" "$PORT" 2>&1)
+    OUTPUT=$(timeout $TIMEOUT telnet "$HOST" "$PORT" </dev/null 2>&1)
 
     if echo "$OUTPUT" | grep -q "Connected to"; then
         echo "SUCCESS - $HOST:$PORT is reachable"
