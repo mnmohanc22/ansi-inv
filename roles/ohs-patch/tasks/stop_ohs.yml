@@ -13,6 +13,12 @@
           - Component Name: {{ ohs_component_name }}
           - OHS User:       {{ ohs_user }}
 
+    - name: "Print stop command before running"
+      ansible.builtin.debug:
+        msg: >-
+          About to run (as {{ ohs_user }}):
+          {{ ohs_domain_home }}/bin/stopComponent.sh {{ ohs_component_name }}
+
     - name: "Stop Oracle HTTP Server"
       become: true
       become_user: "{{ ohs_user }}"
@@ -47,4 +53,85 @@
     - ohs_patch
     - stop
     - stop_ohs
+    - ohs
+
+# ─── Stop Node Manager (12c standalone) ─────────────────────────────────────
+# Stop Node Manager AFTER the OHS component is stopped. Only relevant for the
+# Node Manager deployment style (Path B); skipped when OHS is systemd-managed.
+- name: "Stop OHS Node Manager"
+  block:
+
+    - name: "Display Node Manager stop configuration"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Stop Configuration:
+          - Domain Home:        {{ ohs_domain_home }}
+          - Node Manager Port:  {{ ohs_nodemanager_port }}
+          - OHS User:           {{ ohs_user }}
+
+    - name: "Check if OHS systemd unit exists"
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ ohs_service_name }}.service"
+      register: ohs_unit_stat_stop
+      become: true
+
+    - name: "Check if stopNodeManager.sh exists"
+      ansible.builtin.stat:
+        path: "{{ ohs_domain_home }}/bin/stopNodeManager.sh"
+      register: stop_nm_script_stat
+
+    - name: "Print Node Manager stop command before running"
+      ansible.builtin.debug:
+        msg: >-
+          About to run (as {{ ohs_user }}):
+          {{ ohs_domain_home }}/bin/stopNodeManager.sh
+      when:
+        - not ohs_unit_stat_stop.stat.exists
+        - stop_nm_script_stat.stat.exists
+
+    - name: "Stop Node Manager via stopNodeManager.sh"
+      become: true
+      become_user: "{{ ohs_user }}"
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/stopNodeManager.sh
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ ohs_domain_home }}"
+      register: nm_stop
+      changed_when: nm_stop.rc == 0
+      failed_when: false
+      when:
+        - not ohs_unit_stat_stop.stat.exists
+        - stop_nm_script_stat.stat.exists
+
+    - name: "Wait for Node Manager port to become unreachable (max {{ ohs_start_timeout }}s)"
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_nodemanager_port }}"
+        state: stopped
+        timeout: "{{ ohs_start_timeout }}"
+      register: nm_port_down
+      when: not ohs_unit_stat_stop.stat.exists
+      ignore_errors: true
+
+    - name: "Set Node Manager stop facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_stopped: "{{ not ohs_unit_stat_stop.stat.exists and not (nm_port_down.failed | default(false)) }}"
+        ohs_nodemanager_stop_output: "{{ nm_stop.stdout | default('') | trim }}"
+
+    - name: "Display Node Manager stop summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Stop:
+          ─────────────────────────────────────────────────────────────
+          - Node Manager Port: {{ ohs_nodemanager_port }}
+          - Managed By:        {{ 'systemd (skipped)' if ohs_unit_stat_stop.stat.exists else 'Node Manager' }}
+          - Stopped:           {{ ohs_nodemanager_stopped }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - stop
+    - stop_ohs
+    - stop_nodemanager
     - ohs

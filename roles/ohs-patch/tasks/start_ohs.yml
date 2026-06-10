@@ -118,3 +118,83 @@
     - start
     - start_ohs
     - ohs
+
+# ─── Start Node Manager (12c standalone) ────────────────────────────────────
+# Start Node Manager BEFORE the OHS component. Only relevant for the Node
+# Manager deployment style (Path B); skipped when OHS is systemd-managed.
+- name: "Start OHS Node Manager"
+  block:
+
+    - name: "Display Node Manager start configuration"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Start Configuration:
+          - Domain Home:        {{ ohs_domain_home }}
+          - Node Manager Port:  {{ ohs_nodemanager_port }}
+          - OHS User:           {{ ohs_user }}
+
+    - name: "Check if OHS systemd unit exists"
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ ohs_service_name }}.service"
+      register: ohs_unit_stat_start_nm
+      become: true
+
+    - name: "Check if startNodeManager.sh exists"
+      ansible.builtin.stat:
+        path: "{{ ohs_domain_home }}/bin/startNodeManager.sh"
+      register: start_nm_script_stat
+
+    - name: "Print Node Manager start command before running"
+      ansible.builtin.debug:
+        msg: >-
+          About to run (as {{ ohs_user }}):
+          nohup {{ ohs_domain_home }}/bin/startNodeManager.sh </dev/null >/tmp/nm_start.log 2>&1 &
+      when:
+        - not ohs_unit_stat_start_nm.stat.exists
+        - start_nm_script_stat.stat.exists
+
+    - name: "Start Node Manager via startNodeManager.sh"
+      become: true
+      become_user: "{{ ohs_user }}"
+      ansible.builtin.shell: >-
+        nohup {{ ohs_domain_home }}/bin/startNodeManager.sh
+        </dev/null >/tmp/nm_start.log 2>&1 &
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ ohs_domain_home }}"
+      register: nm_start
+      changed_when: false
+      when:
+        - not ohs_unit_stat_start_nm.stat.exists
+        - start_nm_script_stat.stat.exists
+
+    - name: "Wait for Node Manager port to come up (max {{ ohs_start_timeout }}s)"
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_nodemanager_port }}"
+        state: started
+        timeout: "{{ ohs_start_timeout }}"
+      register: nm_port_up
+      when: not ohs_unit_stat_start_nm.stat.exists
+      ignore_errors: true
+
+    - name: "Set Node Manager start facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_started: "{{ not ohs_unit_stat_start_nm.stat.exists and not (nm_port_up.failed | default(false)) }}"
+
+    - name: "Display Node Manager start summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Start:
+          ─────────────────────────────────────────────────────────────
+          - Node Manager Port: {{ ohs_nodemanager_port }}
+          - Managed By:        {{ 'systemd (skipped)' if ohs_unit_stat_start_nm.stat.exists else 'Node Manager' }}
+          - Started:           {{ ohs_nodemanager_started }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - start
+    - start_ohs
+    - start_nodemanager
+    - ohs

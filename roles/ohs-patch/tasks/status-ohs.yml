@@ -59,3 +59,60 @@
     - status
     - status_ohs
     - ohs
+
+# ─── Check Node Manager status (12c standalone) ─────────────────────────────
+# Read-only: report whether Node Manager is listening / running.
+- name: "Check OHS Node Manager status"
+  block:
+
+    - name: "Display Node Manager status check configuration"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Status Check Configuration:
+          - Domain Home:       {{ ohs_domain_home }}
+          - Node Manager Port: {{ ohs_nodemanager_port }}
+          - OHS User:          {{ ohs_user }}
+
+    - name: "Check if Node Manager port is listening"
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_nodemanager_port }}"
+        state: started
+        timeout: 5
+      register: nm_port_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Verify Node Manager process"
+      ansible.builtin.shell: |
+        pgrep -fa NodeManager
+      register: nm_process
+      changed_when: false
+      failed_when: false
+
+    - name: "Display Node Manager process output"
+      ansible.builtin.debug:
+        var: nm_process.stdout_lines
+
+    - name: "Set Node Manager status facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_status_checked: true
+        # Node Manager is considered running if the port is up or the process exists
+        ohs_nodemanager_running: "{{ not (nm_port_status.failed | default(false)) or (nm_process.stdout | trim | length > 0) }}"
+
+    - name: "Display Node Manager status summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Status:
+          ─────────────────────────────────────────────────────────────
+          - Node Manager Port: {{ ohs_nodemanager_port }}
+          - Port Listening:    {{ not (nm_port_status.failed | default(false)) }}
+          - Running:           {{ ohs_nodemanager_running }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - status_ohs
+    - status_nodemanager
+    - ohs
