@@ -1,0 +1,61 @@
+---
+# ─── tasks/status-ohs.yml ───────────────────────────────────────────────────
+# Report the current status of the OHS component via statusComponent.sh.
+# Read-only: never changes system state.
+
+- name: "Check OHS component status"
+  block:
+
+    - name: "Display OHS status check configuration"
+      ansible.builtin.debug:
+        msg: |
+          OHS Status Check Configuration:
+          - Domain Home:    {{ ohs_domain_home }}
+          - Component Name: {{ ohs_component_name }}
+          - OHS User:       {{ ohs_user }}
+
+    - name: "Check OHS status"
+      become: true
+      become_user: "{{ ohs_user }}"
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/statusComponent.sh {{ ohs_component_name }}
+      register: ohs_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display OHS status output"
+      ansible.builtin.debug:
+        var: ohs_status.stdout_lines
+
+    - name: "Verify OHS process"
+      ansible.builtin.shell: |
+        pgrep -fa httpd
+      register: ohs_process
+      changed_when: false
+      failed_when: false
+
+    - name: "Display OHS process output"
+      ansible.builtin.debug:
+        var: ohs_process.stdout_lines
+
+    - name: "Set OHS status facts"
+      ansible.builtin.set_fact:
+        ohs_status_checked: true
+        ohs_status_output: "{{ ohs_status.stdout | trim }}"
+        # statusComponent.sh reports RUNNING when the component is up
+        ohs_running: "{{ 'RUNNING' in (ohs_status.stdout | upper) }}"
+
+    - name: "Display OHS status summary"
+      ansible.builtin.debug:
+        msg: |
+          OHS Component Status:
+          ─────────────────────────────────────────────────────────────
+          - Component: {{ ohs_component_name }}
+          - Running:   {{ ohs_running }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - status_ohs
+    - ohs

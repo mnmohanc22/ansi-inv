@@ -19,3 +19,4 @@
     - extract
     - conflict_check
     - patch
+    - dry_run

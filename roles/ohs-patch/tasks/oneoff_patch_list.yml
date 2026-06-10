@@ -42,6 +42,7 @@
         - extract
         - conflict_check
         - patch
+        - dry_run
 
   tags:
     - ohs_patch

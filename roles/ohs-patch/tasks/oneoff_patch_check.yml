@@ -37,3 +37,4 @@
     - check
     - oneoff_patch
     - oneoff
+    - dry_run

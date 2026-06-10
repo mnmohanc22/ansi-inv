@@ -18,6 +18,7 @@
     - check
     - oneoff_patch
     - oneoff
+    - dry_run
 
 - name: "One-off patch - copy from artifacts host"
   ansible.builtin.import_tasks: oneoff_patch_copy.yml
@@ -26,6 +27,7 @@
     - copy
     - oneoff_patch
     - oneoff
+    - dry_run
 
 - name: "One-off patch - extract"
   ansible.builtin.import_tasks: oneoff_patch_extract.yml
@@ -34,6 +36,7 @@
     - extract
     - oneoff_patch
     - oneoff
+    - dry_run
 
 - name: "One-off patch - conflict check"
   ansible.builtin.import_tasks: oneoff_patch_conflict_check.yml
@@ -42,6 +45,7 @@
     - conflict_check
     - oneoff_patch
     - oneoff
+    - dry_run
 
 - name: "One-off patch - apply and verify"
   ansible.builtin.import_tasks: oneoff_patch_apply.yml

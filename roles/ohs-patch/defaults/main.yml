@@ -16,6 +16,10 @@ ohs_httpd_binary: "ohs/bin/httpd"
 oracle_user: oracle
 oracle_group: oinstall
 
+# OS user that owns/operates the OHS domain (start/stop/status). Defaults to
+# the oracle_user; override if OHS runs as a different account.
+ohs_user: "{{ oracle_user }}"
+
 # ─── OHS Service / Process Control ──────────────────────────────────────────
 # systemd unit name (Path A). If no unit exists, Node Manager is used (Path B).
 ohs_service_name: ohs

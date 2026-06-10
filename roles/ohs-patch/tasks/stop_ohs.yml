@@ -1,0 +1,50 @@
+---
+# ─── tasks/stop_ohs.yml ─────────────────────────────────────────────────────
+# Stop the OHS component via stopComponent.sh.
+
+- name: "Stop Oracle OHS instance"
+  block:
+
+    - name: "Display OHS stop configuration"
+      ansible.builtin.debug:
+        msg: |
+          OHS Stop Configuration:
+          - Domain Home:    {{ ohs_domain_home }}
+          - Component Name: {{ ohs_component_name }}
+          - OHS User:       {{ ohs_user }}
+
+    - name: "Stop Oracle HTTP Server"
+      become: true
+      become_user: "{{ ohs_user }}"
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/stopComponent.sh {{ ohs_component_name }}
+      register: ohs_stop
+      changed_when: "'Successfully' in ohs_stop.stdout"
+      failed_when:
+        - ohs_stop.rc is defined
+        - ohs_stop.rc != 0
+        - "'not running' not in (ohs_stop.stdout | lower)"
+
+    - name: "Display stop output"
+      ansible.builtin.debug:
+        var: ohs_stop.stdout_lines
+
+    - name: "Set OHS stop facts"
+      ansible.builtin.set_fact:
+        ohs_stopped: "{{ 'Successfully' in ohs_stop.stdout or 'not running' in (ohs_stop.stdout | lower) }}"
+        ohs_stop_output: "{{ ohs_stop.stdout | trim }}"
+
+    - name: "Display OHS stop summary"
+      ansible.builtin.debug:
+        msg: |
+          OHS Component Stop:
+          ─────────────────────────────────────────────────────────────
+          - Component: {{ ohs_component_name }}
+          - Stopped:   {{ ohs_stopped }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - stop
+    - stop_ohs
+    - ohs

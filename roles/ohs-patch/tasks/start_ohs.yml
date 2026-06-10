@@ -97,6 +97,22 @@
         ohs_started: "{{ not (ohs_port_up.failed | default(false)) }}"
         ohs_start_method: "{{ 'systemd' if ohs_unit_stat.stat.exists else 'startComponent.sh' }}"
 
+    - name: "Start Oracle HTTP Server"
+      become: true
+      become_user: "{{ ohs_user }}"
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/startComponent.sh {{ ohs_component_name }}
+      register: ohs_start
+      changed_when: "'Successfully' in ohs_start.stdout"
+      failed_when:
+        - ohs_start.rc is defined
+        - ohs_start.rc != 0
+        - "'already' not in (ohs_start.stdout | lower)"
+
+    - name: "Display startup output"
+      ansible.builtin.debug:
+        var: ohs_start.stdout_lines
+
   tags:
     - ohs_patch
     - start

@@ -1,0 +1,22 @@
+---
+# ─── playbooks/ohs-patch.yml ────────────────────────────────────────────────
+# Patch Oracle OHS servers using the ohs-patch role.
+#
+# Examples:
+#   # Full one-off patch run (copy -> extract -> conflict check -> apply)
+#   ansible-playbook -i inventory/inventory.ini playbooks/ohs-patch.yml
+#
+#   # Dry run: stage + conflict check ONLY (no apply)
+#   ansible-playbook -i inventory/inventory.ini playbooks/ohs-patch.yml --tags dry_run
+#
+#   # Conflict check only (patch must already be staged)
+#   ansible-playbook -i inventory/inventory.ini playbooks/ohs-patch.yml --tags conflict_check
+#
+#   # List all available tags
+#   ansible-playbook -i inventory/inventory.ini playbooks/ohs-patch.yml --list-tags
+
+- name: Patch Oracle OHS servers
+  hosts: ohs
+  become: true
+  roles:
+    - ohs-patch
