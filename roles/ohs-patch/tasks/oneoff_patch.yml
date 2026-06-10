@@ -1,0 +1,52 @@
+---
+# ─── tasks/oneoff_patch.yml ─────────────────────────────────────────────────
+# Apply a single interim/one-off patch to the Oracle Home. The work is split
+# into imported task files, run in order:
+#   1. oneoff_patch_check.yml          - detect if the patch is already installed
+#   2. oneoff_patch_copy.yml           - copy the patch zip from artifacts host
+#   3. oneoff_patch_extract.yml        - extract the patch zip in the stage dir
+#   4. oneoff_patch_conflict_check.yml - OPatch prereq conflict check
+#   5. oneoff_patch_apply.yml          - apply + verify
+#
+# import_tasks is used (static) so the inner block tags are preserved for
+# --tags filtering (check / copy / extract / conflict_check / patch / oneoff).
+
+- name: "One-off patch - check if already installed"
+  ansible.builtin.import_tasks: oneoff_patch_check.yml
+  tags:
+    - ohs_patch
+    - check
+    - oneoff_patch
+    - oneoff
+
+- name: "One-off patch - copy from artifacts host"
+  ansible.builtin.import_tasks: oneoff_patch_copy.yml
+  tags:
+    - ohs_patch
+    - copy
+    - oneoff_patch
+    - oneoff
+
+- name: "One-off patch - extract"
+  ansible.builtin.import_tasks: oneoff_patch_extract.yml
+  tags:
+    - ohs_patch
+    - extract
+    - oneoff_patch
+    - oneoff
+
+- name: "One-off patch - conflict check"
+  ansible.builtin.import_tasks: oneoff_patch_conflict_check.yml
+  tags:
+    - ohs_patch
+    - conflict_check
+    - oneoff_patch
+    - oneoff
+
+- name: "One-off patch - apply and verify"
+  ansible.builtin.import_tasks: oneoff_patch_apply.yml
+  tags:
+    - ohs_patch
+    - patch
+    - oneoff_patch
+    - oneoff

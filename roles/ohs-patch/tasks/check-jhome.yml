@@ -1,0 +1,143 @@
+---
+# ─── tasks/check-jhome.yml ──────────────────────────────────────────────────
+# Verify the JAVA_HOME configured for the OHS domain (from setDomainEnv.sh).
+
+- name: "Verify JAVA_HOME for the OHS domain"
+  block:
+
+    - name: "Display JAVA_HOME check configuration"
+      ansible.builtin.debug:
+        msg: |
+          JAVA_HOME Check Configuration:
+          - Domain Home:   {{ ohs_domain_home }}
+          - setDomainEnv:  {{ ohs_domain_home }}/bin/setDomainEnv.sh
+
+    - name: "Verify setDomainEnv.sh exists"
+      ansible.builtin.stat:
+        path: "{{ ohs_domain_home }}/bin/setDomainEnv.sh"
+      register: set_domain_env_stat
+
+    - name: "Fail if setDomainEnv.sh is not present"
+      ansible.builtin.fail:
+        msg: >-
+          setDomainEnv.sh not found at
+          {{ ohs_domain_home }}/bin/setDomainEnv.sh.
+          Verify ohs_domain_home is correct.
+      when:
+        - not set_domain_env_stat.stat.exists
+
+    - name: "Verify JAVA_HOME"
+      ansible.builtin.shell: |
+        grep JAVA_HOME \
+        {{ ohs_domain_home }}/bin/setDomainEnv.sh
+      register: java_home_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Extract JAVA_HOME value"
+      ansible.builtin.set_fact:
+        # Pull the first JAVA_HOME="..." assignment value, if present
+        ohs_java_home: >-
+          {{ (java_home_check.stdout
+              | regex_search('JAVA_HOME=["\']?([^"\'\n]+)', '\1'))
+             | first | default('Unknown', true) | trim }}
+
+    - name: "Display JAVA_HOME check result"
+      ansible.builtin.debug:
+        msg: |
+          JAVA_HOME (OHS Domain):
+          ─────────────────────────────────────────────────────────────
+          - Domain Home: {{ ohs_domain_home }}
+          - JAVA_HOME:   {{ ohs_java_home }}
+          - Matched lines:
+          {% for line in java_home_check.stdout_lines | default([]) %}
+            - {{ line }}
+          {% endfor %}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set JAVA_HOME facts"
+      ansible.builtin.set_fact:
+        ohs_java_home_checked: true
+        ohs_java_home_output: "{{ java_home_check.stdout | trim }}"
+
+  tags:
+    - ohs_patch
+    - check
+    - check_jhome
+    - java_home
+
+# ─── Check the installed Java version ───────────────────────────────────────
+- name: "Check installed Java version"
+  block:
+
+    - name: "Display Java version check configuration"
+      ansible.builtin.debug:
+        msg: |
+          Java Version Check Configuration:
+          - Java Home Link:    {{ java_home_link }}
+          - Java Binary:       {{ java_home_link }}/bin/java
+          - Expected Version:  {{ expected_java_version }}
+
+    - name: "Verify java binary exists"
+      ansible.builtin.stat:
+        path: "{{ java_home_link }}/bin/java"
+      register: java_binary_stat
+
+    - name: "Fail if java binary is not present"
+      ansible.builtin.fail:
+        msg: >-
+          java binary not found at {{ java_home_link }}/bin/java.
+          Verify java_home_link is correct.
+      when:
+        - not java_binary_stat.stat.exists
+
+    - name: "Check current Java version"
+      ansible.builtin.command: "{{ java_home_link }}/bin/java -version"
+      register: current_java_version
+      changed_when: false
+      failed_when: false
+
+    - name: "Extract installed Java version"
+      ansible.builtin.set_fact:
+        # `java -version` prints to stderr, e.g. 'java version "1.8.0_401"'
+        ohs_java_version: >-
+          {{ (current_java_version.stderr
+              | regex_search('version "([^"]+)"', '\1'))
+             | first | default('Unknown', true) }}
+
+    - name: "Set JDK already installed fact"
+      ansible.builtin.set_fact:
+        jdk_already_installed: "{{ expected_java_version in (current_java_version.stderr | default('')) }}"
+
+    - name: "Display installed Java version"
+      ansible.builtin.debug:
+        msg: |
+          Installed Java Version:
+          ─────────────────────────────────────────────────────────────
+          - Java Home Link:   {{ java_home_link }}
+          - Installed Ver:    {{ ohs_java_version }}
+          - Expected Ver:     {{ expected_java_version }}
+          - Matches Expected: {{ jdk_already_installed }}
+          {% for line in current_java_version.stderr_lines | default([]) %}
+            - {{ line }}
+          {% endfor %}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Warn if installed Java version does not match expected"
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Installed Java version {{ ohs_java_version }} does not match
+          the expected {{ expected_java_version }}.
+      when:
+        - not jdk_already_installed
+
+    - name: "Set Java version facts"
+      ansible.builtin.set_fact:
+        ohs_java_version_checked: true
+        ohs_java_version_output: "{{ current_java_version.stderr | trim }}"
+
+  tags:
+    - ohs_patch
+    - check
+    - check_java
+    - java_version    

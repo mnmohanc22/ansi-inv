@@ -1,0 +1,36 @@
+---
+# ─── tasks/oneoff_patch_conflict_check.yml ──────────────────────────────────
+# Run the OPatch prerequisite conflict check for the one-off patch against the
+# Oracle Home, BEFORE applying it. This is a read-only probe and is skipped
+# when the patch is already installed.
+
+- name: "Run one-off patch conflict check"
+  block:
+
+    - name: "Run one-off conflict check"
+      ansible.builtin.command: >
+        {{ oracle_home }}/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -ph ./
+      args:
+        chdir: "{{ patch_stage_dir }}/{{ oneoff_patch.patch_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home_link }}"
+      register: oneoff_conflict_check
+      changed_when: false
+
+    - name: "Display one-off conflict check result"
+      ansible.builtin.debug:
+        msg: |
+          One-off Conflict Check ({{ oneoff_patch.patch_id }}):
+          ─────────────────────────────────────────────────────────────
+          {{ oneoff_conflict_check.stdout | trim }}
+          ─────────────────────────────────────────────────────────────
+
+  when: not (oneoff_patch_installed | default(false))
+  tags:
+    - ohs_patch
+    - conflict_check
+    - oneoff_patch
+    - oneoff

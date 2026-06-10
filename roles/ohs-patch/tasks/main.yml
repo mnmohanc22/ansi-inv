@@ -1,3 +1,21 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for ohs-patch
+
+# ─── One-off patches: full per-patch flow ───────────────────────────────────
+# oneoff_patch_list.yml loops over the oneoff_patches list and runs the
+# per-patch orchestrator (oneoff_patch.yml) for each patch, which executes:
+#   check -> copy -> extract -> conflict check -> apply
+# Running the full flow per patch keeps the `oneoff_patch_installed` fact
+# accurate, so already-installed patches are skipped (idempotent).
+- name: "Process all one-off patches"
+  ansible.builtin.import_tasks: oneoff_patch_list.yml
+  tags:
+    - ohs_patch
+    - oneoff_patch
+    - oneoff
+    - check
+    - copy
+    - extract
+    - conflict_check
+    - patch

@@ -1,0 +1,104 @@
+---
+# ─── tasks/start_ohs.yml ────────────────────────────────────────────────────
+# Start the Oracle OHS instance. Supports two deployment styles:
+#   Path A: systemd-managed unit ({{ ohs_service_name }}.service)
+#   Path B: 12c standalone domain via Node Manager + startComponent.sh
+
+- name: "Start Oracle OHS instance"
+  block:
+
+    - name: "Display OHS start configuration"
+      ansible.builtin.debug:
+        msg: |
+          OHS Start Configuration:
+          - Oracle Home (OHS): {{ oracle_home_ohs }}
+          - Domain Home:       {{ ohs_domain_home }}
+          - Component Name:    {{ ohs_component_name }}
+          - Service Name:      {{ ohs_service_name }}
+          - Listen Port:       {{ ohs_listen_port }}
+
+    - name: "Check if OHS systemd unit exists"
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/{{ ohs_service_name }}.service"
+      register: ohs_unit_stat
+      become: true
+
+    # ── Path A: systemd-managed OHS ─────────────────────────────────────────
+    - name: "Start OHS via systemd"
+      ansible.builtin.systemd:
+        name: "{{ ohs_service_name }}"
+        state: started
+        enabled: true
+      become: true
+      when: ohs_unit_stat.stat.exists
+      register: ohs_systemd_start
+
+    # ── Path B: Node Manager + startComponent.sh (12c standalone) ────────────
+    - name: "Ensure Node Manager is running (12c standalone)"
+      ansible.builtin.shell: >-
+        nohup {{ ohs_domain_home }}/bin/startNodeManager.sh
+        </dev/null >/tmp/nm_start.log 2>&1 &
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ ohs_domain_home }}"
+      when: not ohs_unit_stat.stat.exists
+      changed_when: false
+
+    - name: "Wait for Node Manager port to come up (max {{ ohs_start_timeout }}s)"
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_nodemanager_port }}"
+        state: started
+        timeout: "{{ ohs_start_timeout }}"
+      when: not ohs_unit_stat.stat.exists
+      ignore_errors: true
+
+    - name: "Start OHS component via startComponent.sh"
+      ansible.builtin.command: >-
+        {{ ohs_domain_home }}/bin/startComponent.sh {{ ohs_component_name }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ ohs_domain_home }}"
+      when: not ohs_unit_stat.stat.exists
+      register: ohs_component_start
+      changed_when: "'successfully started' in (ohs_component_start.stdout | lower)"
+      failed_when:
+        - ohs_component_start.rc is defined
+        - ohs_component_start.rc != 0
+        - "'already' not in (ohs_component_start.stdout | lower)"
+
+    # ── Verify OHS is accepting connections ─────────────────────────────────
+    - name: "Wait for OHS to accept connections (max {{ ohs_start_timeout }}s)"
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_listen_port }}"
+        state: started
+        timeout: "{{ ohs_start_timeout }}"
+      register: ohs_port_up
+      ignore_errors: true
+
+    - name: "Display OHS start result"
+      ansible.builtin.debug:
+        msg: |
+          OHS Start Result:
+          ─────────────────────────────────────────────────────────────
+          - Component:    {{ ohs_component_name }}
+          - Method:       {{ 'systemd' if ohs_unit_stat.stat.exists else 'startComponent.sh' }}
+          - Listen Port:  {{ ohs_listen_port }}
+          - Port Up:      {{ not (ohs_port_up.failed | default(false)) }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set OHS start facts"
+      ansible.builtin.set_fact:
+        ohs_started: "{{ not (ohs_port_up.failed | default(false)) }}"
+        ohs_start_method: "{{ 'systemd' if ohs_unit_stat.stat.exists else 'startComponent.sh' }}"
+
+  tags:
+    - ohs_patch
+    - start
+    - start_ohs
+    - ohs

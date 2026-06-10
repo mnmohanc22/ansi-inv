@@ -1,0 +1,50 @@
+---
+# ─── tasks/oneoff_patch_copy.yml ────────────────────────────────────────────
+# Copy the one-off patch zip from the artifacts host to the target server's
+# stage directory (via rsync). Skipped when the patch is already installed.
+# Extraction is handled separately in oneoff_patch_extract.yml.
+
+# ─── Copy the one-off patch zip from the artifacts host ─────────────────────
+- name: "Copy one-off patch from artifacts host"
+  block:
+
+    - name: "Display one-off patch copy source"
+      ansible.builtin.debug:
+        msg: |
+          One-off Patch Copy:
+          - Artifacts Host: {{ artifacts_host }}
+          - Source:         {{ artifacts_host }}:{{ artifacts_patch_dir }}/{{ oneoff_patch.patch_zip }}
+          - Destination:    {{ patch_stage_dir }}/{{ oneoff_patch.patch_zip }}
+
+    - name: "Ensure patch stage directory exists"
+      ansible.builtin.file:
+        path: "{{ patch_stage_dir }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+      become: true
+
+    - name: "Copy one-off patch zip from artifacts host to target"
+      ansible.posix.synchronize:
+        src: "{{ artifacts_patch_dir }}/{{ oneoff_patch.patch_zip }}"
+        dest: "{{ patch_stage_dir }}/{{ oneoff_patch.patch_zip }}"
+        mode: push
+        rsync_opts:
+          - "--checksum"
+      delegate_to: "{{ artifacts_host }}"
+
+    - name: "Set ownership on copied one-off patch zip"
+      ansible.builtin.file:
+        path: "{{ patch_stage_dir }}/{{ oneoff_patch.patch_zip }}"
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0644"
+      become: true
+
+  when: not (oneoff_patch_installed | default(false))
+  tags:
+    - ohs_patch
+    - copy
+    - oneoff_patch
+    - oneoff

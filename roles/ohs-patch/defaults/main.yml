@@ -16,6 +16,56 @@ ohs_httpd_binary: "ohs/bin/httpd"
 oracle_user: oracle
 oracle_group: oinstall
 
+# ─── OHS Service / Process Control ──────────────────────────────────────────
+# systemd unit name (Path A). If no unit exists, Node Manager is used (Path B).
+ohs_service_name: ohs
+
+# OHS listen port (used to verify the instance is up after start)
+ohs_listen_port: 7777
+
+# Node Manager listen port (12c standalone domain)
+ohs_nodemanager_port: 5556
+
+# Max seconds to wait for OHS to accept connections after start
+ohs_start_timeout: 120
+
+# ─── Java / JDK ─────────────────────────────────────────────────────────────
+# Symlink that points at the active JDK used by OHS/FMW
+java_home_link: /u01/app/oracle/product/jdk
+# Expected Java version string (matched against `java -version` output)
+expected_java_version: "1.8.0"
+
+# ─── JDK CPU Patch (quarterly Java update) ──────────────────────────────────
+# JDK CPU archive (placed in the role's files/ directory)
+jdk_archive: "jdk-8u401-linux-x64.tar.gz"
+# Directory name the archive extracts into
+jdk_version_dir: "jdk1.8.0_401"
+# Parent directory under which JDKs are installed
+java_parent_dir: /u01/app/oracle/product
+# Directory used to store JDK backups before patching
+backup_dir: /u01/backups/jdk
+
+# ─── Middleware / FMW Patch (Bundle / SPB / PSU) ────────────────────────────
+# Oracle Home that middleware patches are applied to (the FMW/MW home).
+# For a standalone OHS install this is the same as oracle_home_ohs.
+oracle_home: "{{ oracle_home_ohs }}"
+# Middleware patch identifiers (placed in the role's files/ directory)
+middleware_patch_id: "36789012"
+middleware_patch_zip: "p36789012_122140_Generic.zip"
+
+# ─── One-off Patch ──────────────────────────────────────────────────────────
+# Single interim/one-off patch (placed in the role's files/ directory)
+oneoff_patch:
+  patch_id: "34567890"
+  patch_zip: "p34567890_122140_Generic.zip"
+
+# ─── Artifacts Host (patch source repository) ───────────────────────────────
+# Remote host that stores the patch artifacts. Patches are pulled from this
+# host to the target server's stage dir via rsync (synchronize + delegate_to).
+artifacts_host: "artifacts.example.com"
+# Base directory on artifacts_host that holds the patch zip files
+artifacts_patch_dir: "/repo/oracle/ohs/patches"
+
 # ─── Expected / Minimum Versions ────────────────────────────────────────────
 # Minimum OPatch version required for FMW 12.2.1.4 patching
 opatch_min_version: "13.9.4"

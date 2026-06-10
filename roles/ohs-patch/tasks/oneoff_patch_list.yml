@@ -1,0 +1,50 @@
+---
+# ─── tasks/oneoff_patch_list.yml ────────────────────────────────────────────
+# Loop through the oneoff_patches list and run the one-off patch flow
+# (check -> copy -> apply) for each patch by including oneoff_patch.yml.
+#
+# include_tasks (dynamic) is required here because import_tasks (static)
+# cannot be combined with a loop. Each iteration sets `oneoff_patch` to the
+# current list item so the included tasks operate on that single patch.
+
+- name: "Process one-off patches from oneoff_patches list"
+  block:
+
+    - name: "Fail if oneoff_patches is empty"
+      ansible.builtin.fail:
+        msg: "oneoff_patches is empty or undefined. Define patches in vars/main.yml."
+      when:
+        - oneoff_patches | default([]) | length == 0
+
+    - name: "Display one-off patch list summary"
+      ansible.builtin.debug:
+        msg: |
+          One-off Patch List:
+          - Oracle Home:   {{ oracle_home }}
+          - Total Patches: {{ oneoff_patches | length }}
+          {% for p in oneoff_patches %}
+            - {{ p.patch_id }} ({{ p.patch_zip }})
+          {% endfor %}
+
+    - name: "Apply each one-off patch"
+      ansible.builtin.include_tasks: oneoff_patch.yml
+      loop: "{{ oneoff_patches }}"
+      loop_control:
+        loop_var: oneoff_patch
+        label: "{{ oneoff_patch.patch_id }}"
+      # Stage tags must be present on this dynamic include so that --tags
+      # filtering (check/copy/extract/conflict_check/patch) can descend into
+      # oneoff_patch.yml. Without them, a dynamic include is skipped before
+      # its child tasks' own tags are ever evaluated.
+      tags:
+        - check
+        - copy
+        - extract
+        - conflict_check
+        - patch
+
+  tags:
+    - ohs_patch
+    - patch
+    - oneoff_patch
+    - oneoff

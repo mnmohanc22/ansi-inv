@@ -1,0 +1,23 @@
+---
+# ─── tasks/oneoff_patch_extract.yml ─────────────────────────────────────────
+# Extract the one-off patch zip (already copied to the stage directory by
+# oneoff_patch_copy.yml) into the stage directory. Skipped when the patch is
+# already installed.
+
+- name: "Extract one-off patch"
+  block:
+
+    - name: "Extract one-off patch"
+      ansible.builtin.unarchive:
+        src: "{{ patch_stage_dir }}/{{ oneoff_patch.patch_zip }}"
+        dest: "{{ patch_stage_dir }}"
+        remote_src: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+
+  when: not (oneoff_patch_installed | default(false))
+  tags:
+    - ohs_patch
+    - extract
+    - oneoff_patch
+    - oneoff

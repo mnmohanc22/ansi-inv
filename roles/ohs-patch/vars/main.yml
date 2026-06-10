@@ -22,3 +22,55 @@ patch_id_list:
 
 # Source directory (on the Ansible controller) that holds the patch zip files
 patch_src_dir: files/patches
+
+cpu_jpatch_id: "12345678"
+
+one-off-patch-id: "34567890"
+one-off-patch-zip: "p34567890_122140_Generic.zip"
+
+
+bundle_patch_id_list: 
+  - patch_id: "12345678"
+    patch_zip: "p12345678_122140_Generic.zip"
+  - patch_id: "23456789"
+    patch_zip: "p23456789_122140_Generic.zip"
+
+
+critical-patch_id: "45678901"
+critical-patch_zip: "p45678901_122140_Generic.zip"
+
+
+security_patch_id: "56789012"
+security_patch_zip: "p56789012_122140_Generic.zip"
+
+
+patch_set_update_id: "89012345" 
+patch_set_update_zip: "p89012345_122140_Generic.zip"
+
+
+oracle_user: oracle
+oracle_group: oinstall
+
+oracle_home: /u01/app/oracle/product/fmw
+domain_home: /u01/app/oracle/config/domains/base_domain
+ohs_component_name: ohs1
+
+patch_stage_dir: /u01/patches
+backup_dir: /u01/backup
+
+java_parent_dir: /u01/app/java
+java_home_link: /u01/app/java/current
+jdk_archive: jdk-8u471-linux-x64.tar.gz
+jdk_version_dir: jdk1.8.0_471
+expected_java_version: "1.8.0_471"
+
+middleware_patch_zip: p36916690_122140_Generic.zip
+middleware_patch_id: "36916690"
+
+oneoff_patches:
+  - patch_id: "35926646"
+    patch_zip: p35926646_122140_Generic.zip
+  - patch_id: "36123456"
+    patch_zip: p36123456_122140_Generic.zip
+
+artifacts_host: "artifacts.example.com"    

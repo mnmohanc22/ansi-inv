@@ -1,0 +1,56 @@
+---
+# ─── tasks/oneoff_patch_apply.yml ───────────────────────────────────────────
+# Block 3: Apply the one-off patch and verify it is present afterwards.
+# The conflict check runs beforehand in oneoff_patch_conflict_check.yml.
+# Apply steps are skipped when the patch is already installed.
+
+- name: "Apply and verify one-off patch"
+  block:
+
+    - name: "Apply one-off patch"
+      ansible.builtin.command: >
+        {{ oracle_home }}/OPatch/opatch apply -silent
+      args:
+        chdir: "{{ patch_stage_dir }}/{{ oneoff_patch.patch_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home_link }}"
+      register: oneoff_patch_apply
+      changed_when: true
+      when: not (oneoff_patch_installed | default(false))
+
+    - name: "Verify one-off patch installed"
+      ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch lspatches"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: oneoff_patch_verify
+      changed_when: false
+
+    - name: "Fail if one-off patch not installed"
+      ansible.builtin.fail:
+        msg: "One-off patch {{ oneoff_patch.patch_id }} was not found after install."
+      when: oneoff_patch.patch_id not in oneoff_patch_verify.stdout
+
+    - name: "Display one-off patch result"
+      ansible.builtin.debug:
+        msg: |
+          One-off Patch Result:
+          ─────────────────────────────────────────────────────────────
+          - Oracle Home:      {{ oracle_home }}
+          - Patch ID:         {{ oneoff_patch.patch_id }}
+          - Applied This Run: {{ not (oneoff_patch_installed | default(false)) }}
+          - Present After:    {{ oneoff_patch.patch_id in oneoff_patch_verify.stdout }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set one-off patch facts"
+      ansible.builtin.set_fact:
+        ohs_oneoff_patched: "{{ not (oneoff_patch_installed | default(false)) }}"
+        ohs_oneoff_patches_output: "{{ oneoff_patch_verify.stdout | trim }}"
+
+  tags:
+    - ohs_patch
+    - patch
+    - oneoff_patch
+    - oneoff
