@@ -1,0 +1,60 @@
+---
+# ─── tasks/list-dir.yml ─────────────────────────────────────────────────────
+# List the files in a target directory. Read-only: never changes system state.
+# Override `list_dir_path` to point at any directory; it defaults to the
+# patch stage directory used by the OHS patch flow.
+
+- name: "List files in directory"
+  block:
+
+    - name: "Display directory listing configuration"
+      ansible.builtin.debug:
+        msg: |
+          Directory Listing Configuration:
+          - Directory: {{ list_dir_path | default(patch_stage_dir) }}
+          - Pattern:   {{ list_dir_pattern | default('*') }}
+          - Recurse:   {{ list_dir_recurse | default(false) }}
+
+    - name: "Check that the directory exists"
+      ansible.builtin.stat:
+        path: "{{ list_dir_path | default(patch_stage_dir) }}"
+      register: list_dir_stat
+
+    - name: "Find files in the directory"
+      ansible.builtin.find:
+        paths: "{{ list_dir_path | default(patch_stage_dir) }}"
+        patterns: "{{ list_dir_pattern | default('*') }}"
+        recurse: "{{ list_dir_recurse | default(false) }}"
+        file_type: any
+      register: list_dir_found
+      when: list_dir_stat.stat.exists
+
+    - name: "Display each file"
+      ansible.builtin.debug:
+        msg: "{{ item.path }} ({{ item.size }} bytes)"
+      loop: "{{ list_dir_found.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: "Set directory listing facts"
+      ansible.builtin.set_fact:
+        list_dir_files: "{{ list_dir_found.files | default([]) | map(attribute='path') | list }}"
+        list_dir_count: "{{ list_dir_found.files | default([]) | length }}"
+
+    - name: "Display directory listing summary"
+      ansible.builtin.debug:
+        msg: |
+          Directory Listing:
+          ─────────────────────────────────────────────────────────────
+          - Directory: {{ list_dir_path | default(patch_stage_dir) }}
+          - Exists:    {{ list_dir_stat.stat.exists }}
+          - Files:     {{ list_dir_count }}
+          {% for f in list_dir_files %}
+            - {{ f | basename }}
+          {% endfor %}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - list_dir
