@@ -1,0 +1,70 @@
+---
+# ─── tasks/jdk_cpu_patch_extract.yml ────────────────────────────────────────
+# Extract the JDK CPU archive, repoint the JAVA_HOME symlink to the new JDK,
+# verify the expected version is active, and record the result facts.
+# The extract + symlink steps are skipped when the expected JDK version is
+# already active; verification always runs.
+
+- name: "Extract JDK CPU patch and repoint JAVA_HOME"
+  block:
+
+    - name: "Extract JDK CPU archive"
+      ansible.builtin.unarchive:
+        src: "{{ patch_stage_dir }}/{{ jdk_archive }}"
+        dest: "{{ java_parent_dir }}"
+        remote_src: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        creates: "{{ java_parent_dir }}/{{ jdk_version_dir }}"
+      when: not (jdk_already_installed | default(false))
+
+    - name: "Update JAVA_HOME symlink"
+      ansible.builtin.file:
+        src: "{{ java_parent_dir }}/{{ jdk_version_dir }}"
+        dest: "{{ java_home_link }}"
+        state: link
+        force: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+      when: not (jdk_already_installed | default(false))
+
+    - name: "Verify patched Java version"
+      ansible.builtin.command: "{{ java_home_link }}/bin/java -version"
+      register: patched_java_version
+      changed_when: false
+
+    - name: "Fail if expected JDK version is not active"
+      ansible.builtin.fail:
+        msg: "Expected Java {{ expected_java_version }} is not active."
+      when: expected_java_version not in patched_java_version.stderr
+
+    - name: "Extract active Java version"
+      ansible.builtin.set_fact:
+        ohs_jdk_active_version: >-
+          {{ (patched_java_version.stderr
+              | regex_search('version "([^"]+)"', '\1'))
+             | first | default('Unknown', true) }}
+
+    - name: "Display JDK CPU patch result"
+      ansible.builtin.debug:
+        msg: |
+          JDK CPU Patch Result:
+          ─────────────────────────────────────────────────────────────
+          - Active JDK:      {{ java_parent_dir }}/{{ jdk_version_dir }}
+          - Java Home Link:  {{ java_home_link }}
+          - Active Version:  {{ ohs_jdk_active_version }}
+          - Expected Ver:    {{ expected_java_version }}
+          - Patched:         {{ not (jdk_already_installed | default(false)) }}
+          ─────────────────────────────────────────────────────────────
+
+    - name: "Set JDK CPU patch facts"
+      ansible.builtin.set_fact:
+        ohs_jdk_patched: "{{ not (jdk_already_installed | default(false)) }}"
+        ohs_jdk_active_version_output: "{{ patched_java_version.stderr | trim }}"
+
+  tags:
+    - ohs_patch
+    - patch
+    - jdk_cpu_patch
+    - jdk
+    - extract

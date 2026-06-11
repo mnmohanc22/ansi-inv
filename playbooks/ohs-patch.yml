@@ -16,7 +16,7 @@
 #   ansible-playbook -i inventory/inventory.ini playbooks/ohs-patch.yml --list-tags
 
 - name: Patch Oracle OHS servers
-  hosts: ohs
+  hosts: rhel
   become: true
   roles:
     - ohs-patch

@@ -1,0 +1,37 @@
+---
+# ─── tasks/jdk_cpu_patch_backup.yml ─────────────────────────────────────────
+# Back up the current JDK before applying the JDK CPU patch. Creates the
+# backup directory and tars up the JDK that JAVA_HOME currently points to.
+# Skipped when the expected JDK version is already active.
+
+- name: "Backup current JDK"
+  block:
+
+    - name: "Ensure backup directory exists"
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+      become: true
+
+    - name: "Backup current JDK target"
+      ansible.builtin.shell: |
+        CURRENT_TARGET=$(readlink -f {{ java_home_link }} || true)
+        if [ -n "$CURRENT_TARGET" ] && [ -d "$CURRENT_TARGET" ]; then
+          tar -czf {{ backup_dir }}/jdk_backup_$(basename $CURRENT_TARGET)_{{ ansible_date_time.iso8601_basic_short }}.tar.gz \
+          -C $(dirname $CURRENT_TARGET) $(basename $CURRENT_TARGET)
+        fi
+      become: true
+      become_user: "{{ oracle_user }}"
+      changed_when: true
+
+  when: not (jdk_already_installed | default(false))
+  tags:
+    - ohs_patch
+    - patch
+    - jdk_cpu_patch
+    - jdk
+    - backup
+    - dry_run

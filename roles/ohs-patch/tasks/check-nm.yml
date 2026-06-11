@@ -1,0 +1,284 @@
+---
+# ─── tasks/check-nm.yml ─────────────────────────────────────────────────────
+# Discover the running OHS Node Manager process and derive its Domain Home
+# from the JVM arguments. Read-only: never changes system state.
+
+- name: "Check OHS Node Manager process"
+  block:
+
+    - name: "Find NodeManager process"
+      ansible.builtin.shell: |
+        ps -ef | grep '[N]odeManager'
+      register: nm_process
+      changed_when: false
+      failed_when: false
+
+    - name: "Print NodeManager process"
+      ansible.builtin.debug:
+        var: nm_process.stdout_lines
+
+    - name: "Extract Domain Home"
+      ansible.builtin.shell: |
+        ps -ef | grep '[N]odeManager' | \
+        sed -n 's/.*-Dweblogic.RootDirectory=\([^ ]*\).*/\1/p'
+      register: domain_home
+      changed_when: false
+      failed_when: false
+
+    - name: "Display Domain Home"
+      ansible.builtin.debug:
+        msg: "Domain Home: {{ domain_home.stdout | trim }}"
+
+    - name: "Set Node Manager discovery facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_running: "{{ (nm_process.stdout | trim | length) > 0 }}"
+        ohs_nodemanager_domain_home: "{{ domain_home.stdout | trim }}"
+
+    - name: "Display Node Manager discovery summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Discovery:
+          ─────────────────────────────────────────────────────────────
+          - Running:     {{ ohs_nodemanager_running }}
+          - Domain Home: {{ ohs_nodemanager_domain_home | default('(not found)', true) }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - check_nm
+    - status_nodemanager
+    - ohs
+
+
+ 
+- name: "Resolve OHS Node Manager Domain Home"
+  block:
+
+    - name: "Get NodeManager PID"
+      ansible.builtin.shell: |
+        pgrep -f weblogic.NodeManager
+      register: nm_pid
+      changed_when: false
+      failed_when: false
+
+    - name: "Get Domain Home from process arguments"
+      ansible.builtin.shell: |
+        tr '\0' ' ' < /proc/{{ nm_pid.stdout | trim }}/cmdline | \
+        sed -n 's/.*-Dweblogic.RootDirectory=\([^ ]*\).*/\1/p'
+      register: domain_home
+      changed_when: false
+      failed_when: false
+      when: (nm_pid.stdout | trim | length) > 0
+
+    - name: "Print Domain Home"
+      ansible.builtin.debug:
+        msg: "{{ domain_home.stdout | default('', true) | trim }}"
+
+    - name: "Set Node Manager PID facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_pid: "{{ nm_pid.stdout | trim }}"
+        ohs_nodemanager_domain_home: "{{ domain_home.stdout | default('', true) | trim }}"
+
+    - name: "Display Node Manager Domain Home summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Domain Home:
+          ─────────────────────────────────────────────────────────────
+          - PID:         {{ ohs_nodemanager_pid | default('(not found)', true) }}
+          - Domain Home: {{ ohs_nodemanager_domain_home | default('(not found)', true) }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - check_nm
+    - status_nodemanager
+    - ohs    
+
+
+- name: "List all  Node Manager processes"
+  block:
+
+    - name: "Get all NodeManager processes with Domain Home"
+      ansible.builtin.shell: |
+        ps -eo pid,args | awk '
+        /weblogic.NodeManager/ && !/awk/ {
+          domain=""
+          if (match($0, /-Dweblogic.RootDirectory=[^ ]+/)) {
+            domain=substr($0, RSTART+27, RLENGTH-27)
+          }
+          print $1 "|" domain "|" $0
+        }'
+      register: nm_processes
+      changed_when: false
+      failed_when: false
+
+    - name: "Print all NodeManager domain homes"
+      ansible.builtin.debug:
+        msg: "PID={{ item.split('|')[0] }}, DOMAIN_HOME={{ item.split('|')[1] }}"
+      loop: "{{ nm_processes.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split('|')[0] }}"
+
+    - name: "Set all Node Manager process facts"
+      ansible.builtin.set_fact:
+        nodemanager_count: "{{ nm_processes.stdout_lines | length }}"
+        nodemanager_domains: "{{ nm_processes.stdout_lines | map('regex_replace', '^[^|]*\\|([^|]*)\\|.*$', '\\1') | select('string') | list }}"
+
+    - name: "Display all Node Manager processes summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Processes:
+          ─────────────────────────────────────────────────────────────
+          - Count:        {{ nodemanager_count }}
+          - Domain Homes: {{ nodemanager_domains | default([], true) | join(', ') | default('(none)', true) }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - check_nm
+    - status_nodemanager
+    - ohs    
+
+
+
+- name: "Identify OHS-hosting Node Manager domains"
+  block:
+
+    - name: "Build NodeManager facts"
+      ansible.builtin.set_fact:
+        nodemanager_list: "{{ nodemanager_list | default([]) + [ {
+          'pid': item.split('|')[0],
+          'domain_home': item.split('|')[1],
+          'command': item.split('|')[2]
+        } ] }}"
+      loop: "{{ nm_processes.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split('|')[0] }}"
+
+    - name: "Show NodeManager list"
+      ansible.builtin.debug:
+        var: nodemanager_list
+
+    - name: "Check if each domain has OHS component"
+      ansible.builtin.stat:
+        path: "{{ item.domain_home }}/config/fmwconfig/components/OHS"
+      loop: "{{ nodemanager_list | default([]) }}"
+      loop_control:
+        label: "{{ item.domain_home }}"
+      register: ohs_domain_check
+
+    - name: "Print OHS NodeManager domains only"
+      ansible.builtin.debug:
+        msg: "OHS Domain: {{ item.item.domain_home }} PID={{ item.item.pid }}"
+      loop: "{{ ohs_domain_check.results }}"
+      loop_control:
+        label: "{{ item.item.domain_home }}"
+      when: item.stat.exists
+
+    - name: "Set OHS Node Manager domain facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_domains_list: >-
+          {{ ohs_domain_check.results
+             | selectattr('stat.exists')
+             | map(attribute='item')
+             | list }}
+
+    - name: "Display OHS Node Manager domains summary"
+      ansible.builtin.debug:
+        msg: |
+          OHS Node Manager Domains:
+          ─────────────────────────────────────────────────────────────
+          - NM Processes:  {{ nodemanager_list | default([]) | length }}
+          - OHS Domains:   {{ ohs_nodemanager_domains_list | length }}
+          - Domain Homes:  {{ ohs_nodemanager_domains_list | map(attribute='domain_home') | list | join(', ') | default('(none)', true) }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - check_nm
+    - status_nodemanager
+    - ohs
+
+- name: "Discover Node Manager listen ports"
+  block:
+
+    - name: "Get all NodeManager domain homes"
+      ansible.builtin.shell: |
+        ps -eo args | awk '
+        /weblogic.NodeManager/ && !/awk/ {
+          if (match($0, /-Dweblogic.RootDirectory=[^ ]+/))
+            print substr($0,RSTART+27,RLENGTH-27)
+        }'
+      register: nm_domains
+      changed_when: false
+      failed_when: false
+
+    - name: "Get NodeManager port"
+      ansible.builtin.shell: |
+        grep '^ListenPort=' {{ item }}/nodemanager/nodemanager.properties | cut -d= -f2
+      loop: "{{ nm_domains.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      register: nm_ports
+      changed_when: false
+      failed_when: false
+
+    - name: "Display NodeManager ports"
+      ansible.builtin.debug:
+        msg: "Domain={{ item.item }} Port={{ item.stdout | trim }}"
+      loop: "{{ nm_ports.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Set Node Manager port facts"
+      ansible.builtin.set_fact:
+        ohs_nodemanager_ports: >-
+          {{ nm_ports.results
+             | selectattr('stdout', 'defined')
+             | map(attribute='stdout')
+             | map('trim')
+             | select('string')
+             | list }}
+
+    - name: "Display Node Manager ports summary"
+      ansible.builtin.debug:
+        msg: |
+          Node Manager Listen Ports:
+          ─────────────────────────────────────────────────────────────
+          - Domains: {{ nm_domains.stdout_lines | default([]) | length }}
+          - Ports:   {{ ohs_nodemanager_ports | default([], true) | join(', ') | default('(none)', true) }}
+          ─────────────────────────────────────────────────────────────
+
+  tags:
+    - ohs_patch
+    - status
+    - check_nm
+    - status_nodemanager
+    - ohs    
+
+
+- name: Get all NodeManager domain homes
+  ansible.builtin.shell: |
+    ps -eo args | awk '
+    /weblogic.NodeManager/ && !/awk/ {
+      if (match($0, /-Dweblogic.RootDirectory=[^ ]+/))
+        print substr($0,RSTART+27,RLENGTH-27)
+    }'
+  register: nm_domains
+  changed_when: false
+
+- name: Get NodeManager port
+  ansible.builtin.shell: |
+    grep '^ListenPort=' {{ item }}/nodemanager/nodemanager.properties | cut -d= -f2
+  loop: "{{ nm_domains.stdout_lines }}"
+  register: nm_ports
+  changed_when: false
+
+- name: Display NodeManager ports
+  ansible.builtin.debug:
+    msg: "Domain={{ item.item }} Port={{ item.stdout }}"
+  loop: "{{ nm_ports.results }}"

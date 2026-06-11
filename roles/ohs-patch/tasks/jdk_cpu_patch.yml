@@ -1,10 +1,16 @@
 ---
 # ─── tasks/jdk_cpu_patch.yml ────────────────────────────────────────────────
-# Apply the quarterly JDK CPU (Critical Patch Update) used by OHS/FMW:
-# detect the current JDK, back it up, extract the new JDK, repoint the
-# JAVA_HOME symlink, and verify the expected version is active.
+# Apply the quarterly JDK CPU (Critical Patch Update) used by OHS/FMW.
+# This orchestrator detects the current JDK and then runs the work split
+# across imported step files, in order:
+#   1. jdk_cpu_patch_backup.yml  - back up the current JDK
+#   2. jdk_cpu_patch_copy.yml    - copy the new JDK archive to the stage dir
+#   3. jdk_cpu_patch_extract.yml - extract, repoint JAVA_HOME, verify
+#
+# import_tasks is used (static) so the inner block tags are preserved for
+# --tags filtering (backup / copy / extract / jdk_cpu_patch / jdk).
 
-- name: "Apply JDK CPU patch"
+- name: "Detect current JDK"
   block:
 
     - name: "Display JDK CPU patch configuration"
@@ -33,93 +39,44 @@
         msg: "JDK already at expected version {{ expected_java_version }}. Skipping JDK CPU patch."
       when: jdk_already_installed
 
-    - name: "Ensure backup directory exists"
-      ansible.builtin.file:
-        path: "{{ backup_dir }}"
-        state: directory
-        owner: "{{ oracle_user }}"
-        group: "{{ oracle_group }}"
-        mode: "0755"
-      become: true
-      when: not jdk_already_installed
-
-    - name: "Copy JDK CPU archive"
-      ansible.builtin.copy:
-        src: "files/{{ jdk_archive }}"
-        dest: "{{ patch_stage_dir }}/{{ jdk_archive }}"
-        owner: "{{ oracle_user }}"
-        group: "{{ oracle_group }}"
-        mode: "0644"
-      when: not jdk_already_installed
-
-    - name: "Backup current JDK target"
-      ansible.builtin.shell: |
-        CURRENT_TARGET=$(readlink -f {{ java_home_link }} || true)
-        if [ -n "$CURRENT_TARGET" ] && [ -d "$CURRENT_TARGET" ]; then
-          tar -czf {{ backup_dir }}/jdk_backup_$(basename $CURRENT_TARGET)_{{ ansible_date_time.iso8601_basic_short }}.tar.gz \
-          -C $(dirname $CURRENT_TARGET) $(basename $CURRENT_TARGET)
-        fi
-      become: true
-      become_user: "{{ oracle_user }}"
-      changed_when: true
-      when: not jdk_already_installed
-
-    - name: "Extract JDK CPU archive"
-      ansible.builtin.unarchive:
-        src: "{{ patch_stage_dir }}/{{ jdk_archive }}"
-        dest: "{{ java_parent_dir }}"
-        remote_src: true
-        owner: "{{ oracle_user }}"
-        group: "{{ oracle_group }}"
-        creates: "{{ java_parent_dir }}/{{ jdk_version_dir }}"
-      when: not jdk_already_installed
-
-    - name: "Update JAVA_HOME symlink"
-      ansible.builtin.file:
-        src: "{{ java_parent_dir }}/{{ jdk_version_dir }}"
-        dest: "{{ java_home_link }}"
-        state: link
-        force: true
-        owner: "{{ oracle_user }}"
-        group: "{{ oracle_group }}"
-      when: not jdk_already_installed
-
-    - name: "Verify patched Java version"
-      ansible.builtin.command: "{{ java_home_link }}/bin/java -version"
-      register: patched_java_version
-      changed_when: false
-
-    - name: "Fail if expected JDK version is not active"
-      ansible.builtin.fail:
-        msg: "Expected Java {{ expected_java_version }} is not active."
-      when: expected_java_version not in patched_java_version.stderr
-
-    - name: "Extract active Java version"
-      ansible.builtin.set_fact:
-        ohs_jdk_active_version: >-
-          {{ (patched_java_version.stderr
-              | regex_search('version "([^"]+)"', '\1'))
-             | first | default('Unknown', true) }}
-
-    - name: "Display JDK CPU patch result"
-      ansible.builtin.debug:
-        msg: |
-          JDK CPU Patch Result:
-          ─────────────────────────────────────────────────────────────
-          - Active JDK:      {{ java_parent_dir }}/{{ jdk_version_dir }}
-          - Java Home Link:  {{ java_home_link }}
-          - Active Version:  {{ ohs_jdk_active_version }}
-          - Expected Ver:    {{ expected_java_version }}
-          - Patched:         {{ not jdk_already_installed }}
-          ─────────────────────────────────────────────────────────────
-
-    - name: "Set JDK CPU patch facts"
-      ansible.builtin.set_fact:
-        ohs_jdk_patched: "{{ not jdk_already_installed }}"
-        ohs_jdk_active_version_output: "{{ patched_java_version.stderr | trim }}"
-
   tags:
     - ohs_patch
     - patch
     - jdk_cpu_patch
     - jdk
+    - backup
+    - copy
+    - extract
+    - dry_run
+
+# ── JDK CPU patch - backup current JDK ──────────────────────────────────────
+- name: "JDK CPU patch - backup current JDK"
+  ansible.builtin.import_tasks: jdk_cpu_patch_backup.yml
+  tags:
+    - ohs_patch
+    - patch
+    - jdk_cpu_patch
+    - jdk
+    - backup
+    - dry_run
+
+# ── JDK CPU patch - copy archive ────────────────────────────────────────────
+- name: "JDK CPU patch - copy archive"
+  ansible.builtin.import_tasks: jdk_cpu_patch_copy.yml
+  tags:
+    - ohs_patch
+    - patch
+    - jdk_cpu_patch
+    - jdk
+    - copy
+    - dry_run
+
+# ── JDK CPU patch - extract and repoint JAVA_HOME ───────────────────────────
+- name: "JDK CPU patch - extract and verify"
+  ansible.builtin.import_tasks: jdk_cpu_patch_extract.yml
+  tags:
+    - ohs_patch
+    - patch
+    - jdk_cpu_patch
+    - jdk
+    - extract
