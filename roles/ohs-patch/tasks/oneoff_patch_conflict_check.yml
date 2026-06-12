@@ -19,6 +19,18 @@
         JAVA_HOME: "{{ java_home_link }}"
       register: oneoff_conflict_check
       changed_when: false
+      # Never fail here: a conflict is reported via a debug warning below so
+      # the operator can review it without aborting the play. OPatch may exit
+      # non-zero when it reports conflicts, so we ignore rc entirely.
+      failed_when: false
+
+    - name: "Set one-off patch conflict fact"
+      ansible.builtin.set_fact:
+        # True when OPatch errored OR did not report "passed" — i.e. it is NOT
+        # safe to apply this patch. Downstream (apply) can skip on this fact.
+        oneoff_patch_conflict: >-
+          {{ oneoff_conflict_check.rc != 0 or
+             'passed' not in (oneoff_conflict_check.stdout | lower) }}
 
     - name: "Display one-off conflict check result"
       ansible.builtin.debug:
@@ -27,6 +39,18 @@
           ─────────────────────────────────────────────────────────────
           {{ oneoff_conflict_check.stdout | trim }}
           ─────────────────────────────────────────────────────────────
+
+    - name: "Warn if a patch conflict was detected"
+      ansible.builtin.debug:
+        msg: |
+          ⚠️  CONFLICT DETECTED for patch {{ oneoff_patch.patch_id }}
+          ─────────────────────────────────────────────────────────────
+          OPatch did NOT report "passed" for the conflict prereq check.
+          Review the output above before applying this patch.
+          - Return code: {{ oneoff_conflict_check.rc | default('n/a') }}
+          ─────────────────────────────────────────────────────────────
+      when: oneoff_patch_conflict | default(false)
+
 
   when: not (oneoff_patch_installed | default(false))
   tags:

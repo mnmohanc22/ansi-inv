@@ -1,0 +1,254 @@
+---
+- name: Check current OPatch and patch state
+  block:
+
+    - name: Check OPatch version
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatch version
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: opatch_version
+      changed_when: false
+
+    - name: Print OPatch version
+      ansible.builtin.debug:
+        var: opatch_version.stdout_lines
+
+    - name: Check current patches
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatch lspatches
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: current_patches
+      changed_when: false
+
+    - name: Print current patches
+      ansible.builtin.debug:
+        var: current_patches.stdout_lines
+
+- name: Check if patch is already installed
+  block:
+
+    - name: Check if patch ID is already installed
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatch lspatches | grep -w "{{ patch_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: _patch_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Show patch check result
+      ansible.builtin.debug:
+        msg: "Patch {{ patch_id }} is {{ 'already installed' if _patch_installed.rc == 0 else 'not installed — will proceed' }}"
+
+    - name: Fail if patch already installed
+      ansible.builtin.fail:
+        msg: "Patch {{ patch_id }} is already installed on {{ inventory_hostname }} — skipping apply."
+      when: _patch_installed.rc == 0
+
+- name: Stop WCC managed servers
+  block:
+
+    - name: Stop WCC managed servers
+      ansible.builtin.shell: |
+        {{ domain_home }}/bin/stopManagedWebLogic.sh {{ item }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      register: stop_managed
+      failed_when: false
+
+    - name: Print managed server stop output
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ stop_managed.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+- name: Stop Admin Server
+  block:
+
+    - name: Stop Admin Server
+      ansible.builtin.shell: |
+        {{ domain_home }}/bin/stopWebLogic.sh
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: stop_admin
+      failed_when: false
+
+    - name: Print Admin Server stop output
+      ansible.builtin.debug:
+        var: stop_admin.stdout_lines
+
+- name: Stop Node Manager
+  block:
+
+    - name: Stop Node Manager
+      ansible.builtin.shell: |
+        pkill -f "weblogic.NodeManager.*{{ domain_home }}" || true
+      become: true
+      become_user: "{{ oracle_user }}"
+      changed_when: true
+
+    - name: Verify WebLogic/WCC processes stopped
+      ansible.builtin.shell: |
+        ps -ef | egrep "UCM_server1|IBR_server1|AdminServer|NodeManager" | grep -v grep || true
+      register: process_check
+      changed_when: false
+
+    - name: Print remaining processes
+      ansible.builtin.debug:
+        var: process_check.stdout_lines
+
+- name: Apply SPB patches
+  block:
+
+    - name: Backup Oracle Home
+      ansible.builtin.shell: |
+        mkdir -p {{ backup_dir }}
+        tar -czf {{ backup_dir }}/oracle_home_backup_$(date +%Y%m%d_%H%M%S).tar.gz {{ oracle_home }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      args:
+        creates: "{{ backup_dir }}/oracle_home_backup.done"
+
+    - name: Mark backup completed
+      ansible.builtin.file:
+        path: "{{ backup_dir }}/oracle_home_backup.done"
+        state: touch
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+
+    - name: Run SPB conflict check
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatch prereq CheckConflictAgainstOHWithDetail -phBaseDir {{ patch_stage }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: conflict_check
+      changed_when: false
+      failed_when: conflict_check.rc != 0
+
+    - name: Print conflict check output
+      ansible.builtin.debug:
+        var: conflict_check.stdout_lines
+
+    - name: Apply SPB patch using opatchauto
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatchauto apply {{ patch_stage }} -silent
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: spb_apply
+      changed_when: true
+      failed_when: spb_apply.rc != 0
+      async: 3600
+      poll: 30
+
+    - name: Wait for opatchauto to complete
+      ansible.builtin.async_status:
+        jid: "{{ spb_apply.ansible_job_id }}"
+      register: _spb_job
+      until: _spb_job.finished
+      retries: 120
+      delay: 30
+      become: true
+      become_user: "{{ oracle_user }}"
+      when: spb_apply.ansible_job_id is defined
+
+    - name: Print SPB apply output
+      ansible.builtin.debug:
+        var: spb_apply.stdout_lines
+
+    - name: Check opatchauto success message
+      ansible.builtin.assert:
+        that:
+          - >-
+            'OPatch Session completed with no warnings' in spb_apply.stdout
+            or 'opatchauto succeeded' in spb_apply.stdout
+            or 'Patch apply successful' in spb_apply.stdout
+        fail_msg: >-
+          opatchauto did not report success for patch stage {{ patch_stage }}.
+          Output: {{ spb_apply.stdout_lines | join(' ') }}
+        success_msg: "opatchauto apply succeeded for patch {{ patch_id }}"
+
+- name: Start Node Manager
+  block:
+
+    - name: Start Node Manager
+      ansible.builtin.shell: |
+        nohup {{ domain_home }}/bin/startNodeManager.sh > {{ domain_home }}/nodemanager/startNodeManager.out 2>&1 &
+      become: true
+      become_user: "{{ oracle_user }}"
+      changed_when: true
+
+    - name: Wait for Node Manager port
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 5556
+        delay: 10
+        timeout: 120
+
+- name: Start Admin Server
+  block:
+
+    - name: Start Admin Server
+      ansible.builtin.shell: |
+        nohup {{ domain_home }}/bin/startWebLogic.sh > {{ domain_home }}/servers/AdminServer/logs/startAdmin.out 2>&1 &
+      become: true
+      become_user: "{{ oracle_user }}"
+      changed_when: true
+
+    - name: Wait for Admin Server port
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 7001
+        delay: 20
+        timeout: 300
+
+- name: Start WCC managed servers
+  block:
+
+    - name: Start WCC managed servers
+      ansible.builtin.shell: |
+        nohup {{ domain_home }}/bin/startManagedWebLogic.sh {{ item }} > {{ domain_home }}/servers/{{ item }}/logs/start_{{ item }}.out 2>&1 &
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      changed_when: true
+
+    - name: Wait for WCC port
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 16200
+        delay: 20
+        timeout: 300
+
+- name: Check post-patch status
+  block:
+
+    - name: Validate installed patches
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatch lspatches
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: final_patches
+      changed_when: false
+
+    - name: Print final patches
+      ansible.builtin.debug:
+        var: final_patches.stdout_lines
+
+    - name: Validate WCC URL
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}:16200/cs"
+        method: GET
+        status_code:
+          - 200
+          - 302
+        validate_certs: false
+      register: wcc_url_check
+      failed_when: false
+
+    - name: Print WCC validation result
+      ansible.builtin.debug:
+        msg: "WCC URL status: {{ wcc_url_check.status | default('FAILED') }}"

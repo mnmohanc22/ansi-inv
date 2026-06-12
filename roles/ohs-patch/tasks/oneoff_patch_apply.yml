@@ -21,6 +21,36 @@
       changed_when: true
       when: not (oneoff_patch_installed | default(false))
 
+    - name: "Wait for opatch apply to complete"
+      ansible.builtin.async_status:
+        jid: "{{ oneoff_patch_apply.ansible_job_id }}"
+      register: _opatch_job
+      until: _opatch_job.finished
+      retries: 60
+      delay: 30
+      become: true
+      become_user: "{{ oracle_user }}"
+      when:
+        - not (oneoff_patch_installed | default(false))
+        - oneoff_patch_apply.ansible_job_id is defined
+
+    - name: "Check opatch apply success message"
+      ansible.builtin.assert:
+        that:
+          - >-
+            'OPatch succeeded' in oneoff_patch_apply.stdout
+            or 'Patch successfully applied' in oneoff_patch_apply.stdout
+        fail_msg: >-
+          opatch apply did not report success for patch {{ oneoff_patch.patch_id }}.
+          Output: {{ oneoff_patch_apply.stdout_lines | join(' ') }}
+        success_msg: "opatch apply succeeded for patch {{ oneoff_patch.patch_id }}"
+      when: not (oneoff_patch_installed | default(false))
+
+    - name: "Show opatch apply output"
+      ansible.builtin.debug:
+        var: oneoff_patch_apply.stdout_lines
+      when: not (oneoff_patch_installed | default(false))
+
     - name: "Verify one-off patch installed"
       ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch lspatches"
       become: true

@@ -1,0 +1,8 @@
+
+oneoff_patches:
+  - patch_id: "35926646"
+    patch_zip: p35926646_122140_Generic.zip
+  - patch_id: "36123456"
+    patch_zip: p36123456_122140_Generic.zip
+
+{"oneoff_patches": [{"patch_id": "35926646", "patch_zip": "p35926646_122140_Generic.zip"}]}
