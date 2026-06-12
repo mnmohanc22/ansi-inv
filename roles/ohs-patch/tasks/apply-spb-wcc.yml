@@ -223,6 +223,142 @@
         delay: 20
         timeout: 300
 
+- name: Check Node Manager status
+  block:
+
+    - name: Check Node Manager process
+      ansible.builtin.shell: |
+        ps -ef | grep "weblogic.NodeManager" | grep -v grep
+      register: _nm_process
+      changed_when: false
+      failed_when: false
+
+    - name: Check Node Manager port
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 5556
+        timeout: 10
+        state: started
+      register: _nm_port
+      failed_when: false
+
+    - name: Show Node Manager status
+      ansible.builtin.debug:
+        msg:
+          - "Node Manager process : {{ 'RUNNING' if _nm_process.rc == 0 else 'STOPPED' }}"
+          - "Node Manager port    : {{ 'OPEN' if _nm_port is not failed else 'NOT OPEN' }}"
+
+- name: Check Admin Server status
+  block:
+
+    - name: Check Admin Server process
+      ansible.builtin.shell: |
+        ps -ef | grep "AdminServer" | grep -v grep
+      register: _admin_process
+      changed_when: false
+      failed_when: false
+
+    - name: Check Admin Server port
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 7001
+        timeout: 10
+        state: started
+      register: _admin_port
+      failed_when: false
+
+    - name: Check Admin Server console URL
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}:7001/console"
+        method: GET
+        status_code: [200, 302, 403]
+        validate_certs: false
+      register: _admin_url
+      failed_when: false
+
+    - name: Show Admin Server status
+      ansible.builtin.debug:
+        msg:
+          - "Admin Server process : {{ 'RUNNING' if _admin_process.rc == 0 else 'STOPPED' }}"
+          - "Admin Server port    : {{ 'OPEN' if _admin_port is not failed else 'NOT OPEN' }}"
+          - "Admin Server console : {{ _admin_url.status | default('UNREACHABLE') }}"
+
+- name: Check WCC managed servers status
+  block:
+
+    - name: Check managed server processes
+      ansible.builtin.shell: |
+        ps -ef | grep "{{ item }}" | grep -v grep
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      register: _managed_processes
+      changed_when: false
+      failed_when: false
+
+    - name: Show managed server process status
+      ansible.builtin.debug:
+        msg: "{{ item.item }} : {{ 'RUNNING' if item.rc == 0 else 'STOPPED' }}"
+      loop: "{{ _managed_processes.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check WCC managed server port
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 16200
+        timeout: 10
+        state: started
+      register: _wcc_port
+      failed_when: false
+
+    - name: Check WCC URL
+      ansible.builtin.uri:
+        url: "http://{{ inventory_hostname }}:16200/cs"
+        method: GET
+        status_code: [200, 302]
+        validate_certs: false
+      register: _wcc_url
+      failed_when: false
+
+    - name: Show WCC managed server status
+      ansible.builtin.debug:
+        msg:
+          - "WCC port 16200 : {{ 'OPEN' if _wcc_port is not failed else 'NOT OPEN' }}"
+          - "WCC URL status : {{ _wcc_url.status | default('UNREACHABLE') }}"
+
+- name: Print installed SPB patches list
+  block:
+
+    - name: List installed SPB patches via opatch
+      ansible.builtin.shell: |
+        {{ oracle_home }}/OPatch/opatch lspatches
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+      register: _spb_patches_list
+      changed_when: false
+
+    - name: Filter SPB patch from list
+      ansible.builtin.set_fact:
+        _spb_patch_found: "{{ _spb_patches_list.stdout_lines | select('search', patch_id | string) | list }}"
+
+    - name: Print all installed patches
+      ansible.builtin.debug:
+        msg: "{{ _spb_patches_list.stdout_lines }}"
+
+    - name: Print SPB patch entry
+      ansible.builtin.debug:
+        msg: "{{ _spb_patch_found }}"
+
+    - name: Assert SPB patch is in installed list
+      ansible.builtin.assert:
+        that:
+          - _spb_patch_found | length > 0
+        fail_msg: "Patch {{ patch_id }} NOT found in opatch lspatches output after apply."
+        success_msg: "Patch {{ patch_id }} confirmed installed."
+
 - name: Check post-patch status
   block:
 
