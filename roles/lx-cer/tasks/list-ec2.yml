@@ -53,7 +53,7 @@
       loop_control:
         label: "{{ item[0] }}"
 
-- name: List total and running EC2 instances
+- name: List total EC2 instances
   block:
 
     - name: Get all EC2 instances with state
@@ -72,26 +72,45 @@
         _running_instances: "{{ _ec2_states.stdout | from_json | selectattr(1, 'equalto', 'running') | list }}"
         _stopped_instances: "{{ _ec2_states.stdout | from_json | selectattr(1, 'equalto', 'stopped') | list }}"
 
-    - name: Print instance summary
+    - name: Print total instance summary
       ansible.builtin.debug:
         msg:
-          - "Region   : {{ aws_region }}"
-          - "Profile  : {{ aws_profile }}"
-          - "Total    : {{ _all_instances | length }}"
-          - "Running  : {{ _running_instances | length }}"
-          - "Stopped  : {{ _stopped_instances | length }}"
-          - "Other    : {{ _all_instances | length - _running_instances | length - _stopped_instances | length }}"
+          - "Region  : {{ aws_region }}"
+          - "Profile : {{ aws_profile }}"
+          - "Total   : {{ _all_instances | length }}"
+          - "Running : {{ _running_instances | length }}"
+          - "Stopped : {{ _stopped_instances | length }}"
+
+- name: List running EC2 instances
+  block:
+
+    - name: Query running EC2 instances
+      ansible.builtin.shell: |
+        aws ec2 describe-instances \
+          --profile "{{ aws_profile }}" \
+          --region "{{ aws_region }}" \
+          --filters "Name=instance-state-name,Values=running" \
+          --query 'Reservations[].Instances[].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0],PrivateIpAddress,InstanceType]' \
+          --output json
+      register: _ec2_running
+      changed_when: false
+
+    - name: Parse running instances
+      ansible.builtin.set_fact:
+        _running_instances: "{{ _ec2_running.stdout | from_json }}"
+
+    - name: Show running instance count
+      ansible.builtin.debug:
+        msg: "Running EC2 instances: {{ _running_instances | length }}"
 
     - name: Print running instances
       ansible.builtin.debug:
-        msg: "RUNNING | {{ item[0] }} | {{ item[2] | default('(no name)') }}"
+        msg:
+          - "Name      : {{ item[2] | default('(no name)') }}"
+          - "InstanceId: {{ item[0] }}"
+          - "Status    : {{ item[1] }}"
+          - "PrivateIP : {{ item[3] | default('n/a') }}"
+          - "Type      : {{ item[4] | default('n/a') }}"
       loop: "{{ _running_instances }}"
-      loop_control:
-        label: "{{ item[0] }}"
-
-    - name: Print stopped instances
-      ansible.builtin.debug:
-        msg: "STOPPED | {{ item[0] }} | {{ item[2] | default('(no name)') }}"
-      loop: "{{ _stopped_instances }}"
       loop_control:
         label: "{{ item[0] }}"
