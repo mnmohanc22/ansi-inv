@@ -1,0 +1,97 @@
+---
+- name: List EC2 instances
+  block:
+
+    - name: List EC2 instances
+      ansible.builtin.shell: |
+        aws ec2 describe-instances \
+          --profile "{{ aws_profile }}" \
+          --region "{{ aws_region }}" \
+          --query 'Reservations[].Instances[].[Tags[?Key==`Name`].Value|[0],InstanceId,State.Name,PrivateIpAddress]' \
+          --output json
+      register: ec2_list
+      changed_when: false
+
+    - name: Parse EC2 instance list
+      ansible.builtin.set_fact:
+        _ec2_list: "{{ ec2_list.stdout | from_json }}"
+
+    - name: Print instance Name, ID and Status
+      ansible.builtin.debug:
+        msg:
+          - "Name      : {{ item[0] | default('(no name)') }}"
+          - "InstanceId: {{ item[1] }}"
+          - "Status    : {{ item[2] }}"
+          - "PrivateIP : {{ item[3] | default('n/a') }}"
+      loop: "{{ _ec2_list }}"
+      loop_control:
+        label: "{{ item[1] }}"
+
+- name: List tags for each EC2 instance
+  block:
+
+    - name: Get EC2 instances as JSON
+      ansible.builtin.shell: |
+        aws ec2 describe-instances \
+          --profile "{{ aws_profile }}" \
+          --region "{{ aws_region }}" \
+          --query 'Reservations[].Instances[].[InstanceId,Tags]' \
+          --output json
+      register: _ec2_json
+      changed_when: false
+
+    - name: Parse EC2 instance list
+      ansible.builtin.set_fact:
+        _ec2_instances: "{{ _ec2_json.stdout | from_json }}"
+
+    - name: Show tags for each instance
+      ansible.builtin.debug:
+        msg:
+          - "InstanceId : {{ item[0] }}"
+          - "Tags       : {{ item[1] | default([]) | items2dict(key_name='Key', value_name='Value') }}"
+      loop: "{{ _ec2_instances }}"
+      loop_control:
+        label: "{{ item[0] }}"
+
+- name: List total and running EC2 instances
+  block:
+
+    - name: Get all EC2 instances with state
+      ansible.builtin.shell: |
+        aws ec2 describe-instances \
+          --profile "{{ aws_profile }}" \
+          --region "{{ aws_region }}" \
+          --query 'Reservations[].Instances[].[InstanceId,State.Name,Tags[?Key==`Name`].Value|[0]]' \
+          --output json
+      register: _ec2_states
+      changed_when: false
+
+    - name: Parse instance states
+      ansible.builtin.set_fact:
+        _all_instances:     "{{ _ec2_states.stdout | from_json }}"
+        _running_instances: "{{ _ec2_states.stdout | from_json | selectattr(1, 'equalto', 'running') | list }}"
+        _stopped_instances: "{{ _ec2_states.stdout | from_json | selectattr(1, 'equalto', 'stopped') | list }}"
+
+    - name: Print instance summary
+      ansible.builtin.debug:
+        msg:
+          - "Region   : {{ aws_region }}"
+          - "Profile  : {{ aws_profile }}"
+          - "Total    : {{ _all_instances | length }}"
+          - "Running  : {{ _running_instances | length }}"
+          - "Stopped  : {{ _stopped_instances | length }}"
+          - "Other    : {{ _all_instances | length - _running_instances | length - _stopped_instances | length }}"
+
+    - name: Print running instances
+      ansible.builtin.debug:
+        msg: "RUNNING | {{ item[0] }} | {{ item[2] | default('(no name)') }}"
+      loop: "{{ _running_instances }}"
+      loop_control:
+        label: "{{ item[0] }}"
+
+    - name: Print stopped instances
+      ansible.builtin.debug:
+        msg: "STOPPED | {{ item[0] }} | {{ item[2] | default('(no name)') }}"
+      loop: "{{ _stopped_instances }}"
+      loop_control:
+        label: "{{ item[0] }}"

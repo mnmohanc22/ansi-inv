@@ -30,3 +30,16 @@ windows_intermediate_cert_store_path: "Cert:\\{{ windows_cert_store_location }}\
 windows_intermediate_cert_friendly_name: "PRIME LLC Lab Intermediate CA"
 
 
+wec_domain_home: 'D:\Oracle\Middleware\user_projects\domains\wec_domain'
+wec_server_name: capture_server1
+admin_url: 't3://localhost:7001'
+oracle_user: 'DOMAIN\oracle_svc'
+oracle_password: '{{ vault_oracle_password }}'
+
+wec_service_name: "Oracle WebCenter Capture - capture_server1"
+wec_port: 16400
+
+ admin_service_name: "Oracle WebLogic AdminServer"
+  nm_service_name: "Oracle WebLogic NodeManager"
+  admin_port: 7001
+  nm_port: 5556

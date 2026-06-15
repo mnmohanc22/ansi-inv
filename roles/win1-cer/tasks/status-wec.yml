@@ -1,0 +1,511 @@
+---
+- name: Start Node Manager
+  tags: [start, start-nm]
+  block:
+
+    - name: Start Node Manager
+      ansible.windows.win_shell: |
+        cd "{{ wec_domain_home }}\bin"
+        .\startNodeManager.cmd
+      register: nm_start
+      failed_when: false
+
+    - name: Show Node Manager start result
+      ansible.builtin.debug:
+        msg:
+          - "Component : Node Manager"
+          - "RC        : {{ nm_start.rc }}"
+          - "Status    : {{ 'SUCCESS' if nm_start.rc == 0 else 'FAILED' }}"
+          - "Stdout    : {{ nm_start.stdout_lines }}"
+          - "Stderr    : {{ nm_start.stderr_lines }}"
+
+- name: Stop Node Manager
+  tags: [stop, stop-nm]
+  block:
+
+    - name: Stop Node Manager
+      ansible.windows.win_shell: |
+        cd "{{ wec_domain_home }}\bin"
+        .\stopNodeManager.cmd
+      register: nm_stop
+      failed_when: false
+
+    - name: Show Node Manager stop result
+      ansible.builtin.debug:
+        msg:
+          - "Component : Node Manager"
+          - "RC        : {{ nm_stop.rc | default('n/a') }}"
+          - "Status    : {{ 'SUCCESS' if nm_stop.rc | default(1) == 0 else 'FAILED' }}"
+          - "Stdout    : {{ nm_stop.stdout_lines | default([]) }}"
+          - "Stderr    : {{ nm_stop.stderr_lines | default([]) }}"
+
+- name: Check Node Manager status
+  tags: [status, status-nm]
+  block:
+
+    - name: Get Node Manager process
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_Process |
+        Where-Object { $_.CommandLine -match "NodeManager" } |
+        Select-Object ProcessId, CommandLine |
+        ConvertTo-Json -Depth 3
+      register: _nm_process
+      changed_when: false
+      failed_when: false
+
+    - name: Show Node Manager status
+      ansible.builtin.debug:
+        msg:
+          - "Component : Node Manager"
+          - "Status    : {{ 'RUNNING' if _nm_process.stdout | default('') | length > 0 else 'STOPPED' }}"
+
+- name: Start Admin Server
+  tags: [start, start-admin]
+  block:
+
+    - name: Start Admin Server
+      ansible.windows.win_shell: |
+        cd "{{ wec_domain_home }}\bin"
+        .\startWebLogic.cmd
+      register: admin_start
+      failed_when: false
+
+    - name: Show Admin Server start result
+      ansible.builtin.debug:
+        msg:
+          - "Component : Admin Server"
+          - "RC        : {{ admin_start.rc }}"
+          - "Status    : {{ 'SUCCESS' if admin_start.rc == 0 else 'FAILED' }}"
+          - "Stdout    : {{ admin_start.stdout_lines }}"
+          - "Stderr    : {{ admin_start.stderr_lines }}"
+
+- name: Stop Admin Server
+  tags: [stop, stop-admin]
+  block:
+
+    - name: Stop Admin Server
+      ansible.windows.win_shell: |
+        cd "{{ wec_domain_home }}\bin"
+        .\stopWebLogic.cmd {{ oracle_user }} {{ oracle_password }}
+      register: admin_stop
+      failed_when: false
+      no_log: true
+
+    - name: Show Admin Server stop result
+      ansible.builtin.debug:
+        msg:
+          - "Component : Admin Server"
+          - "RC        : {{ admin_stop.rc | default('n/a') }}"
+          - "Status    : {{ 'SUCCESS' if admin_stop.rc | default(1) == 0 else 'FAILED' }}"
+          - "Stdout    : {{ admin_stop.stdout_lines | default([]) }}"
+          - "Stderr    : {{ admin_stop.stderr_lines | default([]) }}"
+
+- name: Check Admin Server status
+  tags: [status, status-admin]
+  block:
+
+    - name: Get Admin Server process
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_Process |
+        Where-Object { $_.CommandLine -match "AdminServer" } |
+        Select-Object ProcessId, CommandLine |
+        ConvertTo-Json -Depth 3
+      register: _admin_process
+      changed_when: false
+      failed_when: false
+
+    - name: Show Admin Server status
+      ansible.builtin.debug:
+        msg:
+          - "Component : Admin Server"
+          - "Status    : {{ 'RUNNING' if _admin_process.stdout | default('') | length > 0 else 'STOPPED' }}"
+
+- name: Start WEC managed server
+  tags: [start, start-wec]
+  block:
+
+    - name: Start WEC managed server
+      ansible.windows.win_shell: |
+        cd "{{ wec_domain_home }}\bin"
+        .\startManagedWebLogic.cmd {{ wec_server_name }} {{ admin_url }}
+      register: wec_start
+      failed_when: false
+
+    - name: Show WEC start result
+      ansible.builtin.debug:
+        msg:
+          - "Server  : {{ wec_server_name }}"
+          - "RC      : {{ wec_start.rc }}"
+          - "Status  : {{ 'SUCCESS' if wec_start.rc == 0 else 'FAILED' }}"
+          - "Stdout  : {{ wec_start.stdout_lines }}"
+          - "Stderr  : {{ wec_start.stderr_lines }}"
+
+- name: Stop WEC managed server
+  tags: [stop, stop-wec]
+  block:
+
+    - name: Stop WEC managed server
+      ansible.windows.win_shell: |
+        cd "{{ wec_domain_home }}\bin"
+        .\stopManagedWebLogic.cmd {{ wec_server_name }} {{ admin_url }} {{ oracle_user }} {{ oracle_password }}
+      register: wec_stop
+      failed_when: false
+      no_log: true
+
+    - name: Show WEC stop result
+      ansible.builtin.debug:
+        msg:
+          - "Server  : {{ wec_server_name }}"
+          - "RC      : {{ wec_stop.rc | default('n/a') }}"
+          - "Status  : {{ 'SUCCESS' if wec_stop.rc | default(1) == 0 else 'FAILED' }}"
+          - "Stdout  : {{ wec_stop.stdout_lines | default([]) }}"
+          - "Stderr  : {{ wec_stop.stderr_lines | default([]) }}"
+
+- name: Check WEC process status
+  tags: [status, status-wec]
+  block:
+
+    - name: Get WEC process status
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_Process |
+        Where-Object {
+          $_.CommandLine -match "{{ wec_server_name }}"
+        } |
+        Select-Object ProcessId, CommandLine |
+        ConvertTo-Json -Depth 3
+      register: wec_process
+      changed_when: false
+      failed_when: false
+
+    - name: Parse WEC process list
+      ansible.builtin.set_fact:
+        _wec_processes: "{{ wec_process.stdout | default('[]') | from_json if wec_process.stdout | default('') | length > 0 else [] }}"
+
+    - name: Show WEC process status
+      ansible.builtin.debug:
+        msg:
+          - "Server     : {{ wec_server_name }}"
+          - "Status     : {{ 'RUNNING' if _wec_processes | length > 0 else 'STOPPED' }}"
+          - "Processes  : {{ _wec_processes | length }}"
+
+    - name: Print WEC process details
+      ansible.builtin.debug:
+        msg: "PID {{ item.ProcessId }} : {{ item.CommandLine }}"
+      loop: "{{ _wec_processes if _wec_processes is iterable and _wec_processes is not string and _wec_processes is not mapping else [_wec_processes] }}"
+      when: _wec_processes | length > 0
+
+
+- name: Get WEC process details
+  tags: [status, status-wec]
+  block:
+
+    - name: Get WEC process details
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_Process |
+        Where-Object {
+          $_.CommandLine -match "{{ capture_server }}"
+        } |
+        Select-Object ProcessId,
+                      Name,
+                      CreationDate,
+                      CommandLine |
+        ConvertTo-Json -Depth 5
+      register: wec_process
+      changed_when: false
+      failed_when: false
+
+    - name: Parse WEC process details
+      ansible.builtin.set_fact:
+        _wec_process_details: >-
+          {{ wec_process.stdout | from_json
+             if wec_process.stdout | default('') | length > 0
+             else [] }}
+
+    - name: Show WEC process details
+      ansible.builtin.debug:
+        msg: "{{ _wec_process_details }}"
+
+
+- name: Stop WEC Windows service
+  tags: [stop, stop-svc]
+  block:
+
+    - name: Stop WEC Windows service
+      ansible.windows.win_service:
+        name: "{{ wec_service_name }}"
+        state: stopped
+      register: wec_svc_stop
+
+    - name: Wait for WEC port to close
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ wec_port }}"
+        state: stopped
+        timeout: 180
+
+    - name: Show WEC service stop result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ wec_service_name }}"
+          - "State   : {{ wec_svc_stop.state | default('n/a') }}"
+          - "Changed : {{ wec_svc_stop.changed }}"
+
+- name: Start WEC Windows service
+  tags: [start, start-svc]
+  block:
+
+    - name: Start WEC Windows service
+      ansible.windows.win_service:
+        name: "{{ wec_service_name }}"
+        state: started
+      register: wec_svc_start
+
+    - name: Wait for WEC port to open
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ wec_port }}"
+        state: started
+        timeout: 300
+
+    - name: Show WEC service start result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ wec_service_name }}"
+          - "State   : {{ wec_svc_start.state | default('n/a') }}"
+          - "Changed : {{ wec_svc_start.changed }}"
+
+- name: Restart WEC Windows service
+  tags: [restart, restart-svc]
+  block:
+
+    - name: Restart WEC Windows service
+      ansible.windows.win_service:
+        name: "{{ wec_service_name }}"
+        state: restarted
+      register: wec_svc_restart
+
+    - name: Wait for WEC port after restart
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ wec_port }}"
+        state: started
+        timeout: 300
+
+    - name: Show WEC service restart result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ wec_service_name }}"
+          - "State   : {{ wec_svc_restart.state | default('n/a') }}"
+          - "Changed : {{ wec_svc_restart.changed }}"
+
+- name: Get WEC Windows service status
+  tags: [status, status-svc]
+  block:
+
+    - name: Get WEC Windows service info
+      ansible.windows.win_service_info:
+        name: "{{ wec_service_name }}"
+      register: wec_service_info
+
+    - name: Show WEC service status
+      ansible.builtin.debug:
+        msg:
+          - "Service   : {{ wec_service_info.services[0].name }}"
+          - "State     : {{ wec_service_info.services[0].state }}"
+          - "StartMode : {{ wec_service_info.services[0].start_mode }}"
+
+    - name: Find WEC/Capture Windows services
+      ansible.windows.win_shell: |
+        Get-Service |
+        Where-Object {
+          $_.Name -match 'capture|wec|webcenter' -or
+          $_.DisplayName -match 'capture|wec|webcenter'
+        } |
+        Select-Object Name, DisplayName, Status |
+        ConvertTo-Json
+      register: wec_services
+      changed_when: false
+
+    - name: Show all WEC related services
+      ansible.builtin.debug:
+        msg: "{{ wec_services.stdout | from_json }}"                  
+
+
+- name: Stop Node Manager service
+  tags: [stop, stop-nm-svc]
+  block:
+
+    - name: Stop Node Manager service
+      ansible.windows.win_service:
+        name: "{{ nm_service_name }}"
+        state: stopped
+      register: nm_svc_stop
+
+    - name: Wait for Node Manager port to close
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ nm_port }}"
+        state: stopped
+        timeout: 120
+
+    - name: Show Node Manager stop result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ nm_service_name }}"
+          - "State   : {{ nm_svc_stop.state | default('n/a') }}"
+          - "Changed : {{ nm_svc_stop.changed }}"
+
+- name: Stop Admin Server service
+  tags: [stop, stop-admin-svc]
+  block:
+
+    - name: Stop Admin Server service
+      ansible.windows.win_service:
+        name: "{{ admin_service_name }}"
+        state: stopped
+      register: admin_svc_stop
+
+    - name: Wait for Admin Server port to close
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ admin_port }}"
+        state: stopped
+        timeout: 180
+
+    - name: Show Admin Server stop result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ admin_service_name }}"
+          - "State   : {{ admin_svc_stop.state | default('n/a') }}"
+          - "Changed : {{ admin_svc_stop.changed }}"
+
+- name: Start Node Manager service
+  tags: [start, start-nm-svc]
+  block:
+
+    - name: Start Node Manager service
+      ansible.windows.win_service:
+        name: "{{ nm_service_name }}"
+        state: started
+      register: nm_svc_start
+
+    - name: Wait for Node Manager port to open
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ nm_port }}"
+        state: started
+        timeout: 180
+
+    - name: Show Node Manager start result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ nm_service_name }}"
+          - "State   : {{ nm_svc_start.state | default('n/a') }}"
+          - "Changed : {{ nm_svc_start.changed }}"
+
+- name: Start Admin Server service
+  tags: [start, start-admin-svc]
+  block:
+
+    - name: Start Admin Server service
+      ansible.windows.win_service:
+        name: "{{ admin_service_name }}"
+        state: started
+      register: admin_svc_start
+
+    - name: Wait for Admin Server port to open
+      ansible.windows.win_wait_for:
+        host: localhost
+        port: "{{ admin_port }}"
+        state: started
+        timeout: 300
+
+    - name: Show Admin Server start result
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ admin_service_name }}"
+          - "State   : {{ admin_svc_start.state | default('n/a') }}"
+          - "Changed : {{ admin_svc_start.changed }}"
+
+- name: Get Admin Server and Node Manager service status
+  tags: [status, status-admin-svc, status-nm-svc]
+  block:
+
+    - name: Get Admin Server service info
+      ansible.windows.win_service_info:
+        name: "{{ admin_service_name }}"
+      register: admin_service_info
+
+    - name: Get Node Manager service info
+      ansible.windows.win_service_info:
+        name: "{{ nm_service_name }}"
+      register: nm_service_info
+
+    - name: Show Admin Server service status
+      ansible.builtin.debug:
+        msg:
+          - "Service   : {{ admin_service_info.services[0].name }}"
+          - "State     : {{ admin_service_info.services[0].state }}"
+          - "StartMode : {{ admin_service_info.services[0].start_mode }}"
+
+    - name: Show Node Manager service status
+      ansible.builtin.debug:
+        msg:
+          - "Service   : {{ nm_service_info.services[0].name }}"
+          - "State     : {{ nm_service_info.services[0].state }}"
+          - "StartMode : {{ nm_service_info.services[0].start_mode }}"        
+
+
+- name: Get Oracle Middleware process owners
+  tags: [status, status-owners]
+  block:
+
+    - name: Get Oracle Middleware process owners
+      ansible.windows.win_shell: |
+        Get-CimInstance Win32_Process |
+        Where-Object {
+          $_.CommandLine -match "AdminServer|{{ capture_server }}|NodeManager|UCM_server|IBR_server"
+        } |
+        ForEach-Object {
+          $owner = Invoke-CimMethod -InputObject $_ -MethodName GetOwner
+          [PSCustomObject]@{
+            ProcessId   = $_.ProcessId
+            ProcessName = $_.Name
+            Owner       = "$($owner.Domain)\$($owner.User)"
+            CommandLine = $_.CommandLine
+          }
+        } | ConvertTo-Json -Depth 5
+      register: oracle_processes
+      changed_when: false
+      failed_when: false
+
+    - name: Parse Oracle process owners
+      ansible.builtin.set_fact:
+        _oracle_processes: >-
+          {{ oracle_processes.stdout | from_json
+             if oracle_processes.stdout | default('') | length > 0
+             else [] }}
+
+    - name: Normalize to list
+      ansible.builtin.set_fact:
+        _oracle_processes: "{{ [_oracle_processes] if _oracle_processes is mapping else _oracle_processes }}"
+
+    - name: Show Oracle process count
+      ansible.builtin.debug:
+        msg: "Oracle Middleware processes found: {{ _oracle_processes | length }}"
+
+    - name: Print each process owner
+      ansible.builtin.debug:
+        msg:
+          - "PID         : {{ item.ProcessId }}"
+          - "ProcessName : {{ item.ProcessName }}"
+          - "Owner       : {{ item.Owner }}"
+          - "CommandLine : {{ item.CommandLine }}"
+      loop: "{{ _oracle_processes }}"
+      loop_control:
+        label: "PID {{ item.ProcessId }}"
+
+    - name: Warn if no Oracle processes found
+      ansible.builtin.debug:
+        msg: "WARNING: No Oracle Middleware processes found on {{ inventory_hostname }}"
+      when: _oracle_processes | length == 0          
