@@ -1,0 +1,18 @@
+---
+- name: Show current type
+  ansible.builtin.debug:
+    msg: "Type of app_config: {{ app_config | type_debug }}"
+
+- name: Convert app_config to dict when string
+  ansible.builtin.set_fact:
+    app_config_dict: "{{ app_config | from_yaml }}"
+  when: app_config is string
+
+- name: Use app_config as-is when already a dict
+  ansible.builtin.set_fact:
+    app_config_dict: "{{ app_config }}"
+  when: app_config is mapping
+
+- name: Show app_config_dict
+  ansible.builtin.debug:
+    msg: "{{ app_config_dict }}"
