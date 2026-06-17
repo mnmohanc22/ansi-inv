@@ -388,3 +388,156 @@
     - name: Print WCC validation result
       ansible.builtin.debug:
         msg: "WCC URL status: {{ wcc_url_check.status | default('FAILED') }}"
+
+
+
+
+
+- name: Start AdminServer asynchronously
+  tags: [start, start_admin]
+  block:
+
+    - name: Start AdminServer asynchronously
+      ansible.builtin.command: "{{ domain_home }}/bin/startWebLogic.sh"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        DOMAIN_HOME: "{{ domain_home }}"
+      async: 180
+      poll: 0
+      register: admin_async_job
+
+    - name: Wait for AdminServer async job to complete
+      ansible.builtin.async_status:
+        jid: "{{ admin_async_job.ansible_job_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: _admin_async_result
+      until: _admin_async_result.finished
+      retries: 36
+      delay: 5
+
+    - name: Show AdminServer start output
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ _admin_async_result.rc | default('n/a') }}"
+          - "Stdout : {{ _admin_async_result.stdout_lines | default([]) }}"
+          - "Stderr : {{ _admin_async_result.stderr_lines | default([]) }}"
+
+    - name: Wait for AdminServer port to open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ admin_port | default(7001) }}"
+        state: started
+        timeout: "{{ admin_start_timeout | default(180) }}"
+
+    - name: Assert AdminServer started successfully
+      ansible.builtin.assert:
+        that:
+          - _admin_async_result.rc == 0
+            or 'server started in running mode' in (_admin_async_result.stdout | default('') | lower)
+            or 'already' in (_admin_async_result.stdout | default('') | lower)
+        fail_msg: "AdminServer failed to start (rc={{ _admin_async_result.rc }})."
+        success_msg: "AdminServer started successfully."
+
+
+- name: Start UCM asynchronously
+  tags: [start, start_ucm]
+  block:
+
+    - name: Start UCM managed server asynchronously
+      ansible.builtin.command: >-
+        {{ domain_home }}/bin/startManagedWebLogic.sh UCM_server1 {{ admin_url | default('t3://localhost:7001') }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        DOMAIN_HOME: "{{ domain_home }}"
+      async: 180
+      poll: 0
+      register: ucm_async_job
+
+    - name: Wait for UCM async job to complete
+      ansible.builtin.async_status:
+        jid: "{{ ucm_async_job.ansible_job_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: _ucm_async_result
+      until: _ucm_async_result.finished
+      retries: 36
+      delay: 5
+
+    - name: Show UCM start output
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ _ucm_async_result.rc | default('n/a') }}"
+          - "Stdout : {{ _ucm_async_result.stdout_lines | default([]) }}"
+          - "Stderr : {{ _ucm_async_result.stderr_lines | default([]) }}"
+
+    - name: Wait for UCM port to open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ucm_port | default(4444) }}"
+        state: started
+        timeout: "{{ ucm_start_timeout | default(180) }}"
+
+    - name: Assert UCM started successfully
+      ansible.builtin.assert:
+        that:
+          - _ucm_async_result.rc == 0
+            or 'server started in running mode' in (_ucm_async_result.stdout | default('') | lower)
+            or 'already' in (_ucm_async_result.stdout | default('') | lower)
+        fail_msg: "UCM_server1 failed to start (rc={{ _ucm_async_result.rc }})."
+        success_msg: "UCM_server1 started successfully."
+
+
+
+- name: Start IBR
+  tags: [start, start_ibr]
+  block:
+
+    - name: Start IBR managed server asynchronously
+      ansible.builtin.command: >-
+        {{ domain_home }}/bin/startManagedWebLogic.sh IBR_server1 {{ admin_url | default('t3://localhost:7001') }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        DOMAIN_HOME: "{{ domain_home }}"
+      async: 180
+      poll: 0
+      register: ibr_async_job
+
+    - name: Wait for IBR async job to complete
+      ansible.builtin.async_status:
+        jid: "{{ ibr_async_job.ansible_job_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: _ibr_async_result
+      until: _ibr_async_result.finished
+      retries: 36
+      delay: 5
+
+    - name: Show IBR start output
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ _ibr_async_result.rc | default('n/a') }}"
+          - "Stdout : {{ _ibr_async_result.stdout_lines | default([]) }}"
+          - "Stderr : {{ _ibr_async_result.stderr_lines | default([]) }}"
+
+    - name: Wait for IBR port to open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ibr_port | default(5555) }}"
+        state: started
+        timeout: "{{ ibr_start_timeout | default(180) }}"
+
+    - name: Assert IBR started successfully
+      ansible.builtin.assert:
+        that:
+          - _ibr_async_result.rc == 0
+            or 'server started in running mode' in (_ibr_async_result.stdout | default('') | lower)
+            or 'already' in (_ibr_async_result.stdout | default('') | lower)
+        fail_msg: "IBR_server1 failed to start (rc={{ _ibr_async_result.rc }})."
+        success_msg: "IBR_server1 started successfully."

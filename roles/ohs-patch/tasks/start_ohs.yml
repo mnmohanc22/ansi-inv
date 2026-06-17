@@ -97,21 +97,45 @@
         ohs_started: "{{ not (ohs_port_up.failed | default(false)) }}"
         ohs_start_method: "{{ 'systemd' if ohs_unit_stat.stat.exists else 'startComponent.sh' }}"
 
-    - name: "Start Oracle HTTP Server"
+    - name: "Start OHS component via startComponent.sh (sync)"
+      ansible.builtin.command: >-
+        {{ ohs_domain_home }}/bin/startComponent.sh {{ ohs_component_name }}
       become: true
       become_user: "{{ ohs_user }}"
-      ansible.builtin.shell: |
-        {{ ohs_domain_home }}/bin/startComponent.sh {{ ohs_component_name }}
-      register: ohs_start
-      changed_when: "'Successfully' in ohs_start.stdout"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ ohs_domain_home }}"
+      register: ohs_start_sync
+      changed_when: "'successfully started' in (ohs_start_sync.stdout | lower)"
       failed_when:
-        - ohs_start.rc is defined
-        - ohs_start.rc != 0
-        - "'already' not in (ohs_start.stdout | lower)"
+        - ohs_start_sync.rc != 0
+        - "'already' not in (ohs_start_sync.stdout | lower)"
+      when: not ohs_unit_stat.stat.exists
 
-    - name: "Display startup output"
+    - name: "Show OHS start output"
       ansible.builtin.debug:
-        var: ohs_start.stdout_lines
+        msg:
+          - "RC     : {{ ohs_start_sync.rc | default('n/a') }}"
+          - "Stdout : {{ ohs_start_sync.stdout_lines | default([]) }}"
+          - "Stderr : {{ ohs_start_sync.stderr_lines | default([]) }}"
+      when: not ohs_unit_stat.stat.exists
+
+    - name: "Wait for OHS port after sync start"
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_listen_port }}"
+        state: started
+        timeout: "{{ ohs_start_timeout }}"
+      when: not ohs_unit_stat.stat.exists
+
+    - name: "Assert OHS component started successfully"
+      ansible.builtin.assert:
+        that:
+          - ohs_start_sync.rc == 0
+            or 'already' in (ohs_start_sync.stdout | lower)
+        fail_msg: "OHS component {{ ohs_component_name }} failed to start."
+        success_msg: "OHS component {{ ohs_component_name }} started successfully."
+      when: not ohs_unit_stat.stat.exists
 
   tags:
     - ohs_patch
@@ -198,3 +222,100 @@
     - start_ohs
     - start_nodemanager
     - ohs
+
+
+- name: Start OHS asynchronously
+  tags: [start, start_ohs_async]
+  block:
+
+    - name: Start OHS asynchronously
+      ansible.builtin.command: >
+        {{ domain_home }}/bin/startComponent.sh {{ ohs_component_name }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ domain_home }}"
+      async: 120
+      poll: 0
+      register: ohs_async_job
+
+    - name: Wait for OHS async job to complete
+      ansible.builtin.async_status:
+        jid: "{{ ohs_async_job.ansible_job_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: _ohs_async_result
+      until: _ohs_async_result.finished
+      retries: 24
+      delay: 5
+
+    - name: Show OHS async start output
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ _ohs_async_result.rc | default('n/a') }}"
+          - "Stdout : {{ _ohs_async_result.stdout_lines | default([]) }}"
+          - "Stderr : {{ _ohs_async_result.stderr_lines | default([]) }}"
+
+    - name: Wait for OHS port to open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_listen_port }}"
+        state: started
+        timeout: "{{ ohs_start_timeout | default(120) }}"
+
+    - name: Assert OHS started successfully
+      ansible.builtin.assert:
+        that:
+          - _ohs_async_result.rc == 0
+            or 'already' in (_ohs_async_result.stdout | default('') | lower)
+        fail_msg: "OHS component {{ ohs_component_name }} failed to start (rc={{ _ohs_async_result.rc }})."
+        success_msg: "OHS component {{ ohs_component_name }} started successfully."
+
+
+- name: Start Node Manager asynchronously
+  tags: [start, start_nodemanager_async]
+  block:
+
+    - name: Start Node Manager asynchronously
+      ansible.builtin.shell: "{{ domain_home }}/bin/startNodeManager.sh"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home_ohs }}"
+        DOMAIN_HOME: "{{ domain_home }}"
+      async: 60
+      poll: 0
+      register: nm_async_job
+
+    - name: Wait for Node Manager async job to complete
+      ansible.builtin.async_status:
+        jid: "{{ nm_async_job.ansible_job_id }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: _nm_async_result
+      until: _nm_async_result.finished
+      retries: 12
+      delay: 5
+
+    - name: Show Node Manager async start output
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ _nm_async_result.rc | default('n/a') }}"
+          - "Stdout : {{ _nm_async_result.stdout_lines | default([]) }}"
+          - "Stderr : {{ _nm_async_result.stderr_lines | default([]) }}"
+
+    - name: Wait for Node Manager port to open
+      ansible.builtin.wait_for:
+        host: "{{ ansible_hostname }}"
+        port: "{{ ohs_nodemanager_port }}"
+        state: started
+        timeout: "{{ ohs_start_timeout | default(120) }}"
+
+    - name: Assert Node Manager started successfully
+      ansible.builtin.assert:
+        that:
+          - _nm_async_result.rc == 0
+            or 'already' in (_nm_async_result.stdout | default('') | lower)
+        fail_msg: "Node Manager failed to start (rc={{ _nm_async_result.rc }})."
+        success_msg: "Node Manager started successfully."

@@ -1,0 +1,177 @@
+---
+- name: SPB precheck
+  block:
+
+    - name: Run SPBAT precheck
+      ansible.builtin.command: >
+        ./spbat.sh -phase precheck -oracle_home {{ oracle_home }}
+      args:
+        chdir: "{{ spb_dir }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home }}"
+        PATH: "{{ java_home }}/bin:{{ oracle_home }}/OPatch:{{ ansible_env.PATH }}"
+      register: spbat_precheck
+      changed_when: false
+      when: not spb_installed
+
+    - name: Show SPBAT precheck output
+      ansible.builtin.debug:
+        var: spbat_precheck.stdout_lines
+      when: not spb_installed
+
+    - name: Assert precheck passed
+      ansible.builtin.assert:
+        that:
+          - spbat_precheck.rc == 0
+        fail_msg: "SPBAT precheck failed — review output before applying patch."
+        success_msg: "SPBAT precheck passed."
+      when: not spb_installed
+
+- name: Apply SPB patch
+  block:
+
+    - name: Apply WCC SPB using SPBAT
+      ansible.builtin.command: >
+        ./spbat.sh -phase apply -oracle_home {{ oracle_home }}
+      args:
+        chdir: "{{ spb_dir }}"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home }}"
+        PATH: "{{ java_home }}/bin:{{ oracle_home }}/OPatch:{{ ansible_env.PATH }}"
+      register: spbat_apply
+      changed_when: true
+      when: not spb_installed
+
+    - name: Show SPBAT apply output
+      ansible.builtin.debug:
+        var: spbat_apply.stdout_lines
+      when: not spb_installed
+
+    - name: Assert apply succeeded
+      ansible.builtin.assert:
+        that:
+          - spbat_apply.rc == 0
+        fail_msg: "SPBAT apply failed for patch {{ spb_id }} — review output."
+        success_msg: "SPBAT apply completed successfully."
+      when: not spb_installed
+
+- name: Verify SPB patch installed
+  block:
+
+    - name: List installed patches via opatch
+      ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch lspatches"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home }}"
+      register: post_patches
+      changed_when: false
+
+    - name: Show installed patches
+      ansible.builtin.debug:
+        var: post_patches.stdout_lines
+
+    - name: Filter SPB patch from list
+      ansible.builtin.set_fact:
+        _spb_patch_found: "{{ post_patches.stdout_lines | select('search', spb_id | string) | list }}"
+
+    - name: Print SPB patch entry
+      ansible.builtin.debug:
+        msg: "{{ _spb_patch_found }}"
+
+    - name: Fail if SPB patch not installed
+      ansible.builtin.fail:
+        msg: "SPB patch {{ spb_id }} not found in opatch lspatches after apply."
+      when: _spb_patch_found | length == 0
+
+
+
+- name: Check if SPB patch is already installed
+  block:
+
+    - name: Get installed patches
+      ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch lspatches"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home }}"
+      register: patches
+      changed_when: false
+
+    - name: Parse installed patch IDs
+      ansible.builtin.set_fact:
+        installed_patch_ids: >-
+          {{
+            patches.stdout_lines
+            | map('regex_search', '^[0-9]+')
+            | select('string')
+            | list
+          }}
+
+    - name: Set spb_installed fact
+      ansible.builtin.set_fact:
+        spb_installed: "{{ spb_patch_id in installed_patch_ids }}"
+
+    - name: Show patch check result
+      ansible.builtin.debug:
+        msg:
+          - "Patch ID    : {{ spb_patch_id }}"
+          - "Installed   : {{ spb_installed }}"
+          - "All patches : {{ installed_patch_ids }}"      
+
+
+- name: Check SPB patch via OPatch inventory
+  block:
+
+    - name: Get OPatch inventory
+      ansible.builtin.command: >
+        {{ oracle_home }}/OPatch/opatch lsinventory
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home }}"
+      register: inventory
+      changed_when: false
+
+    - name: Set spb_installed fact from inventory
+      ansible.builtin.set_fact:
+        spb_installed: "{{ spb_patch_id | string in inventory.stdout }}"
+
+    - name: Show OPatch inventory result
+      ansible.builtin.debug:
+        msg:
+          - "Patch ID  : {{ spb_patch_id }}"
+          - "Installed : {{ spb_installed }}"
+
+
+- name: Get installed patches and check SPB status
+  block:
+
+    - name: Get installed patches
+      ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch lspatches"
+      become: true
+      become_user: "{{ oracle_user }}"
+      environment:
+        ORACLE_HOME: "{{ oracle_home }}"
+        JAVA_HOME: "{{ java_home }}"
+      register: installed_patches
+      changed_when: false
+
+    - name: Check if SPB patch is installed
+      ansible.builtin.set_fact:
+        spb_installed: "{{ spb_patch_id | string in installed_patches.stdout }}"
+
+    - name: Show SPB status
+      ansible.builtin.debug:
+        msg:
+          - "WCC SPB patch : {{ spb_patch_id }}"
+          - "Installed     : {{ spb_installed }}"

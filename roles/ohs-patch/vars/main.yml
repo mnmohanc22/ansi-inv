@@ -74,3 +74,7 @@ oneoff_patches:
     patch_zip: p36123456_122140_Generic.zip
 
 artifacts_host: "artifacts.example.com"    
+
+spb_patch_id: "37011111"
+
+opatch_zip: p6880880_139400_Generic.zip

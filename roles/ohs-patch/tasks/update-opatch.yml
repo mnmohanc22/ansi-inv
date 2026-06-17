@@ -1,0 +1,94 @@
+---
+- name: Check current OPatch version
+  block:
+
+    - name: Create OPatch stage and backup directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+      loop:
+        - "{{ patch_stage_dir }}"
+        - "{{ backup_dir }}"
+
+    - name: Check current OPatch version
+      ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch version"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: opatch_version_before
+      changed_when: false
+      failed_when: false
+
+    - name: Show current OPatch version
+      ansible.builtin.debug:
+        msg:
+          - "OPatch current version : {{ opatch_version_before.stdout_lines }}"
+          - "OPatch zip to apply    : {{ opatch_zip }}"
+
+- name: Apply new OPatch
+  block:
+
+    - name: Copy OPatch zip to stage
+      ansible.builtin.copy:
+        src: "files/{{ opatch_zip }}"
+        dest: "{{ patch_stage_dir }}/{{ opatch_zip }}"
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0644"
+
+    - name: Backup existing OPatch directory
+      ansible.builtin.archive:
+        path: "{{ oracle_home }}/OPatch"
+        dest: "{{ backup_dir }}/OPatch_backup_{{ ansible_date_time.iso8601_basic_short }}.tar.gz"
+        format: gz
+      become: true
+      become_user: "{{ oracle_user }}"
+      when: opatch_version_before.rc == 0
+
+    - name: Remove existing OPatch directory
+      ansible.builtin.file:
+        path: "{{ oracle_home }}/OPatch"
+        state: absent
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: Extract new OPatch into Oracle Home
+      ansible.builtin.unarchive:
+        src: "{{ patch_stage_dir }}/{{ opatch_zip }}"
+        dest: "{{ oracle_home }}"
+        remote_src: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+
+    - name: Fix OPatch ownership
+      ansible.builtin.file:
+        path: "{{ oracle_home }}/OPatch"
+        state: directory
+        recurse: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+
+- name: Verify new OPatch version
+  block:
+
+    - name: Get new OPatch version
+      ansible.builtin.command: "{{ oracle_home }}/OPatch/opatch version"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: opatch_version_after
+      changed_when: false
+
+    - name: Show new OPatch version
+      ansible.builtin.debug:
+        msg:
+          - "OPatch before : {{ opatch_version_before.stdout_lines }}"
+          - "OPatch after  : {{ opatch_version_after.stdout_lines }}"
+
+    - name: Assert OPatch version changed
+      ansible.builtin.assert:
+        that:
+          - opatch_version_after.stdout != opatch_version_before.stdout
+        fail_msg: "OPatch version unchanged after update — verify the zip file."
+        success_msg: "OPatch updated successfully."
