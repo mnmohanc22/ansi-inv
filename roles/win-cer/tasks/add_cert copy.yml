@@ -25,6 +25,31 @@
 
 
 
+- name: Import wildcard PFX into LocalMachine\My
+      win_certificate_store:
+        path:             "{{ cert_dest }}"
+        password:         "{{ wildcard_pfx_password }}"
+        store_location:   "{{ cert_store_location }}"
+        store_name:       "{{ cert_store_name }}"
+        state:            present
+        key_exportable:   false
+      no_log: true
+      register: cert_import
+
+    - name: Retrieve thumbprint of imported cert
+      win_shell: |
+        Get-ChildItem Cert:\LocalMachine\My |
+          Where-Object { $_.Subject -like '*{{ wildcard_domain }}*' } |
+          Sort-Object NotAfter -Descending |
+          Select-Object -First 1 -ExpandProperty Thumbprint
+      register: cert_thumb
+      changed_when: false
+
+    - name: Show thumbprint
+      debug:
+        msg: "Imported cert thumbprint: {{ cert_thumb.stdout | trim }}"
+
+
 # --- Validate ---
 
 - name: Validate certificate

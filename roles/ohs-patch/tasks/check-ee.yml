@@ -1,0 +1,57 @@
+- block:
+    - name: Show working directory
+      ansible.builtin.command: pwd
+      register: pwd_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get hostname of execution environment
+      ansible.builtin.command: hostname
+      register: hostname_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get OS release info
+      ansible.builtin.command: cat /etc/os-release
+      register: os_release_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get kernel version
+      ansible.builtin.command: uname -r
+      register: kernel_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get current user
+      ansible.builtin.command: whoami
+      register: whoami_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get Python version
+      ansible.builtin.command: python3 --version
+      register: python_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Get Ansible version
+      ansible.builtin.command: ansible --version
+      register: ansible_out
+      delegate_to: localhost
+      run_once: true
+
+    - name: Display execution environment details
+      ansible.builtin.debug:
+        msg:
+          - "Working directory : {{ pwd_out.stdout }}"
+          - "Hostname          : {{ hostname_out.stdout }}"
+          - "Current user      : {{ whoami_out.stdout }}"
+          - "Kernel            : {{ kernel_out.stdout }}"
+          - "Python            : {{ python_out.stdout }}"
+          - "OS Release        :"
+          - "{{ os_release_out.stdout }}"
+          - "Ansible           :"
+          - "{{ ansible_out.stdout_lines }}"
+      delegate_to: localhost
+      run_once: true

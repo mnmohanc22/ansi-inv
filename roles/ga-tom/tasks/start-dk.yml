@@ -21,7 +21,6 @@
 
 - name: Start Docker service
   block:
-
     - name: Start Docker service via systemctl
       ansible.builtin.shell: systemctl start docker
       register: _docker_service
