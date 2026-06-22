@@ -1,0 +1,146 @@
+---
+# ─── tasks/apply-patch.yml ───────────────────────────────────────────────────
+# Orchestrates the full WEC SPB patch workflow:
+#   1. check-opatch.yml   — check OPatch version & installed patches
+#   2. copy-patch.yml     — copy patch zip to server
+#   3. extract-patch.yml  — extract zip & run conflict/space prereq checks
+#   4. stop WEC services
+#   5. apply patch (spbat.bat)
+#   6. start WEC services
+
+- name: "Check OPatch version and installed patches"
+  ansible.builtin.include_tasks: check-opatch.yml
+  tags: [patch, check_opatch]
+
+- name: "Copy patch to Windows server"
+  ansible.builtin.include_tasks: copy-patch.yml
+  tags: [patch, copy_patch]
+
+- name: "Extract patch and run prereq checks"
+  ansible.builtin.include_tasks: extract-patch.yml
+  tags: [patch, extract_patch]
+
+
+- name: "Stop WEC services"
+  tags: [patch, stop_wec]
+  block:
+
+    - name: "Save OPatch inventory before patch"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" lsinventory > "{{ before_inventory_file }}"
+      args:
+        chdir: "{{ oracle_home }}"
+      register: inventory_before
+      changed_when: false
+
+    - name: "Show pre-patch inventory"
+      ansible.builtin.debug:
+        msg: "Pre-patch inventory saved to: {{ before_inventory_file }}"
+
+    - name: "Stop WEC services"
+      ansible.windows.win_service:
+        name: "{{ item }}"
+        state: stopped
+      loop: "{{ wec_services }}"
+      register: stop_services
+      failed_when: false
+
+    - name: "Show stop result per service"
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ item.item }}"
+          - "State   : {{ item.state | default('n/a') }}"
+          - "Changed : {{ item.changed }}"
+      loop: "{{ stop_services.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Wait for services to stop"
+      ansible.windows.win_shell: Start-Sleep -Seconds 15
+      changed_when: false
+
+
+- name: "Apply SPB patch"
+  tags: [patch, apply_patch]
+  block:
+
+    - name: "Run WEC SPB patch using spbat.bat"
+      ansible.windows.win_shell: |
+        @echo off
+        call "{{ spbat_script }}" ^
+          -oh "{{ oracle_home }}" ^
+          -domainHome "{{ domain_home }}" ^
+          -server "{{ wec_managed_server }}" ^
+          -adminServerName "{{ admin_server_name }}" ^
+          > "{{ spbat_log_file }}" 2>&1
+      args:
+        chdir: "{{ patch_extract_dir }}"
+      register: spbat_result
+
+    - name: "Show SPBAT output"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ spbat_result.rc }}"
+          - "Stdout : {{ spbat_result.stdout_lines | default([]) }}"
+          - "Stderr : {{ spbat_result.stderr_lines | default([]) }}"
+          - "Log    : {{ spbat_log_file }}"
+
+    - name: "Assert patch applied successfully"
+      ansible.builtin.assert:
+        that:
+          - spbat_result.rc == 0
+        fail_msg: "SPB patch failed (rc={{ spbat_result.rc }}). Review log: {{ spbat_log_file }}"
+        success_msg: "SPB patch applied successfully."
+
+    - name: "Save OPatch inventory after patch"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" lsinventory > "{{ after_inventory_file }}"
+      args:
+        chdir: "{{ oracle_home }}"
+      changed_when: false
+
+    - name: "Validate SPB patch in inventory"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" lspatches
+      args:
+        chdir: "{{ oracle_home }}"
+      register: lspatches_out
+      changed_when: false
+
+    - name: "Display installed patches after SPB"
+      ansible.builtin.debug:
+        msg: "{{ lspatches_out.stdout_lines }}"
+
+
+- name: "Start WEC services"
+  tags: [patch, start_wec]
+  block:
+
+    - name: "Start WEC services"
+      ansible.windows.win_service:
+        name: "{{ item }}"
+        state: started
+      loop: "{{ wec_services }}"
+      register: start_services
+
+    - name: "Show start result per service"
+      ansible.builtin.debug:
+        msg:
+          - "Service : {{ item.item }}"
+          - "State   : {{ item.state | default('n/a') }}"
+          - "Changed : {{ item.changed }}"
+      loop: "{{ start_services.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Wait for services to settle"
+      ansible.windows.win_shell: Start-Sleep -Seconds 20
+      changed_when: false
+
+    - name: "Patch summary"
+      ansible.builtin.debug:
+        msg:
+          - "WEC SPB patch execution completed."
+          - "Review SPBAT log      : {{ spbat_log_file }}"
+          - "Inventory before patch: {{ before_inventory_file }}"
+          - "Inventory after patch : {{ after_inventory_file }}"

@@ -1,0 +1,64 @@
+---
+# ─── tasks/check-patches-installed.yml ───────────────────────────────────────
+# Check all patches in patches_list against the current OPatch inventory
+# and print a summary before any patching begins.
+
+- name: "Check which patches from patches_list are already installed"
+  tags: [patch, check_patches]
+  block:
+
+    - name: "Get current installed patches from OPatch"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" lspatches
+      args:
+        chdir: "{{ oracle_home }}"
+      register: _all_installed_patches
+      changed_when: false
+      failed_when: false
+
+    - name: "Show current installed patches"
+      ansible.builtin.debug:
+        msg: "{{ _all_installed_patches.stdout_lines | default([]) }}"
+
+    - name: "Check install status for each patch in patches_list"
+      ansible.builtin.set_fact:
+        _patch_status_list: >-
+          {{
+            _patch_status_list | default([]) + [{
+              'patch_id': _p.patch_id,
+              'patch_zip': _p.patch_zip,
+              'installed': _p.patch_id | string in (_all_installed_patches.stdout | default(''))
+            }]
+          }}
+      loop: "{{ patches_list }}"
+      loop_control:
+        loop_var: _p
+        label: "{{ _p.patch_id }}"
+
+    - name: "Print patch installation status for each patch"
+      ansible.builtin.debug:
+        msg:
+          - "Patch ID  : {{ item.patch_id }}"
+          - "Zip       : {{ item.patch_zip }}"
+          - "Installed : {{ item.installed }}"
+      loop: "{{ _patch_status_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+
+    - name: "Print patches already installed"
+      ansible.builtin.debug:
+        msg: "Already installed: {{ _patch_status_list | selectattr('installed', 'equalto', true) | map(attribute='patch_id') | list }}"
+
+    - name: "Print patches to be applied"
+      ansible.builtin.debug:
+        msg: "To be applied: {{ _patch_status_list | selectattr('installed', 'equalto', false) | map(attribute='patch_id') | list }}"
+
+    - name: "Set fact — patches pending installation"
+      ansible.builtin.set_fact:
+        patches_pending: "{{ _patch_status_list | selectattr('installed', 'equalto', false) | list }}"
+        patches_already_done: "{{ _patch_status_list | selectattr('installed', 'equalto', true) | list }}"
+
+    - name: "Warn if all patches already installed"
+      ansible.builtin.debug:
+        msg: "WARNING: All patches in patches_list are already installed. Nothing to apply."
+      when: patches_pending | length == 0

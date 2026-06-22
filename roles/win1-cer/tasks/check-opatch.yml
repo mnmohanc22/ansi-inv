@@ -1,0 +1,47 @@
+---
+# ─── tasks/check-opatch.yml ──────────────────────────────────────────────────
+# Check OPatch version and list installed patches.
+
+- name: "Check OPatch version and installed patches"
+  tags: [patch, check_opatch]
+  block:
+
+    - name: "Check OPatch version"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" version
+      args:
+        chdir: "{{ oracle_home }}"
+      register: opatch_version
+      changed_when: false
+      failed_when: false
+
+    - name: "Show OPatch version"
+      ansible.builtin.debug:
+        msg:
+          - "OPatch Exe : {{ opatch_exe }}"
+          - "Version    : {{ opatch_version.stdout_lines | default([]) }}"
+          - "RC         : {{ opatch_version.rc | default('n/a') }}"
+
+    - name: "List installed patches"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" lspatches
+      args:
+        chdir: "{{ oracle_home }}"
+      register: opatch_lspatches
+      changed_when: false
+      failed_when: false
+
+    - name: "Show installed patches"
+      ansible.builtin.debug:
+        msg: "{{ opatch_lspatches.stdout_lines | default([]) }}"
+
+    - name: "Check if patch already installed"
+      ansible.builtin.set_fact:
+        patch_already_installed: >-
+          {{ patch_id | string in (opatch_lspatches.stdout | default('')) }}
+
+    - name: "Show patch pre-check result"
+      ansible.builtin.debug:
+        msg:
+          - "Patch ID          : {{ patch_id }}"
+          - "Already installed : {{ patch_already_installed }}"

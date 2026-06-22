@@ -1,0 +1,28 @@
+---
+# ─── tasks/copy-patch.yml ────────────────────────────────────────────────────
+# Create staging directories and copy the patch zip to the Windows server.
+
+- name: "Copy patch to Windows server"
+  tags: [patch, copy_patch]
+  block:
+
+    - name: "Create patch staging directory"
+      ansible.windows.win_file:
+        path: "{{ patch_stage_dir }}"
+        state: directory
+
+    - name: "Create patch log directory"
+      ansible.windows.win_file:
+        path: "{{ patch_log_dir }}"
+        state: directory
+
+    - name: "Copy SPB patch zip to Windows server"
+      ansible.windows.win_copy:
+        src: "{{ patch_zip_src }}"
+        dest: "{{ patch_stage_dir }}\\{{ patch_id }}.zip"
+
+    - name: "Show copy result"
+      ansible.builtin.debug:
+        msg:
+          - "Source : {{ patch_zip_src }}"
+          - "Dest   : {{ patch_stage_dir }}\\{{ patch_id }}.zip"

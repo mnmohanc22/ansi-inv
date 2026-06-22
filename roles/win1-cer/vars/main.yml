@@ -39,7 +39,42 @@ oracle_password: '{{ vault_oracle_password }}'
 wec_service_name: "Oracle WebCenter Capture - capture_server1"
 wec_port: 16400
 
- admin_service_name: "Oracle WebLogic AdminServer"
-  nm_service_name: "Oracle WebLogic NodeManager"
-  admin_port: 7001
-  nm_port: 5556
+#  admin_service_name: "Oracle WebLogic AdminServer"
+#   nm_service_name: "Oracle WebLogic NodeManager"
+#   admin_port: 7001
+#   nm_port: 5556
+
+# ===== Patch details =====
+    patch_id: 'WEC_SPB_JAN2026'
+    patch_zip_src: '/runner/project/files/p6880880_122140_Generic.zip'   # Example: SPB zip copied from controller
+    patch_stage_dir: 'D:\patch_stage'
+    patch_extract_dir: 'D:\patch_stage\{{ patch_id }}'
+
+    # ===== OPatch / SPBAT =====
+    opatch_exe: '{{ oracle_home }}\OPatch\opatch.bat'
+    spbat_script: '{{ patch_extract_dir }}\spbat\spbat.bat'
+
+    # ===== WEC server details =====
+    wec_managed_server: 'capture_server1'
+    admin_server_name: 'AdminServer'
+
+    # ===== Windows services to stop/start =====
+    # Replace with your actual Windows service names if different
+    wec_services:
+      - 'OracleWECCaptureServer'
+      - 'OracleWECAdminServer'
+      - 'OracleWECNodeManager'
+
+    # ===== Logging =====
+    patch_log_dir: '{{ patch_stage_dir }}\logs'
+    before_inventory_file: '{{ patch_log_dir }}\lsinventory_before_{{ patch_id }}.txt'
+    after_inventory_file: '{{ patch_log_dir }}\lsinventory_after_{{ patch_id }}.txt'
+    spbat_log_file: '{{ patch_log_dir }}\spbat_{{ patch_id }}.log'
+
+
+
+patches_list:
+  - patch_id: "35926646"
+    patch_zip: p35926646_122140_Generic.zip
+  - patch_id: "36123456"
+    patch_zip: p36123456_122140_Generic.zip

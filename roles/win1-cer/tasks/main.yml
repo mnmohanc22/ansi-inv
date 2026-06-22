@@ -40,3 +40,19 @@
     - certificates
     - check
     - check_cert
+
+- name: "Check which patches from patches_list are already installed"
+  ansible.builtin.import_tasks: check-patches-installed.yml
+  tags:
+    - patch
+    - check_patches
+
+- name: "Apply all patches from patches_list"
+  ansible.builtin.include_tasks: patch-per-id.yml
+  loop: "{{ patches_list }}"
+  loop_control:
+    loop_var: _patch
+    label: "{{ _patch.patch_id }}"
+  tags:
+    - patch
+    - apply_patches

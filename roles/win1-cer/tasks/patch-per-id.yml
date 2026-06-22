@@ -1,0 +1,80 @@
+---
+# ─── tasks/patch-per-id.yml ──────────────────────────────────────────────────
+# Called in a loop from main.yml with each item from patches_list.
+# Sets per-patch vars derived from the loop item before delegating to
+# copy, extract and apply task files.
+
+- name: "Set per-patch variables for {{ _patch.patch_id }}"
+  ansible.builtin.set_fact:
+    patch_id: "{{ _patch.patch_id }}"
+    patch_zip_src: "{{ patch_files_dir | default('files') }}/{{ _patch.patch_zip }}"
+    patch_stage_dir: "{{ patch_stage_base | default('D:\\patch_stage') }}"
+    patch_extract_dir: "{{ patch_stage_base | default('D:\\patch_stage') }}\\{{ _patch.patch_id }}"
+    patch_log_dir: "{{ patch_stage_base | default('D:\\patch_stage') }}\\logs"
+    before_inventory_file: "{{ patch_stage_base | default('D:\\patch_stage') }}\\logs\\lsinventory_before_{{ _patch.patch_id }}.txt"
+    after_inventory_file: "{{ patch_stage_base | default('D:\\patch_stage') }}\\logs\\lsinventory_after_{{ _patch.patch_id }}.txt"
+    spbat_log_file: "{{ patch_stage_base | default('D:\\patch_stage') }}\\logs\\spbat_{{ _patch.patch_id }}.log"
+    spbat_script: "{{ patch_stage_base | default('D:\\patch_stage') }}\\{{ _patch.patch_id }}\\spbat\\spbat.bat"
+  tags:
+    - patch
+    - patch_setup
+
+- name: "Show patch being processed"
+  ansible.builtin.debug:
+    msg:
+      - "─────────────────────────────────────────────"
+      - "Patch ID  : {{ patch_id }}"
+      - "Zip       : {{ _patch.patch_zip }}"
+      - "Stage dir : {{ patch_stage_dir }}"
+      - "Extract   : {{ patch_extract_dir }}"
+      - "─────────────────────────────────────────────"
+  tags:
+    - patch
+    - patch_setup
+
+- name: "Check OPatch and installed patches for {{ patch_id }}"
+  ansible.builtin.include_tasks:
+    file: check-opatch.yml
+    apply:
+      tags: [patch, check_opatch]
+  tags:
+    - patch
+    - check_opatch
+
+- name: "Copy patch {{ patch_id }} to Windows server"
+  ansible.builtin.include_tasks:
+    file: copy-patch.yml
+    apply:
+      tags: [patch, copy_patch]
+  when: not (patch_already_installed | default(false))
+  tags:
+    - patch
+    - copy_patch
+
+- name: "Extract patch {{ patch_id }} and run prereq checks"
+  ansible.builtin.include_tasks:
+    file: extract-patch.yml
+    apply:
+      tags: [patch, extract_patch]
+  when: not (patch_already_installed | default(false))
+  tags:
+    - patch
+    - extract_patch
+
+- name: "Stop, apply, start for patch {{ patch_id }}"
+  ansible.builtin.include_tasks:
+    file: run-patch.yml
+    apply:
+      tags: [patch, apply_patch]
+  when: not (patch_already_installed | default(false))
+  tags:
+    - patch
+    - apply_patch
+
+- name: "Skip patch {{ patch_id }} — already installed"
+  ansible.builtin.debug:
+    msg: "Patch {{ patch_id }} is already installed. Skipping."
+  when: patch_already_installed | default(false)
+  tags:
+    - patch
+    - check_opatch

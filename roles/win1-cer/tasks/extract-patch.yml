@@ -1,0 +1,89 @@
+---
+# ─── tasks/extract-patch.yml ─────────────────────────────────────────────────
+# Extract the patch zip to the extract directory and run OPatch prereq checks.
+
+- name: "Extract patch to temp directory"
+  tags: [patch, extract_patch]
+  block:
+
+    - name: "Create patch extract directory"
+      ansible.windows.win_file:
+        path: "{{ patch_extract_dir }}"
+        state: directory
+
+    - name: "Extract SPB patch zip"
+      community.windows.win_unzip:
+        src: "{{ patch_stage_dir }}\\{{ patch_id }}.zip"
+        dest: "{{ patch_extract_dir }}"
+        delete_archive: false
+
+    - name: "Check spbat.bat exists"
+      ansible.windows.win_stat:
+        path: "{{ spbat_script }}"
+      register: spbat_file
+
+    - name: "Fail if spbat.bat is missing"
+      ansible.builtin.fail:
+        msg: "spbat.bat not found at {{ spbat_script }}. Verify extracted SPB patch structure."
+      when: not spbat_file.stat.exists
+
+    - name: "Show extract result"
+      ansible.builtin.debug:
+        msg:
+          - "Archive    : {{ patch_stage_dir }}\\{{ patch_id }}.zip"
+          - "Extracted  : {{ patch_extract_dir }}"
+          - "spbat.bat  : {{ spbat_script }}"
+          - "Exists     : {{ spbat_file.stat.exists }}"
+
+
+- name: "Patch conflict check"
+  tags: [patch, conflict_check]
+  block:
+
+    - name: "Run OPatch conflict check (CheckConflictAgainstOHWithDetail)"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" prereq CheckConflictAgainstOHWithDetail -ph "{{ patch_extract_dir }}\{{ patch_id }}"
+      args:
+        chdir: "{{ oracle_home }}"
+      register: conflict_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Show conflict check output"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ conflict_check.rc }}"
+          - "Stdout : {{ conflict_check.stdout_lines | default([]) }}"
+          - "Stderr : {{ conflict_check.stderr_lines | default([]) }}"
+
+    - name: "Run OPatch system space check"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" prereq CheckSystemSpace -ph "{{ patch_extract_dir }}\{{ patch_id }}"
+      args:
+        chdir: "{{ oracle_home }}"
+      register: space_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Show system space check output"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ space_check.rc }}"
+          - "Stdout : {{ space_check.stdout_lines | default([]) }}"
+
+    - name: "Set conflict check facts"
+      ansible.builtin.set_fact:
+        opatch_conflict_ok: "{{ conflict_check.rc == 0 }}"
+        opatch_space_ok: "{{ space_check.rc == 0 }}"
+
+    - name: "Show conflict pre-check summary"
+      ansible.builtin.debug:
+        msg:
+          - "Patch ID       : {{ patch_id }}"
+          - "Conflict Check : {{ 'PASSED' if opatch_conflict_ok else 'FAILED' }}"
+          - "Space Check    : {{ 'PASSED' if opatch_space_ok else 'FAILED' }}"
+
+    - name: "Fail if conflict check did not pass"
+      ansible.builtin.fail:
+        msg: "OPatch conflict check failed (rc={{ conflict_check.rc }}). Resolve conflicts before applying patch."
+      when: not opatch_conflict_ok
