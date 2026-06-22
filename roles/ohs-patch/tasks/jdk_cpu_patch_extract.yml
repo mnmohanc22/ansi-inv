@@ -5,6 +5,70 @@
 # The extract + symlink steps are skipped when the expected JDK version is
 # already active; verification always runs.
 
+- name: "Extract JDK patch to temp directory and copy to java_parent_dir"
+  tags:
+    - ohs_patch
+    - jdk_cpu_patch
+    - jdk
+    - extract_temp
+  block:
+
+    - name: "Create temp extract directory"
+      ansible.builtin.file:
+        path: "{{ patch_stage_dir }}/jdk_extract_tmp"
+        state: directory
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: "0755"
+
+    - name: "Extract JDK archive to temp directory"
+      ansible.builtin.unarchive:
+        src: "{{ patch_stage_dir }}/{{ jdk_archive }}"
+        dest: "{{ patch_stage_dir }}/jdk_extract_tmp"
+        remote_src: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+
+    - name: "Show contents of temp extract directory"
+      ansible.builtin.command: >-
+        ls -la {{ patch_stage_dir }}/jdk_extract_tmp
+      register: _jdk_tmp_contents
+      changed_when: false
+
+    - name: "Print temp extract directory contents"
+      ansible.builtin.debug:
+        msg: "{{ _jdk_tmp_contents.stdout_lines }}"
+
+    - name: "Copy extracted JDK to java_parent_dir"
+      ansible.builtin.copy:
+        src: "{{ patch_stage_dir }}/jdk_extract_tmp/{{ jdk_version_dir }}/"
+        dest: "{{ java_parent_dir }}/{{ jdk_version_dir }}"
+        remote_src: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+        mode: preserve
+
+    - name: "Fix ownership on java_parent_dir/jdk_version_dir"
+      ansible.builtin.file:
+        path: "{{ java_parent_dir }}/{{ jdk_version_dir }}"
+        state: directory
+        recurse: true
+        owner: "{{ oracle_user }}"
+        group: "{{ oracle_group }}"
+
+    - name: "Clean up temp extract directory"
+      ansible.builtin.file:
+        path: "{{ patch_stage_dir }}/jdk_extract_tmp"
+        state: absent
+
+    - name: "Show JDK copy result"
+      ansible.builtin.debug:
+        msg:
+          - "Archive    : {{ patch_stage_dir }}/{{ jdk_archive }}"
+          - "Extracted  : {{ patch_stage_dir }}/jdk_extract_tmp"
+          - "Copied to  : {{ java_parent_dir }}/{{ jdk_version_dir }}"
+
+
 - name: "Extract JDK CPU patch and repoint JAVA_HOME"
   block:
 
