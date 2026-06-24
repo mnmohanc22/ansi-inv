@@ -1,0 +1,44 @@
+---
+- name: "Apply patch {{ patch_item.patch_id }} using OPatch apply"
+  block:
+
+    - name: "Apply patch {{ patch_item.patch_id }} with opatch apply"
+      ansible.builtin.command:
+        cmd: >
+          {{ ohs_oracle_home }}/OPatch/opatch apply
+          {{ patches_top_dir }}/{{ patch_item.patch_id }}
+          -oh {{ ohs_oracle_home }}
+          -silent
+        chdir: "{{ patches_top_dir }}/{{ patch_item.patch_id }}"
+      register: patch_apply_result
+      changed_when: "'OPatch succeeded' in patch_apply_result.stdout"
+      failed_when: patch_apply_result.rc != 0
+
+    - name: "Display opatch apply output for {{ patch_item.patch_id }}"
+      ansible.builtin.debug:
+        msg: "{{ patch_apply_result.stdout_lines }}"
+
+    - name: "Verify patch {{ patch_item.patch_id }} is now installed"
+      ansible.builtin.command:
+        cmd: >
+          {{ ohs_oracle_home }}/OPatch/opatch lspatches
+          -oh {{ ohs_oracle_home }}
+      register: lspatches_after
+      changed_when: false
+
+    - name: "Confirm patch {{ patch_item.patch_id }} appears in lspatches"
+      ansible.builtin.fail:
+        msg: "Patch {{ patch_item.patch_id }} not found in opatch lspatches after apply"
+      when: patch_item.patch_id not in lspatches_after.stdout
+
+    - name: "Display installed patches after apply"
+      ansible.builtin.debug:
+        msg: "{{ lspatches_after.stdout_lines }}"
+
+  become: true
+  become_user: "{{ oracle_user }}"
+  when: not patch_already_installed
+  tags:
+    - ohs_patch
+    - patch_apply
+    - patches

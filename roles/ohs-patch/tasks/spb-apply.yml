@@ -1,0 +1,87 @@
+---
+- name: "Pre-flight checks for SPB patch apply"
+  block:
+
+    - name: "Verify OPatch exists"
+      ansible.builtin.stat:
+        path: "{{ ohs_oracle_home }}/OPatch/opatch"
+      register: opatch_stat
+
+    - name: "Fail if OPatch binary not found"
+      ansible.builtin.fail:
+        msg: "OPatch not found at {{ ohs_oracle_home }}/OPatch/opatch"
+      when: not opatch_stat.stat.exists
+
+    - name: "Verify SPB patch directory exists"
+      ansible.builtin.stat:
+        path: "{{ patches_top_dir }}/{{ spb_patch_id }}"
+      register: spb_dir_stat
+
+    - name: "Fail if SPB patch directory not found"
+      ansible.builtin.fail:
+        msg: "SPB patch directory not found: {{ patches_top_dir }}/{{ spb_patch_id }}"
+      when: not spb_dir_stat.stat.exists
+
+    - name: "List currently installed patches"
+      ansible.builtin.command:
+        cmd: >
+          {{ ohs_oracle_home }}/OPatch/opatch lspatches
+          -oh {{ ohs_oracle_home }}
+      register: lspatches_before
+      changed_when: false
+
+    - name: "Display currently installed patches"
+      ansible.builtin.debug:
+        msg: "{{ lspatches_before.stdout_lines }}"
+
+  become: true
+  become_user: "{{ oracle_user }}"
+  tags:
+    - ohs_patch
+    - spb
+    - spb_check
+    - patches
+
+- name: "Apply SPB patch using OPatch napply"
+  block:
+
+    - name: "Apply SPB patch with opatch napply"
+      ansible.builtin.command:
+        cmd: >
+          {{ ohs_oracle_home }}/OPatch/opatch napply
+          {{ patches_top_dir }}/{{ spb_patch_id }}
+          -oh {{ ohs_oracle_home }}
+          -silent
+        chdir: "{{ patches_top_dir }}/{{ spb_patch_id }}"
+      register: spb_apply_result
+      changed_when: "'OPatch succeeded' in spb_apply_result.stdout"
+      failed_when: spb_apply_result.rc != 0
+
+    - name: "Display opatch napply output"
+      ansible.builtin.debug:
+        msg: "{{ spb_apply_result.stdout_lines }}"
+
+    - name: "Verify SPB patch is now listed in lspatches"
+      ansible.builtin.command:
+        cmd: >
+          {{ ohs_oracle_home }}/OPatch/opatch lspatches
+          -oh {{ ohs_oracle_home }}
+      register: lspatches_after
+      changed_when: false
+
+    - name: "Confirm SPB patch {{ spb_patch_id }} is listed"
+      ansible.builtin.fail:
+        msg: "SPB patch {{ spb_patch_id }} not found in opatch lspatches output"
+      when: spb_patch_id not in lspatches_after.stdout
+
+    - name: "Display installed patches after apply"
+      ansible.builtin.debug:
+        msg: "{{ lspatches_after.stdout_lines }}"
+
+  become: true
+  become_user: "{{ oracle_user }}"
+  tags:
+    - ohs_patch
+    - spb
+    - spb_apply
+    - patches

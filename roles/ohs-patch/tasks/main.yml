@@ -8,15 +8,22 @@
 #   check -> copy -> extract -> conflict check -> apply
 # Running the full flow per patch keeps the `oneoff_patch_installed` fact
 # accurate, so already-installed patches are skipped (idempotent).
-- name: "Process all one-off patches"
-  ansible.builtin.import_tasks: oneoff_patch_list.yml
+# - name: "Process all one-off patches"
+#   ansible.builtin.import_tasks: oneoff_patch_list.yml
+#   tags:
+#     - ohs_patch
+#     - oneoff_patch
+#     - oneoff
+#     - check
+#     - copy
+#     - extract
+#     - conflict_check
+#     - patch
+#     - dry_run
+
+# ─── Bulk patch: parse list, copy zips, extract ─────────────────────────────
+- name: "Prepare and stage patches"
+  ansible.builtin.import_tasks: prepare-patch.yml
   tags:
     - ohs_patch
-    - oneoff_patch
-    - oneoff
-    - check
-    - copy
-    - extract
-    - conflict_check
-    - patch
-    - dry_run
+    - patches

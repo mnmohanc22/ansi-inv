@@ -11,6 +11,8 @@ patch_stage_dir: /u01/patches/ohs
 #patch_zip: p12345678_122140_Generic.zip
 #patch_id: "12345678"
 
+patches_top_dir:  /tmp/ohs/target-ohs-patches
+
 oracle_user: oracle
 oracle_group: oinstall
 
@@ -21,8 +23,8 @@ patch_id_list:
     patch_zip: "p23456789_122140_Generic.zip"
 
 # Source directory (on the Ansible controller) that holds the patch zip files
-patch_src_dir: files/patches
-
+#patch_src_dir: files/patches
+patch_src_dir: /tmp/ohs/src-ohs-patches
 cpu_jpatch_id: "12345678"
 
 one-off-patch-id: "34567890"
@@ -55,7 +57,10 @@ oracle_home: /u01/app/oracle/product/fmw
 domain_home: /u01/app/oracle/config/domains/base_domain
 ohs_component_name: ohs1
 
-patch_stage_dir: /u01/patches
+#patch_stage_dir: /u01/patches
+
+#patch_stage_dir: /tmp/ohs/target-ohs-patches
+patch_stage_dir:  "/tmp/ohs/stg-patches"
 backup_dir: /u01/backup
 
 java_parent_dir: /u01/app/java
@@ -86,3 +91,9 @@ patch_id_list:
     patch_zip: p35926646_122140_Generic.zip
   - patch_id: "36123456"
     patch_zip: p36123456_122140_Generic.zip
+
+patch_id_list_json: >-
+  [
+    {"patch_id": "35926646", "patch_zip": "p35926646_122140_Generic.zip"},
+    {"patch_id": "36123456", "patch_zip": "p36123456_122140_Generic.zip"}
+  ]

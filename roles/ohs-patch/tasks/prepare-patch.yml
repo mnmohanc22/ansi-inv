@@ -21,10 +21,13 @@
       when:
         - item.patch_id is not defined or item.patch_zip is not defined
 
-    - name: "Display parsed patch list"
+    - name: "Build patch_number_list from patch_id_list"
+      ansible.builtin.set_fact:
+        patch_number_list: "{{ patch_id_list | map(attribute='patch_id') | list }}"
+
+    - name: "Display total patches to process"
       ansible.builtin.debug:
-        msg:
-          - "Total patches to process: {{ patch_id_list | length }}"
+        msg: "Total patches to process: {{ patch_id_list | length }}"
 
     - name: "Print each patch_id and zip file"
       ansible.builtin.debug:
@@ -33,26 +36,92 @@
       loop_control:
         label: "{{ item.patch_id }}"
 
+    - name: "Display patch_number_list"
+      ansible.builtin.debug:
+        msg: "Patch number list: {{ patch_number_list }}"
+
   delegate_to: localhost
   run_once: true
   tags:
     - ohs_patch
     - prepare
+    - prepare-patch
+    - copy
+    - copy_patch
+    - extract
     - patches
 
-- name: "Run copy and extract tasks"
+- name: "Copy each patch to stage directory"
   ansible.builtin.include_tasks:
     file: copy-patch.yml
     apply:
       tags:
         - ohs_patch
+        - prepare-patch
         - copy
         - copy_patch
-        - extract
         - patches
+  loop: "{{ patch_id_list }}"
+  loop_control:
+    loop_var: patch_item
+    label: "{{ patch_item.patch_id }}"
   tags:
     - ohs_patch
+    - prepare-patch
     - copy
     - copy_patch
+    - patches
+
+- name: "Extract each patch on target"
+  ansible.builtin.include_tasks:
+    file: extract-patch.yml
+    apply:
+      tags:
+        - ohs_patch
+        - prepare-patch
+        - extract
+        - patches
+  loop: "{{ patch_id_list }}"
+  loop_control:
+    loop_var: patch_item
+    label: "{{ patch_item.patch_id }}"
+  tags:
+    - ohs_patch
+    - prepare-patch
     - extract
+    - patches
+
+
+- name: "Check each patch install status"
+  ansible.builtin.include_tasks:
+    file: patch-check.yml
+    apply:
+      tags:
+        - ohs_patch
+        - patch_check
+        - patches
+  loop: "{{ patch_id_list }}"
+  loop_control:
+    loop_var: patch_item
+    label: "{{ patch_item.patch_id }}"
+  tags:
+    - ohs_patch
+    - patch_check
+    - patches
+
+- name: "Apply each patch"
+  ansible.builtin.include_tasks:
+    file: patch-apply.yml
+    apply:
+      tags:
+        - ohs_patch
+        - patch_apply
+        - patches
+  loop: "{{ patch_id_list }}"
+  loop_control:
+    loop_var: patch_item
+    label: "{{ patch_item.patch_id }}"
+  tags:
+    - ohs_patch
+    - patch_apply
     - patches

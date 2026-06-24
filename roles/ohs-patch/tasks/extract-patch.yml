@@ -1,0 +1,28 @@
+---
+- name: "Extract patch {{ patch_item.patch_id }}"
+  block:
+
+    - name: "Ensure patches_top_dir exists"
+      ansible.builtin.file:
+        path: "{{ patches_top_dir }}"
+        state: directory
+        #owner: "{{ oracle_user }}"
+        #group: "{{ oracle_group }}"
+        mode: "0755"
+
+    - name: "Extract {{ patch_item.patch_zip }} into {{ patches_top_dir }}"
+      ansible.builtin.unarchive:
+        src: "{{ patch_stage_dir }}/{{ patch_item.patch_zip }}"
+        dest: "{{ patches_top_dir }}"
+        remote_src: true
+        #owner: "{{ oracle_user }}"
+        #group: "{{ oracle_group }}"
+
+    - name: "Confirm extraction of {{ patch_item.patch_id }}"
+      ansible.builtin.debug:
+        msg: "Extracted: {{ patch_item.patch_zip }} -> {{ patches_top_dir }}"
+
+  tags:
+    - ohs_patch
+    - extract
+    - patches

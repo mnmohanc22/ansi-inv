@@ -1,0 +1,29 @@
+---
+# ─── playbooks/ohs-patch-local.yml ──────────────────────────────────────────
+# Patch Oracle OHS servers using the ohs-patch role.
+#
+# Examples:
+#   # Full one-off patch run (copy -> extract -> conflict check -> apply)
+#   ansible-playbook playbooks/ohs-patch-local.yml
+#
+#   # Parse + copy + extract only
+#   ansible-playbook playbooks/ohs-patch-local.yml --tags patches
+#
+#   # Copy only
+#   ansible-playbook playbooks/ohs-patch-local.yml --tags copy
+#
+#   # Extract only
+#   ansible-playbook playbooks/ohs-patch-local.yml --tags extract
+#
+#   # Dry run: stage + conflict check ONLY (no apply)
+#   ansible-playbook playbooks/ohs-patch-local.yml --tags dry_run
+#
+#   # List all available tags
+#   ansible-playbook playbooks/ohs-patch-local.yml --list-tags
+
+- name: Patch Oracle OHS servers
+  hosts: localhost
+  connection: local
+  #become: true
+  roles:
+    - ohs-patch
