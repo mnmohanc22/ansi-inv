@@ -78,3 +78,11 @@ artifacts_host: "artifacts.example.com"
 spb_patch_id: "37011111"
 
 opatch_zip: p6880880_139400_Generic.zip
+
+
+
+patch_id_list:
+  - patch_id: "35926646"
+    patch_zip: p35926646_122140_Generic.zip
+  - patch_id: "36123456"
+    patch_zip: p36123456_122140_Generic.zip

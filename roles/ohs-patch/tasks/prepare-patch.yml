@@ -1,0 +1,58 @@
+---
+- name: "Parse and prepare patch list"
+  block:
+
+    - name: "Fail if neither patch_id_list nor patch_id_list_json is defined"
+      ansible.builtin.fail:
+        msg: "You must provide either patch_id_list (YAML) or patch_id_list_json (JSON string) via Extra Variables or Survey."
+      when:
+        - patch_id_list | default([]) | length == 0
+        - patch_id_list_json | default('') | length == 0
+
+    - name: "Convert patch_id_list_json survey input to list"
+      ansible.builtin.set_fact:
+        patch_id_list: "{{ patch_id_list_json | from_json }}"
+      when: patch_id_list_json | default('') | length > 0
+
+    - name: "Validate patch_id_list entries have required keys"
+      ansible.builtin.fail:
+        msg: "Entry '{{ item }}' is missing 'patch_id' or 'patch_zip' key."
+      loop: "{{ patch_id_list }}"
+      when:
+        - item.patch_id is not defined or item.patch_zip is not defined
+
+    - name: "Display parsed patch list"
+      ansible.builtin.debug:
+        msg:
+          - "Total patches to process: {{ patch_id_list | length }}"
+
+    - name: "Print each patch_id and zip file"
+      ansible.builtin.debug:
+        msg: "Patch ID: {{ item.patch_id }} | Zip File: {{ item.patch_zip }}"
+      loop: "{{ patch_id_list }}"
+      loop_control:
+        label: "{{ item.patch_id }}"
+
+  delegate_to: localhost
+  run_once: true
+  tags:
+    - ohs_patch
+    - prepare
+    - patches
+
+- name: "Run copy and extract tasks"
+  ansible.builtin.include_tasks:
+    file: copy-patch.yml
+    apply:
+      tags:
+        - ohs_patch
+        - copy
+        - copy_patch
+        - extract
+        - patches
+  tags:
+    - ohs_patch
+    - copy
+    - copy_patch
+    - extract
+    - patches
