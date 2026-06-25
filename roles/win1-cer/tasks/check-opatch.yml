@@ -5,11 +5,11 @@
 
     - name: "Print command"
       ansible.builtin.debug:
-        msg: "CMD: {{ opatch_exe }} version"
+        msg: "CMD: {{ opatch_home }}\opatch.bat version"
 
     - name: "Run OPatch version"
       ansible.windows.win_shell: |
-        "{{ opatch_exe }}" version
+        "{{ opatch_home }}\opatch.bat" version
       args:
         chdir: "{{ oracle_home }}"
       register: opatch_version
@@ -19,7 +19,7 @@
     - name: "Show OPatch version"
       ansible.builtin.debug:
         msg:
-          - "OPatch Exe : {{ opatch_exe }}"
+          - "OPatch Exe : {{ opatch_home }}\opatch.bat"
           - "RC         : {{ opatch_version.rc | default('n/a') }}"
           - "Version    : {{ opatch_version.stdout_lines | default([]) }}"
 
@@ -29,11 +29,11 @@
 
     - name: "Print command"
       ansible.builtin.debug:
-        msg: "CMD: {{ opatch_exe }} lspatches"
+        msg: "CMD: {{ opatch_home }}\opatch.bat lspatches"
 
     - name: "Run OPatch lspatches"
       ansible.windows.win_shell: |
-        "{{ opatch_exe }}" lspatches
+        "{{ opatch_home }}\opatch.bat" lspatches
       args:
         chdir: "{{ oracle_home }}"
       register: opatch_lspatches
@@ -52,11 +52,11 @@
 
     - name: "Print command"
       ansible.builtin.debug:
-        msg: "CMD: {{ opatch_exe }} lspatches | grep {{ patch_id }}"
+        msg: "CMD: {{ opatch_home }}\opatch.bat lspatches | grep {{ patch_id }}"
 
     - name: "Run OPatch lspatches for patch check"
       ansible.windows.win_shell: |
-        "{{ opatch_exe }}" lspatches
+        "{{ opatch_home }}\opatch.bat" lspatches
       args:
         chdir: "{{ oracle_home }}"
       register: opatch_lspatches_check

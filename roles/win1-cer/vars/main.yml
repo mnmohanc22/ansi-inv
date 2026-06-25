@@ -51,7 +51,7 @@ wec_port: 16400
     patch_extract_dir: 'D:\patch_stage\{{ patch_id }}'
 
     # ===== OPatch / SPBAT =====
-    opatch_exe: '{{ oracle_home }}\OPatch\opatch.bat'
+    opatch_home: '{{ oracle_home }}\OPatch'
     spbat_script: '{{ patch_extract_dir }}\spbat\spbat.bat'
     sevenzip_exe: 'C:\Program Files\7-Zip\7z.exe'
 
