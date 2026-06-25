@@ -11,11 +11,21 @@
         path: "{{ patch_extract_dir }}"
         state: directory
 
-    - name: "Extract SPB patch zip"
-      community.windows.win_unzip:
-        src: "{{ patch_stage_dir }}\\{{ patch_id }}.zip"
-        dest: "{{ patch_extract_dir }}"
-        delete_archive: false
+    - name: "Print extract command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ sevenzip_exe }} x {{ patch_stage_dir }}\\{{ patch_id }}.zip -o{{ patch_extract_dir }} -y"
+
+    - name: "Extract SPB patch zip using 7-Zip"
+      ansible.windows.win_shell: |
+        & "{{ sevenzip_exe }}" x "{{ patch_stage_dir }}\{{ patch_id }}.zip" -o"{{ patch_extract_dir }}" -y
+      register: extract_result
+      failed_when: extract_result.rc != 0
+
+    - name: "Show 7-Zip extract output"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ extract_result.rc }}"
+          - "Stdout : {{ extract_result.stdout_lines | default([]) }}"
 
     - name: "Check spbat.bat exists"
       ansible.windows.win_stat:

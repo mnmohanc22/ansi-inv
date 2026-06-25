@@ -1,12 +1,13 @@
 ---
-# ─── tasks/check-opatch.yml ──────────────────────────────────────────────────
-# Check OPatch version and list installed patches.
-
-- name: "Check OPatch version and installed patches"
-  tags: [patch, check_opatch]
+- name: "Check OPatch version"
+  tags: [patch, check_opatch, opatch_version]
   block:
 
-    - name: "Check OPatch version"
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ opatch_exe }} version"
+
+    - name: "Run OPatch version"
       ansible.windows.win_shell: |
         "{{ opatch_exe }}" version
       args:
@@ -19,10 +20,18 @@
       ansible.builtin.debug:
         msg:
           - "OPatch Exe : {{ opatch_exe }}"
-          - "Version    : {{ opatch_version.stdout_lines | default([]) }}"
           - "RC         : {{ opatch_version.rc | default('n/a') }}"
+          - "Version    : {{ opatch_version.stdout_lines | default([]) }}"
 
-    - name: "List installed patches"
+- name: "List installed patches"
+  tags: [patch, check_opatch, opatch_lspatches]
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ opatch_exe }} lspatches"
+
+    - name: "Run OPatch lspatches"
       ansible.windows.win_shell: |
         "{{ opatch_exe }}" lspatches
       args:
@@ -33,15 +42,34 @@
 
     - name: "Show installed patches"
       ansible.builtin.debug:
-        msg: "{{ opatch_lspatches.stdout_lines | default([]) }}"
+        msg:
+          - "RC      : {{ opatch_lspatches.rc | default('n/a') }}"
+          - "Patches : {{ opatch_lspatches.stdout_lines | default([]) }}"
 
-    - name: "Check if patch already installed"
+- name: "Check if patch {{ patch_id }} is installed"
+  tags: [patch, check_opatch, opatch_check_patch]
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ opatch_exe }} lspatches | grep {{ patch_id }}"
+
+    - name: "Run OPatch lspatches for patch check"
+      ansible.windows.win_shell: |
+        "{{ opatch_exe }}" lspatches
+      args:
+        chdir: "{{ oracle_home }}"
+      register: opatch_lspatches_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Set patch_already_installed fact"
       ansible.builtin.set_fact:
-        patch_already_installed: >-
-          {{ patch_id | string in (opatch_lspatches.stdout | default('')) }}
+        patch_already_installed: "{{ patch_id | string in (opatch_lspatches_check.stdout | default('')) }}"
 
-    - name: "Show patch pre-check result"
+    - name: "Show patch install status"
       ansible.builtin.debug:
         msg:
           - "Patch ID          : {{ patch_id }}"
           - "Already installed : {{ patch_already_installed }}"
+          - "Status            : {{ 'INSTALLED' if patch_already_installed else 'NOT INSTALLED' }}"

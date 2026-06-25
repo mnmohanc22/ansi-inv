@@ -53,6 +53,7 @@ wec_port: 16400
     # ===== OPatch / SPBAT =====
     opatch_exe: '{{ oracle_home }}\OPatch\opatch.bat'
     spbat_script: '{{ patch_extract_dir }}\spbat\spbat.bat'
+    sevenzip_exe: 'C:\Program Files\7-Zip\7z.exe'
 
     # ===== WEC server details =====
     wec_managed_server: 'capture_server1'
@@ -78,3 +79,5 @@ patches_list:
     patch_zip: p35926646_122140_Generic.zip
   - patch_id: "36123456"
     patch_zip: p36123456_122140_Generic.zip
+
+sevenzip_exe: 'C:\Program Files\7-Zip\7z.exe'    
