@@ -3,6 +3,10 @@
   tags: [start, start-nm]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: cd {{ wec_domain_home }}\\bin && .\\startNodeManager.cmd"
+
     - name: Start Node Manager
       ansible.windows.win_shell: |
         cd "{{ wec_domain_home }}\bin"
@@ -22,6 +26,10 @@
 - name: Stop Node Manager
   tags: [stop, stop-nm]
   block:
+
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: cd {{ wec_domain_home }}\\bin && .\\stopNodeManager.cmd"
 
     - name: Stop Node Manager
       ansible.windows.win_shell: |
@@ -63,6 +71,10 @@
   tags: [start, start-admin]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: cd {{ wec_domain_home }}\\bin && .\\startWebLogic.cmd"
+
     - name: Start Admin Server
       ansible.windows.win_shell: |
         cd "{{ wec_domain_home }}\bin"
@@ -82,6 +94,10 @@
 - name: Stop Admin Server
   tags: [stop, stop-admin]
   block:
+
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: cd {{ wec_domain_home }}\\bin && .\\stopWebLogic.cmd <user> <password>"
 
     - name: Stop Admin Server
       ansible.windows.win_shell: |
@@ -124,6 +140,10 @@
   tags: [start, start-wec]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: cd {{ wec_domain_home }}\\bin && .\\startManagedWebLogic.cmd {{ wec_server_name }} {{ admin_url }}"
+
     - name: Start WEC managed server
       ansible.windows.win_shell: |
         cd "{{ wec_domain_home }}\bin"
@@ -143,6 +163,10 @@
 - name: Stop WEC managed server
   tags: [stop, stop-wec]
   block:
+
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: cd {{ wec_domain_home }}\\bin && .\\stopManagedWebLogic.cmd {{ wec_server_name }} {{ admin_url }} <user> <password>"
 
     - name: Stop WEC managed server
       ansible.windows.win_shell: |
@@ -230,6 +254,10 @@
   tags: [stop, stop-svc]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Stop-Service -Name {{ wec_service_name }}"
+
     - name: Stop WEC Windows service
       ansible.windows.win_service:
         name: "{{ wec_service_name }}"
@@ -254,6 +282,10 @@
   tags: [start, start-svc]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Start-Service -Name {{ wec_service_name }}"
+
     - name: Start WEC Windows service
       ansible.windows.win_service:
         name: "{{ wec_service_name }}"
@@ -277,6 +309,10 @@
 - name: Restart WEC Windows service
   tags: [restart, restart-svc]
   block:
+
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Restart-Service -Name {{ wec_service_name }}"
 
     - name: Restart WEC Windows service
       ansible.windows.win_service:
@@ -328,12 +364,16 @@
 
     - name: Show all WEC related services
       ansible.builtin.debug:
-        msg: "{{ wec_services.stdout | from_json }}"                  
+        msg: "{{ wec_services.stdout | from_json }}"
 
 
 - name: Stop Node Manager service
   tags: [stop, stop-nm-svc]
   block:
+
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Stop-Service -Name {{ nm_service_name }}"
 
     - name: Stop Node Manager service
       ansible.windows.win_service:
@@ -359,6 +399,10 @@
   tags: [stop, stop-admin-svc]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Stop-Service -Name {{ admin_service_name }}"
+
     - name: Stop Admin Server service
       ansible.windows.win_service:
         name: "{{ admin_service_name }}"
@@ -383,6 +427,10 @@
   tags: [start, start-nm-svc]
   block:
 
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Start-Service -Name {{ nm_service_name }}"
+
     - name: Start Node Manager service
       ansible.windows.win_service:
         name: "{{ nm_service_name }}"
@@ -406,6 +454,10 @@
 - name: Start Admin Server service
   tags: [start, start-admin-svc]
   block:
+
+    - name: Print command
+      ansible.builtin.debug:
+        msg: "CMD: Start-Service -Name {{ admin_service_name }}"
 
     - name: Start Admin Server service
       ansible.windows.win_service:
@@ -453,7 +505,7 @@
         msg:
           - "Service   : {{ nm_service_info.services[0].name }}"
           - "State     : {{ nm_service_info.services[0].state }}"
-          - "StartMode : {{ nm_service_info.services[0].start_mode }}"        
+          - "StartMode : {{ nm_service_info.services[0].start_mode }}"
 
 
 - name: Get Oracle Middleware process owners
@@ -508,4 +560,4 @@
     - name: Warn if no Oracle processes found
       ansible.builtin.debug:
         msg: "WARNING: No Oracle Middleware processes found on {{ inventory_hostname }}"
-      when: _oracle_processes | length == 0          
+      when: _oracle_processes | length == 0
