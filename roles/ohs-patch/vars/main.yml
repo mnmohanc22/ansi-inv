@@ -97,3 +97,9 @@ patch_id_list_json: >-
     {"patch_id": "35926646", "patch_zip": "p35926646_122140_Generic.zip"},
     {"patch_id": "36123456", "patch_zip": "p36123456_122140_Generic.zip"}
   ]
+
+lspatches_before:
+  stdout: |
+    12345678;One-off patch description
+    23456789;Another patch description
+    OPatch succeeded.

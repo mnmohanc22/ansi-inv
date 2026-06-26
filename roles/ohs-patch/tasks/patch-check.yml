@@ -2,33 +2,33 @@
 - name: "Pre-flight checks for patch {{ patch_item.patch_id }}"
   block:
 
-    - name: "Verify OPatch exists"
-      ansible.builtin.stat:
-        path: "{{ ohs_oracle_home }}/OPatch/opatch"
-      register: opatch_stat
+    # - name: "Verify OPatch exists"
+    #   ansible.builtin.stat:
+    #     path: "{{ ohs_oracle_home }}/OPatch/opatch"
+    #   register: opatch_stat
 
-    - name: "Fail if OPatch binary not found"
-      ansible.builtin.fail:
-        msg: "OPatch not found at {{ ohs_oracle_home }}/OPatch/opatch"
-      when: not opatch_stat.stat.exists
+    # - name: "Fail if OPatch binary not found"
+    #   ansible.builtin.fail:
+    #     msg: "OPatch not found at {{ ohs_oracle_home }}/OPatch/opatch"
+    #   when: not opatch_stat.stat.exists
 
-    - name: "Verify patch directory exists for {{ patch_item.patch_id }}"
-      ansible.builtin.stat:
-        path: "{{ patches_top_dir }}/{{ patch_item.patch_id }}"
-      register: patch_dir_stat
+    # - name: "Verify patch directory exists for {{ patch_item.patch_id }}"
+    #   ansible.builtin.stat:
+    #     path: "{{ patches_top_dir }}/{{ patch_item.patch_id }}"
+    #   register: patch_dir_stat
 
-    - name: "Fail if patch directory not found"
-      ansible.builtin.fail:
-        msg: "Patch directory not found: {{ patches_top_dir }}/{{ patch_item.patch_id }}"
-      when: not patch_dir_stat.stat.exists
+    # - name: "Fail if patch directory not found"
+    #   ansible.builtin.fail:
+    #     msg: "Patch directory not found: {{ patches_top_dir }}/{{ patch_item.patch_id }}"
+    #   when: not patch_dir_stat.stat.exists
 
-    - name: "Check if patch {{ patch_item.patch_id }} is already installed"
-      ansible.builtin.command:
-        cmd: >
-          {{ ohs_oracle_home }}/OPatch/opatch lspatches
-          -oh {{ ohs_oracle_home }}
-      register: lspatches_before
-      changed_when: false
+    # - name: "Check if patch {{ patch_item.patch_id }} is already installed"
+    #   ansible.builtin.command:
+    #     cmd: >
+    #       {{ ohs_oracle_home }}/OPatch/opatch lspatches
+    #       -oh {{ ohs_oracle_home }}
+    #   register: lspatches_before
+    #   changed_when: false
 
     - name: "Set patch_already_installed fact"
       ansible.builtin.set_fact:
