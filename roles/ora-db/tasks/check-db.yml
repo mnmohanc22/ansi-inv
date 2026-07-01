@@ -1,0 +1,87 @@
+---
+- name: "Check Oracle database status"
+  block:
+
+    - name: "Find running Oracle instances"
+      ansible.builtin.shell: |
+        ps -ef | awk '/ora_pmon_/ && !/awk/ {
+          split($NF,a,"ora_pmon_");
+          print a[2]
+        }'
+      register: oracle_instances
+      changed_when: false
+      failed_when: false
+
+    - name: "Show running instances"
+      ansible.builtin.debug:
+        msg:
+          - "Running Oracle instances: {{ oracle_instances.stdout_lines | default([]) }}"
+          - "Count: {{ oracle_instances.stdout_lines | default([]) | length }}"
+
+    - name: "Check PMON for each instance"
+      ansible.builtin.shell: |
+        ps -ef | grep "ora_pmon_{{ item }}" | grep -v grep
+      register: pmon_check
+      changed_when: false
+      failed_when: false
+      loop: "{{ oracle_instances.stdout_lines | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "Show instance status"
+      ansible.builtin.debug:
+        msg:
+          - "Instance : {{ item.item }}"
+          - "Status   : {{ 'RUNNING' if item.rc == 0 else 'DOWN' }}"
+      loop: "{{ pmon_check.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Check Oracle background processes"
+      ansible.builtin.shell: |
+        ps -ef | grep -E "ora_(pmon|smon|dbwr|lgwr|ckpt|arch)_{{ item }}" | grep -v grep \
+        | awk '{print "PID=" $2, "PROC=" $8}'
+      register: bg_processes
+      changed_when: false
+      failed_when: false
+      loop: "{{ oracle_instances.stdout_lines | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "Show background processes"
+      ansible.builtin.debug:
+        msg:
+          - "Instance   : {{ item.item }}"
+          - "Processes  : {{ item.stdout_lines | default([]) }}"
+      loop: "{{ bg_processes.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Check Oracle alert log for recent errors"
+      ansible.builtin.shell: |
+        find {{ oracle_base | default('/u01/app/oracle') }}/diag/rdbms \
+          -name "alert_{{ item }}.log" 2>/dev/null \
+        | xargs tail -50 2>/dev/null \
+        | grep -iE "ORA-|error" | tail -10 || echo "NO_ERRORS"
+      register: alert_log_errors
+      changed_when: false
+      failed_when: false
+      loop: "{{ oracle_instances.stdout_lines | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "Show alert log errors"
+      ansible.builtin.debug:
+        msg:
+          - "Instance    : {{ item.item }}"
+          - "Alert errors: {{ item.stdout_lines | default([]) }}"
+      loop: "{{ alert_log_errors.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stdout.strip() != 'NO_ERRORS'
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - check_db

@@ -109,6 +109,17 @@
     - patch_check
     - patches
 
+- name: "Print consolidated patch status report"
+  ansible.builtin.debug:
+    msg: "{{ '%-14s | %-37s | %-13s | %s' | format(item.patch_id, item.patch_zip, item.status, item.action) }}"
+  loop: "{{ patch_status_report | default([]) }}"
+  loop_control:
+    label: "{{ item.patch_id }}"
+  tags:
+    - ohs_patch
+    - patch_check
+    - patches
+
 - name: "Apply each patch"
   ansible.builtin.include_tasks:
     file: patch-apply.yml

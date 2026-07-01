@@ -34,11 +34,17 @@
       ansible.builtin.set_fact:
         patch_already_installed: "{{ patch_item.patch_id in lspatches_before.stdout }}"
 
-    - name: "Display patch {{ patch_item.patch_id }} install status"
-      ansible.builtin.debug:
-        msg: >-
-          Patch {{ patch_item.patch_id }}:
-          {{ 'already installed — apply will be skipped.' if patch_already_installed else 'not installed — will be applied.' }}
+    - name: "Accumulate patch status into report"
+      ansible.builtin.set_fact:
+        patch_status_report: >-
+          {{ patch_status_report | default([]) + [
+            {
+              'patch_id': patch_item.patch_id,
+              'patch_zip': patch_item.patch_zip,
+              'status': 'INSTALLED' if patch_already_installed else 'NOT INSTALLED',
+              'action': 'SKIP' if patch_already_installed else 'APPLY'
+            }
+          ] }}
 
   become: true
   become_user: "{{ oracle_user }}"
@@ -46,3 +52,4 @@
     - ohs_patch
     - patch_check
     - patches
+

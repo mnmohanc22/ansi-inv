@@ -284,26 +284,27 @@
       environment:
         ORACLE_HOME: "{{ oracle_home_ohs }}"
         DOMAIN_HOME: "{{ domain_home }}"
-      async: 60
+      async: 86400
       poll: 0
       register: nm_async_job
 
-    - name: Wait for Node Manager async job to complete
-      ansible.builtin.async_status:
-        jid: "{{ nm_async_job.ansible_job_id }}"
+    - name: Wait for Node Manager process to appear
+      ansible.builtin.shell: |
+        pgrep -f "{{ domain_home }}.*NodeManager" || echo "NOT_RUNNING"
+      register: nm_process_check
+      until: nm_process_check.stdout.strip() != 'NOT_RUNNING'
+      retries: 18
+      delay: 10
+      changed_when: false
       become: true
       become_user: "{{ oracle_user }}"
-      register: _nm_async_result
-      until: _nm_async_result.finished
-      retries: 12
-      delay: 5
 
-    - name: Show Node Manager async start output
+    - name: Show Node Manager start result
       ansible.builtin.debug:
         msg:
-          - "RC     : {{ _nm_async_result.rc | default('n/a') }}"
-          - "Stdout : {{ _nm_async_result.stdout_lines | default([]) }}"
-          - "Stderr : {{ _nm_async_result.stderr_lines | default([]) }}"
+          - "Job ID  : {{ nm_async_job.ansible_job_id }}"
+          - "PID     : {{ nm_process_check.stdout.strip() }}"
+          - "Status  : {{ 'RUNNING' if nm_process_check.stdout.strip() != 'NOT_RUNNING' else 'NOT RUNNING' }}"
 
     - name: Wait for Node Manager port to open
       ansible.builtin.wait_for:

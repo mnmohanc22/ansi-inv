@@ -1,0 +1,55 @@
+---
+- name: "Oracle listener and database status"
+  block:
+
+    - name: "Check PMON process"
+      ansible.builtin.shell: |
+        ps -ef | grep pmon | grep "{{ oracle_sid }}" | grep -v grep
+      register: pmon
+      failed_when: false
+      changed_when: false
+
+    - name: "Database process status"
+      ansible.builtin.debug:
+        msg: "Database {{ oracle_sid }} is {{ 'RUNNING' if pmon.rc == 0 else 'DOWN' }}"
+
+    - name: "Check listener status"
+      ansible.builtin.shell: |
+        lsnrctl status
+      environment: "{{ oracle_env }}"
+      register: listener
+      failed_when: false
+      changed_when: false
+      when: pmon.rc == 0
+
+    - name: "Display listener status"
+      ansible.builtin.debug:
+        msg: "{{ listener.stdout_lines }}"
+      when: pmon.rc == 0
+
+    - name: "Start listener"
+      ansible.builtin.shell: |
+        lsnrctl start
+      environment: "{{ oracle_env }}"
+      register: listener_start
+      failed_when: false
+      changed_when: "'The command completed successfully' in listener_start.stdout"
+      when:
+        - pmon.rc == 0
+        - listener.rc != 0
+
+    - name: "Display listener start result"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ listener_start.rc | default('n/a') }}"
+          - "Status : {{ 'STARTED' if listener_start.rc | default(1) == 0 else 'FAILED' }}"
+          - "Output : {{ listener_start.stdout_lines | default([]) }}"
+      when:
+        - pmon.rc == 0
+        - listener.rc != 0
+
+  become: true
+  become_user: "{{ oracle_user }}"
+  tags:
+    - ora_db
+    - listener

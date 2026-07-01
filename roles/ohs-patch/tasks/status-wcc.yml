@@ -1,0 +1,509 @@
+---
+- name: "Start Node Manager"
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: nohup {{ domain_home }}/bin/startNodeManager.sh > {{ domain_home }}/nodemanager/nodemanager.out 2>&1 &"
+
+    - name: "Start Node Manager"
+      ansible.builtin.shell: |
+        nohup {{ domain_home }}/bin/startNodeManager.sh \
+        > {{ domain_home }}/nodemanager/nodemanager.out 2>&1 &
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      async: 60
+      poll: 0
+      register: nm_start
+
+    - name: "Show Node Manager start result"
+      ansible.builtin.debug:
+        msg:
+          - "Component : Node Manager"
+          - "Log       : {{ domain_home }}/nodemanager/nodemanager.out"
+          - "Status    : Started (async)"
+
+  tags:
+    - wcc
+    - start
+    - start_nm
+
+- name: "Start Admin Server"
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: nohup {{ domain_home }}/bin/startWebLogic.sh > {{ domain_home }}/servers/{{ admin_server_name | default('AdminServer') }}/logs/startup.out 2>&1 &"
+
+    - name: "Start Admin Server"
+      ansible.builtin.shell: |
+        nohup {{ domain_home }}/bin/startWebLogic.sh \
+        > {{ domain_home }}/servers/{{ admin_server_name | default('AdminServer') }}/logs/startup.out 2>&1 &
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      async: 60
+      poll: 0
+      register: admin_start
+
+    - name: "Show Admin Server start result"
+      ansible.builtin.debug:
+        msg:
+          - "Component : Admin Server ({{ admin_server_name | default('AdminServer') }})"
+          - "Log       : {{ domain_home }}/servers/{{ admin_server_name | default('AdminServer') }}/logs/startup.out"
+          - "Status    : Started (async)"
+
+  tags:
+    - wcc
+    - start
+    - start_admin
+
+- name: "Start WCC Managed Servers"
+  block:
+
+    - name: "Print command for each managed server"
+      ansible.builtin.debug:
+        msg: "CMD: nohup {{ domain_home }}/bin/startManagedWebLogic.sh {{ item }} {{ admin_url }} > {{ domain_home }}/servers/{{ item }}/logs/startup.out 2>&1 &"
+      loop: "{{ managed_servers }}"
+
+    - name: "Start WCC Managed Servers"
+      ansible.builtin.shell: |
+        nohup {{ domain_home }}/bin/startManagedWebLogic.sh {{ item }} {{ admin_url }} \
+        > {{ domain_home }}/servers/{{ item }}/logs/startup.out 2>&1 &
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      async: 60
+      poll: 0
+      register: managed_start
+
+    - name: "Show managed server start results"
+      ansible.builtin.debug:
+        msg:
+          - "Server : {{ item.item }}"
+          - "Log    : {{ domain_home }}/servers/{{ item.item }}/logs/startup.out"
+          - "Status : Started (async)"
+      loop: "{{ managed_start.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+  tags:
+    - wcc
+    - start
+    - start_managed
+
+- name: "Start Node Manager (async)"
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ domain_home }}/bin/startNodeManager.sh"
+
+    - name: "Start Node Manager"
+      ansible.builtin.shell: "{{ domain_home }}/bin/startNodeManager.sh"
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      async: 86400
+      poll: 0
+      register: nm_async
+
+    - name: "Wait for Node Manager process"
+      ansible.builtin.shell: |
+        pgrep -f "{{ domain_home }}.*NodeManager" || echo "NOT_RUNNING"
+      register: nm_process_check
+      until: nm_process_check.stdout.strip() != 'NOT_RUNNING'
+      retries: 18
+      delay: 10
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "Show Node Manager start result"
+      ansible.builtin.debug:
+        msg:
+          - "Component : Node Manager"
+          - "Job ID    : {{ nm_async.ansible_job_id }}"
+          - "PID       : {{ nm_process_check.stdout.strip() }}"
+          - "Status    : {{ 'RUNNING' if nm_process_check.stdout.strip() != 'NOT_RUNNING' else 'NOT RUNNING' }}"
+
+  tags:
+    - wcc
+    - start
+    - start_nm_async
+
+- name: "Start Admin Server (async)"
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ domain_home }}/bin/startWebLogic.sh"
+
+    - name: "Start Admin Server"
+      ansible.builtin.shell: "{{ domain_home }}/bin/startWebLogic.sh"
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      async: 86400
+      poll: 0
+      register: admin_async
+
+    - name: "Wait for Admin Server process"
+      ansible.builtin.shell: |
+        pgrep -f "{{ domain_home }}.*AdminServer" || echo "NOT_RUNNING"
+      register: admin_process_check
+      until: admin_process_check.stdout.strip() != 'NOT_RUNNING'
+      retries: 30
+      delay: 10
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "Show Admin Server start result"
+      ansible.builtin.debug:
+        msg:
+          - "Component : Admin Server ({{ admin_server_name | default('AdminServer') }})"
+          - "Job ID    : {{ admin_async.ansible_job_id }}"
+          - "PID       : {{ admin_process_check.stdout.strip() }}"
+          - "Status    : {{ 'RUNNING' if admin_process_check.stdout.strip() != 'NOT_RUNNING' else 'NOT RUNNING' }}"
+
+  tags:
+    - wcc
+    - start
+    - start_admin_async
+
+- name: "Start WCC Managed Servers (async)"
+  block:
+
+    - name: "Print command for each managed server"
+      ansible.builtin.debug:
+        msg: "CMD: {{ domain_home }}/bin/startManagedWebLogic.sh {{ item }} {{ admin_url }}"
+      loop: "{{ managed_servers }}"
+
+    - name: "Start managed servers"
+      ansible.builtin.shell: "{{ domain_home }}/bin/startManagedWebLogic.sh {{ item }} {{ admin_url }}"
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      async: 86400
+      poll: 0
+      register: managed_async
+
+    - name: "Wait for managed server process {{ item }}"
+      ansible.builtin.shell: |
+        pgrep -f "{{ domain_home }}.*{{ item }}" || echo "NOT_RUNNING"
+      register: managed_process_check
+      until: managed_process_check.stdout.strip() != 'NOT_RUNNING'
+      retries: 30
+      delay: 10
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "Show managed server start results"
+      ansible.builtin.debug:
+        msg:
+          - "Server : {{ item.item }}"
+          - "PID    : {{ item.stdout.strip() }}"
+          - "Status : {{ 'RUNNING' if item.stdout.strip() != 'NOT_RUNNING' else 'NOT RUNNING' }}"
+      loop: "{{ managed_process_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+  tags:
+    - wcc
+    - start
+    - start_managed_async
+
+- name: "Stop WCC Managed Servers"
+  block:
+
+    - name: "Print command for each managed server"
+      ansible.builtin.debug:
+        msg: "CMD: {{ domain_home }}/bin/stopManagedWebLogic.sh {{ item }} {{ admin_url }}"
+      loop: "{{ managed_servers }}"
+
+    - name: "Stop WCC Managed Servers"
+      ansible.builtin.shell: |
+        {{ domain_home }}/bin/stopManagedWebLogic.sh {{ item }} {{ admin_url }}
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      register: managed_stop
+      failed_when: false
+
+    - name: "Show managed server stop results"
+      ansible.builtin.debug:
+        msg:
+          - "Server : {{ item.item }}"
+          - "RC     : {{ item.rc | default('n/a') }}"
+          - "Status : {{ 'SUCCESS' if item.rc | default(1) == 0 else 'FAILED' }}"
+          - "Stdout : {{ item.stdout_lines | default([]) }}"
+      loop: "{{ managed_stop.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+  tags:
+    - wcc
+    - stop
+    - stop_managed
+
+- name: "Stop Admin Server"
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ domain_home }}/bin/stopWebLogic.sh"
+
+    - name: "Stop Admin Server"
+      ansible.builtin.shell: |
+        {{ domain_home }}/bin/stopWebLogic.sh
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: admin_stop
+      failed_when: false
+
+    - name: "Show Admin Server stop result"
+      ansible.builtin.debug:
+        msg:
+          - "Component : Admin Server ({{ admin_server_name | default('AdminServer') }})"
+          - "RC        : {{ admin_stop.rc | default('n/a') }}"
+          - "Status    : {{ 'SUCCESS' if admin_stop.rc | default(1) == 0 else 'FAILED' }}"
+          - "Stdout    : {{ admin_stop.stdout_lines | default([]) }}"
+
+  tags:
+    - wcc
+    - stop
+    - stop_admin
+
+- name: "Stop Node Manager"
+  block:
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ domain_home }}/bin/stopNodeManager.sh"
+
+    - name: "Stop Node Manager"
+      ansible.builtin.shell: |
+        {{ domain_home }}/bin/stopNodeManager.sh
+      args:
+        chdir: "{{ domain_home }}/bin"
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: nm_stop
+      failed_when: false
+
+    - name: "Show Node Manager stop result"
+      ansible.builtin.debug:
+        msg:
+          - "Component : Node Manager"
+          - "RC        : {{ nm_stop.rc | default('n/a') }}"
+          - "Status    : {{ 'SUCCESS' if nm_stop.rc | default(1) == 0 else 'FAILED' }}"
+          - "Stdout    : {{ nm_stop.stdout_lines | default([]) }}"
+
+  tags:
+    - wcc
+    - stop
+    - stop_nm
+
+- name: "Start managed servers via WLST"
+  block:
+
+    - name: "Render wlst.py from template"
+      ansible.builtin.template:
+        src: wlst.py.j2
+        dest: /tmp/wlst.py
+        mode: "0755"
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ oracle_home }}/oracle_common/common/bin/wlst.sh /tmp/wlst.py start {{ wlst_target | default('all') }}"
+
+    - name: "Start managed servers"
+      ansible.builtin.shell: |
+        {{ oracle_home }}/oracle_common/common/bin/wlst.sh /tmp/wlst.py start {{ wlst_target | default('all') }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: wlst_start_result
+      failed_when: wlst_start_result.rc != 0
+
+    - name: "Show WLST start output"
+      ansible.builtin.debug:
+        msg: "{{ wlst_start_result.stdout_lines }}"
+
+  tags:
+    - wcc
+    - start
+    - start_wlst
+
+- name: "Stop managed servers via WLST"
+  block:
+
+    - name: "Render wlst.py from template"
+      ansible.builtin.template:
+        src: wlst.py.j2
+        dest: /tmp/wlst.py
+        mode: "0755"
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "Print command"
+      ansible.builtin.debug:
+        msg: "CMD: {{ oracle_home }}/oracle_common/common/bin/wlst.sh /tmp/wlst.py stop {{ wlst_target | default('all') }}"
+
+    - name: "Stop managed servers"
+      ansible.builtin.shell: |
+        {{ oracle_home }}/oracle_common/common/bin/wlst.sh /tmp/wlst.py stop {{ wlst_target | default('all') }}
+      become: true
+      become_user: "{{ oracle_user }}"
+      register: wlst_stop_result
+      failed_when: wlst_stop_result.rc != 0
+
+    - name: "Show WLST stop output"
+      ansible.builtin.debug:
+        msg: "{{ wlst_stop_result.stdout_lines }}"
+
+  tags:
+    - wcc
+    - stop
+    - stop_wlst
+
+- name: "Check Node Manager status"
+  block:
+
+    - name: "ps grep for Node Manager"
+      ansible.builtin.shell: |
+        ps -ef | grep -i "{{ domain_home }}.*NodeManager" | grep -v grep || echo "NOT_RUNNING"
+      register: nm_ps
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "pgrep for Node Manager"
+      ansible.builtin.shell: |
+        pgrep -af "NodeManager" || echo "NOT_RUNNING"
+      register: nm_pgrep
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "Show Node Manager status"
+      ansible.builtin.debug:
+        msg:
+          - "Component  : Node Manager"
+          - "Domain     : {{ domain_home }}"
+          - "Status     : {{ 'RUNNING' if nm_ps.stdout.strip() != 'NOT_RUNNING' else 'STOPPED' }}"
+          - "--- ps grep output ---"
+          - "{{ nm_ps.stdout_lines }}"
+          - "--- pgrep output ---"
+          - "{{ nm_pgrep.stdout_lines }}"
+
+  tags:
+    - wcc
+    - status
+    - status_nm
+
+- name: "Check Admin Server status"
+  block:
+
+    - name: "ps grep for Admin Server"
+      ansible.builtin.shell: |
+        ps -ef | grep -i "{{ domain_home }}.*AdminServer" | grep -v grep || echo "NOT_RUNNING"
+      register: admin_ps
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "pgrep for Admin Server"
+      ansible.builtin.shell: |
+        pgrep -af "AdminServer" || echo "NOT_RUNNING"
+      register: admin_pgrep
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+
+    - name: "Show Admin Server status"
+      ansible.builtin.debug:
+        msg:
+          - "Component  : Admin Server ({{ admin_server_name | default('AdminServer') }})"
+          - "Domain     : {{ domain_home }}"
+          - "Status     : {{ 'RUNNING' if admin_ps.stdout.strip() != 'NOT_RUNNING' else 'STOPPED' }}"
+          - "--- ps grep output ---"
+          - "{{ admin_ps.stdout_lines }}"
+          - "--- pgrep output ---"
+          - "{{ admin_pgrep.stdout_lines }}"
+
+  tags:
+    - wcc
+    - status
+    - status_admin
+
+- name: "Check WCC Managed Servers status"
+  block:
+
+    - name: "ps grep for managed server {{ item }}"
+      ansible.builtin.shell: |
+        ps -ef | grep -i "{{ domain_home }}.*{{ item }}" | grep -v grep || echo "NOT_RUNNING"
+      register: managed_ps
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "pgrep for managed server {{ item }}"
+      ansible.builtin.shell: |
+        pgrep -af "{{ item }}" || echo "NOT_RUNNING"
+      register: managed_pgrep
+      changed_when: false
+      become: true
+      become_user: "{{ oracle_user }}"
+      loop: "{{ managed_servers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "Show managed server status"
+      ansible.builtin.debug:
+        msg:
+          - "Server     : {{ item.item }}"
+          - "Domain     : {{ domain_home }}"
+          - "Status     : {{ 'RUNNING' if item.stdout.strip() != 'NOT_RUNNING' else 'STOPPED' }}"
+          - "--- ps grep output ---"
+          - "{{ item.stdout_lines }}"
+      loop: "{{ managed_ps.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Show managed server pgrep output"
+      ansible.builtin.debug:
+        msg:
+          - "Server     : {{ item.item }}"
+          - "--- pgrep output ---"
+          - "{{ item.stdout_lines }}"
+      loop: "{{ managed_pgrep.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+  tags:
+    - wcc
+    - status
+    - status_managed

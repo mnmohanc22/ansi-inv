@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+# ─── wlst.py ──────────────────────────────────────────────────────────────────
+# Usage (run via wlst.sh):
+#   wlst.sh wlst.py start  UCM_server1
+#   wlst.sh wlst.py stop   UCM_server1
+#   wlst.sh wlst.py start  all
+#   wlst.sh wlst.py stop   all
+# ──────────────────────────────────────────────────────────────────────────────
+
+import sys
+
+# ─── Config (rendered by Ansible) ────────────────────────────────────────────
+ADMIN_URL      = '{{ admin_url }}'
+ADMIN_USER     = '{{ wls_admin_user | default("weblogic") }}'
+ADMIN_PASSWORD = '{{ wls_admin_password }}'
+MANAGED_SERVERS = {{ managed_servers | list | to_json }}
+
+# ─── Args ────────────────────────────────────────────────────────────────────
+if len(sys.argv) < 2:
+    print("Usage: wlst.py <start|stop> [server_name|all]")
+    sys.exit(1)
+
+command     = sys.argv[1].lower()
+target      = sys.argv[2].lower() if len(sys.argv) > 2 else 'all'
+
+if command not in ('start', 'stop'):
+    print("ERROR: command must be 'start' or 'stop', got: " + command)
+    sys.exit(1)
+
+servers = MANAGED_SERVERS if target == 'all' else [target]
+
+# ─── Connect ─────────────────────────────────────────────────────────────────
+print("Connecting to Admin Server: " + ADMIN_URL)
+connect(ADMIN_USER, ADMIN_PASSWORD, ADMIN_URL)
+domainRuntime()
+
+# ─── Start / Stop ────────────────────────────────────────────────────────────
+def get_server_state(server_name):
+    cd('ServerLifeCycleRuntimes/' + server_name)
+    state = get('State')
+    cd('../..')
+    return state
+
+for server in servers:
+    print("------------------------------------------------------------")
+    print("Server  : " + server)
+    state = get_server_state(server)
+    print("Current : " + str(state))
+
+    if command == 'start':
+        if state in ('RUNNING', 'STARTING'):
+            print("SKIP    : already " + str(state))
+        else:
+            print("ACTION  : starting " + server)
+            start(server, 'Server')
+            print("RESULT  : started " + server)
+
+    elif command == 'stop':
+        if state in ('SHUTDOWN', 'FAILED_NOT_RESTARTABLE'):
+            print("SKIP    : already " + str(state))
+        else:
+            print("ACTION  : stopping " + server)
+            shutdown(server, 'Server', ignoreSessions='true', timeOut=300, force='false')
+            print("RESULT  : stopped " + server)
+
+print("------------------------------------------------------------")
+print("Done.")
+disconnect()
+exit()
