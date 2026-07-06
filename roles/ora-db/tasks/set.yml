@@ -1,0 +1,134 @@
+---
+- name: "Oracle environment setup checks"
+  block:
+
+    - name: "Check listener status"
+      ansible.builtin.shell: lsnrctl status
+      register: listener_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display listener status"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ listener_status.rc }}"
+          - "Status : {{ 'UP' if listener_status.rc == 0 else 'DOWN' }}"
+          - "Output : {{ listener_status.stdout_lines | default([]) }}"
+
+    - name: "Check Oracle environment variables"
+      ansible.builtin.shell: |
+        echo "ORACLE_HOME=$ORACLE_HOME"
+        echo "ORACLE_SID=$ORACLE_SID"
+        echo "ORACLE_BASE=$ORACLE_BASE"
+        echo "PATH=$PATH"
+      register: oracle_env_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Display Oracle environment"
+      ansible.builtin.debug:
+        msg: "{{ oracle_env_check.stdout_lines }}"
+
+    - name: "Check sqlplus is accessible"
+      ansible.builtin.shell: sqlplus -V
+      register: sqlplus_check
+      changed_when: false
+      failed_when: false
+
+    - name: "Display sqlplus version"
+      ansible.builtin.debug:
+        msg:
+          - "RC      : {{ sqlplus_check.rc }}"
+          - "Version : {{ sqlplus_check.stdout_lines | default([]) }}"
+
+    - name: "Check tnsnames.ora exists"
+      ansible.builtin.stat:
+        path: "{{ oracle_home | default('$ORACLE_HOME') }}/network/admin/tnsnames.ora"
+      register: tnsnames_stat
+
+    - name: "Display tnsnames.ora status"
+      ansible.builtin.debug:
+        msg:
+          - "File   : {{ oracle_home | default('$ORACLE_HOME') }}/network/admin/tnsnames.ora"
+          - "Exists : {{ tnsnames_stat.stat.exists }}"
+
+    - name: "Check listener.ora exists"
+      ansible.builtin.stat:
+        path: "{{ oracle_home | default('$ORACLE_HOME') }}/network/admin/listener.ora"
+      register: listenerora_stat
+
+    - name: "Display listener.ora status"
+      ansible.builtin.debug:
+        msg:
+          - "File   : {{ oracle_home | default('$ORACLE_HOME') }}/network/admin/listener.ora"
+          - "Exists : {{ listenerora_stat.stat.exists }}"
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  become_flags: "-i"
+  tags:
+    - ora_db
+    - ora_set
+
+
+
+- name: "Check Oracle listener status and process"
+  block:
+
+    - name: "Check Oracle listener status"
+      ansible.builtin.shell: |
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+        lsnrctl status {{ listener_name | default('LISTENER') }}
+      register: listener_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display listener status"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ listener_status.rc }}"
+          - "Status : {{ 'UP' if listener_status.rc == 0 else 'DOWN' }}"
+          - "Output : {{ listener_status.stdout_lines | default([]) }}"
+
+    - name: "Check listener process"
+      ansible.builtin.shell: |
+        pgrep -fa tnslsnr
+      register: listener_process
+      changed_when: false
+      failed_when: false
+
+    - name: "Display listener process"
+      ansible.builtin.debug:
+        msg:
+          - "Process : {{ 'RUNNING' if listener_process.rc == 0 else 'STOPPED' }}"
+          - "Output  : {{ listener_process.stdout_lines | default([]) }}"
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - ora_listener
+
+
+- name: "Check Oracle PMON processes"
+  block:
+
+    - name: "Get PMON processes"
+      ansible.builtin.shell: |
+        ps -ef | grep '[o]ra_pmon' | awk '{print $8}'
+      register: pmon_processes
+      changed_when: false
+      failed_when: false
+
+    - name: "Show PMON processes"
+      ansible.builtin.debug:
+        msg:
+          - "Instances found : {{ pmon_processes.stdout_lines | default([]) | length }}"
+          - "PMON processes  : {{ pmon_processes.stdout_lines | default([]) }}"
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - ora_pmon
