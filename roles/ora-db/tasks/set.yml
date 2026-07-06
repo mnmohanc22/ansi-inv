@@ -3,7 +3,10 @@
   block:
 
     - name: "Check listener status"
-      ansible.builtin.shell: lsnrctl status
+      ansible.builtin.shell: |
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+        lsnrctl status {{ listener_name | default('LISTENER') }} 2>&1
       register: listener_status
       changed_when: false
       failed_when: false
@@ -13,7 +16,8 @@
         msg:
           - "RC     : {{ listener_status.rc }}"
           - "Status : {{ 'UP' if listener_status.rc == 0 else 'DOWN' }}"
-          - "Output : {{ listener_status.stdout_lines | default([]) }}"
+          - "Stdout : {{ listener_status.stdout_lines | default([]) }}"
+          - "Stderr : {{ listener_status.stderr_lines | default([]) }}"
 
     - name: "Check Oracle environment variables"
       ansible.builtin.shell: |
