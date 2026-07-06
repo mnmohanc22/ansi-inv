@@ -53,3 +53,29 @@
   tags:
     - ora_db
     - listener
+
+- name: "Check Oracle listener status with explicit ORACLE_HOME"
+  block:
+
+    - name: "Run lsnrctl status"
+      ansible.builtin.shell: |
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH={{ oracle_home }}/bin:$PATH
+        export LD_LIBRARY_PATH={{ oracle_home }}/lib:$LD_LIBRARY_PATH
+        {{ oracle_home }}/bin/lsnrctl status {{ listener_name | default('LISTENER') }} 2>&1
+      register: listener_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display listener status"
+      ansible.builtin.debug:
+        msg:
+          - "RC     : {{ listener_status.rc }}"
+          - "Status : {{ 'UP' if listener_status.rc == 0 else 'DOWN' }}"
+          - "Output : {{ listener_status.stdout_lines | default([]) }}"
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - listener
