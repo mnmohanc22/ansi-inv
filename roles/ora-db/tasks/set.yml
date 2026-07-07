@@ -125,14 +125,175 @@
       changed_when: false
       failed_when: false
 
+    - name: "Get PMON process IDs"
+      ansible.builtin.shell: |
+        ps -ef | grep '[o]ra_pmon' | awk '{print "PID=" $2, "SID=" $8}'
+      register: pmon_pids
+      changed_when: false
+      failed_when: false
+
     - name: "Show PMON processes"
       ansible.builtin.debug:
         msg:
           - "Instances found : {{ pmon_processes.stdout_lines | default([]) | length }}"
           - "PMON processes  : {{ pmon_processes.stdout_lines | default([]) }}"
 
+    - name: "Set pid_list fact"
+      ansible.builtin.set_fact:
+        pid_list: >-
+          {{ pmon_pids.stdout_lines | default([])
+             | map('regex_replace', '^PID=(\S+).*', '\1')
+             | list }}
+
+    - name: "Show PMON process IDs"
+      ansible.builtin.debug:
+        msg:
+          - "PMON PIDs : {{ pmon_pids.stdout_lines | default([]) }}"
+          - "pid_list  : {{ pid_list }}"
+          
+
   become: true
   become_user: "{{ oracle_user | default('oracle') }}"
   tags:
     - ora_db
     - ora_pmon
+
+- name: "Verify Oracle processes stopped after DB shutdown"
+  block:
+
+    - name: "Check each PID is no longer running"
+      ansible.builtin.shell: |
+        ps -p {{ item }} > /dev/null 2>&1 && echo "RUNNING" || echo "STOPPED"
+      register: pid_check
+      changed_when: false
+      failed_when: false
+      loop: "{{ pid_list | default([]) }}"
+      loop_control:
+        label: "PID {{ item }}"
+
+    - name: "Show PID status"
+      ansible.builtin.debug:
+        msg:
+          - "PID    : {{ item.item }}"
+          - "Status : {{ item.stdout.strip() }}"
+      loop: "{{ pid_check.results | default([]) }}"
+      loop_control:
+        label: "PID {{ item.item }}"
+
+    - name: "Set pids_still_running fact"
+      ansible.builtin.set_fact:
+        pids_still_running: >-
+          {{ pid_check.results | default([])
+             | selectattr('stdout', 'search', 'RUNNING')
+             | map(attribute='item')
+             | list }}
+
+    - name: "Show shutdown summary"
+      ansible.builtin.debug:
+        msg:
+          - "PIDs checked       : {{ pid_list | default([]) }}"
+          - "PIDs still running : {{ pids_still_running }}"
+          - "Shutdown status    : {{ 'COMPLETE' if pids_still_running | length == 0 else 'INCOMPLETE - processes still running' }}"
+
+    - name: "Fail if Oracle processes still running"
+      ansible.builtin.fail:
+        msg: "Oracle processes still running after shutdown: {{ pids_still_running }}"
+      when: pids_still_running | length > 0
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - ora_shutdown_check
+
+- name: "Loop through pid_list and inspect each process"
+  block:
+
+    - name: "Get process details for each PID"
+      ansible.builtin.shell: |
+        ps -p {{ item }} -o pid,ppid,user,stat,pcpu,pmem,etime,comm --no-headers 2>/dev/null \
+        || echo "PID={{ item }} NOT_FOUND"
+      register: pid_detail
+      changed_when: false
+      failed_when: false
+      loop: "{{ pid_list | default([]) }}"
+      loop_control:
+        label: "PID {{ item }}"
+
+    - name: "Print process details for each PID"
+      ansible.builtin.debug:
+        msg:
+          - "PID    : {{ item.item }}"
+          - "Detail : {{ item.stdout_lines | default([]) }}"
+          - "Status : {{ 'RUNNING' if 'NOT_FOUND' not in item.stdout else 'GONE' }}"
+      loop: "{{ pid_detail.results | default([]) }}"
+      loop_control:
+        label: "PID {{ item.item }}"
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - ora_pid_loop
+
+- name: Wait for Oracle instance to stop
+  ansible.builtin.shell: |
+    pgrep -f "ora_pmon_{{ oracle_sid }}"
+  register: pmon
+  retries: 60
+  delay: 5
+  until: pmon.rc != 0
+  changed_when: false
+
+- name: "Wait for all PIDs in pid_list to stop"
+  block:
+
+    - name: "Wait for PID {{ item }} to stop"
+      ansible.builtin.shell: |
+        ps -p {{ item }} > /dev/null 2>&1 && echo "RUNNING" || echo "STOPPED"
+      register: pid_wait
+      retries: 60
+      delay: 5
+      until: pid_wait.stdout.strip() == 'STOPPED'
+      changed_when: false
+      failed_when: false
+      loop: "{{ pid_list | default([]) }}"
+      loop_control:
+        label: "PID {{ item }}"
+
+    - name: "Show wait result for each PID"
+      ansible.builtin.debug:
+        msg:
+          - "PID     : {{ item.item }}"
+          - "Status  : {{ item.stdout.strip() }}"
+          - "Retries : {{ item.attempts | default(1) }}"
+      loop: "{{ pid_wait.results | default([]) }}"
+      loop_control:
+        label: "PID {{ item.item }}"
+
+    - name: "Set db_down flag"
+      ansible.builtin.set_fact:
+        db_down: >-
+          {{ pid_wait.results | default([])
+             | selectattr('stdout', 'search', 'RUNNING')
+             | list | length == 0 }}
+
+    - name: "Show db_down flag"
+      ansible.builtin.debug:
+        msg:
+          - "db_down : {{ db_down }}"
+          - "DB status : {{ 'DOWN - all processes stopped' if db_down else 'NOT DOWN - processes still running' }}"
+
+    - name: "Fail if any PID still running after wait"
+      ansible.builtin.fail:
+        msg: "PID {{ item.item }} still RUNNING after {{ 60 * 5 }}s"
+      loop: "{{ pid_wait.results | default([]) }}"
+      loop_control:
+        label: "PID {{ item.item }}"
+      when: item.stdout.strip() == 'RUNNING'
+
+  become: true
+  become_user: "{{ oracle_user | default('oracle') }}"
+  tags:
+    - ora_db
+    - ora_pid_wait
