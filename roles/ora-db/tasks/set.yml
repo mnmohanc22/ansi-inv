@@ -2,6 +2,17 @@
 - name: "Oracle environment setup checks"
   block:
 
+    - name: Verify Oracle environment
+      ansible.builtin.shell: |
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+        export LD_LIBRARY_PATH=$ORACLE_HOME/lib:$LD_LIBRARY_PATH
+        echo "oracle home: $ORACLE_HOME"
+        echo "ORACLE_HOME=$ORACLE_HOME"
+        echo "PATH=$PATH"
+        echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+      changed_when: false
+
     - name: "Check listener status"
       ansible.builtin.shell: |
         export ORACLE_HOME={{ oracle_home }}
