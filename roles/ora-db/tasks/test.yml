@@ -11,3 +11,67 @@
           - "Survey value: {{ restart_service }}"
           - "Type: {{ restart_service | type_debug }}"
           - "Boolean: {{ restart_service_bool }}"
+
+- name: Handle AMS RFC operations
+  block:
+    # - name: Get last 5 OnDemand Patch RFCs
+    #   ansible.builtin.shell: |
+    #     amscm list-rfcs \
+    #       --change-type-id ct-2h1q7h7u2m9w6 \
+    #       --max-items 5 \
+    #       --output json
+    #   register: rfc_list
+    #   changed_when: final_process_check
+
+    # - name: Print RFC details
+    #   ansible.builtin.debug:
+    #     msg: |
+    #       {{ rfc_list.stdout | from_json }}
+
+    - name: Get last 5 AMS RFCs
+      ansible.builtin.shell: |
+        aws amscm list-rfcs \
+          --max-results 5 \
+          --output json
+      register: last_rfcs
+      changed_when: false
+
+    - name: Print last 5 RFCs
+      ansible.builtin.debug:
+        var: last_rfcs.stdout
+
+    - name: Print RFC summary
+      ansible.builtin.shell: |
+        aws amscm list-rfcs \
+          --max-results 5 \
+          --query 'RfcSummaries[].{RFC:RfcId,Status:Status,Created:CreateTime,Title:Title}' \
+          --output table
+      register: rfc_summary
+      changed_when: false
+
+    - name: Debug RFC summary output
+      ansible.builtin.debug:
+        msg: "{{ rfc_summary.stdout }}"
+
+
+
+- name: Show OnDemand Patch RFCs
+  block:
+    - name: Show last 5 RFCs
+      ansible.builtin.shell: |
+        amscm list-rfcs \
+          --change-type-id ct-2h1q7h7u2m9w6 \
+          --max-items 5 \
+          --query 'RfcSummaries[].{
+            RFC:RfcId,
+            Status:Status,
+            Created:CreateTime,
+            Title:Title
+          }' \
+          --output table
+      register: rfc_table
+      changed_when: false
+
+    - name: Debug RFC table output
+      debug:
+        var: rfc_table.stdout_lines
