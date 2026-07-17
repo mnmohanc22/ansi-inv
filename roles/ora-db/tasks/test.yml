@@ -1,0 +1,13 @@
+
+- name: Handle restart_service flag
+  block:
+    - name: Set restart_service boolean fact
+      set_fact:
+        restart_service_bool: "{{ restart_service | lower | bool }}"
+
+    - name: Debug restart_service values
+      debug:
+        msg:
+          - "Survey value: {{ restart_service }}"
+          - "Type: {{ restart_service | type_debug }}"
+          - "Boolean: {{ restart_service_bool }}"

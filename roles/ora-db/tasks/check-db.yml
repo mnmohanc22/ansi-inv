@@ -11,12 +11,19 @@
       register: oracle_instances
       changed_when: false
       failed_when: false
+      
 
     - name: "Show running instances"
       ansible.builtin.debug:
         msg:
           - "Running Oracle instances: {{ oracle_instances.stdout_lines | default([]) }}"
           - "Count: {{ oracle_instances.stdout_lines | default([]) | length }}"
+
+    - name: "Display Oracle Home"
+      ansible.builtin.debug:
+        msg: |
+          Oracle Home: {{ oracle_home | default('/u01/app/oracle') }}
+      run_once: true
 
     - name: "Check PMON for each instance"
       ansible.builtin.shell: |
@@ -85,3 +92,5 @@
   tags:
     - ora_db
     - check_db
+
+
