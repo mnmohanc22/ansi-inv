@@ -1,0 +1,107 @@
+- name: Check Informatica Agent Core status
+  block:
+    - name: Check Informatica Agent Core
+      shell: |
+        export INFA_HOME={{ infa_home }}
+        cd {{ agentcore_home }}
+        ./consoleAgentManager.sh getStatus
+      args:
+        executable: /bin/bash
+      register: agentcore_status
+      changed_when: false
+      failed_when: false
+
+    - name: Parse Agent Core status
+      set_fact:
+        process_status:
+          component: AgentCore
+          status: >-
+            {% if 'RUNNING' in agentcore_status.stdout | upper %}
+            RUNNING
+            {% elif 'STOPPED' in agentcore_status.stdout | upper %}
+            STOPPED
+            {% else %}
+            UNKNOWN
+            {% endif %}
+          output: "{{ agentcore_status.stdout_lines }}"
+
+    - name: Print Agent Core status
+      debug:
+        msg: "{{ process_status }}"
+
+
+
+- name: Discover PowerExchange processes
+  block:
+    - name: Discover PowerExchange processes
+      shell: |
+        ps -eo pid,args | egrep 'dtllst|pwxccl' | grep -v grep
+      register: pwx_processes
+      changed_when: false
+      failed_when: false
+
+    - name: Display discovered processes
+      debug:
+        msg: "{{ pwx_processes.stdout_lines }}"
+
+
+- name: Check Agent Core process status
+  block:
+    - name: Check dtllst process
+      shell: |
+        pgrep -af dtllst
+      register: dtllst_status
+      changed_when: false
+      failed_when: false
+
+    - name: Check pwxccl process
+      shell: |
+        pgrep -af pwxccl
+      register: pwxccl_status
+      changed_when: false
+      failed_when: false
+
+    - name: Set Agent Core status
+      set_fact:
+        agentcore_status: >-
+          {% if dtllst_status.rc == 0 and pwxccl_status.rc == 0 %}
+          RUNNING
+          {% elif dtllst_status.rc == 0 or pwxccl_status.rc == 0 %}
+          PARTIAL
+          {% else %}
+          STOPPED
+          {% endif %}
+
+    - name: Print status
+      debug:
+        msg:
+          - "Agent Core Status: {{ agentcore_status }}"
+          - "dtllst: {{ dtllst_status.stdout_lines }}"
+          - "pwxccl: {{ pwxccl_status.stdout_lines }}"
+
+
+- name: Check Agent Core processes
+  block:
+    - name: Check Agent Core processes
+      shell: |
+        ps -ef | awk '/dtllst|pwxccl/ && !/awk/'
+      register: agentcore_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Set status
+      set_fact:
+        agentcore_status: >-
+          {% if 'dtllst' in agentcore_proc.stdout and 'pwxccl' in agentcore_proc.stdout %}
+          RUNNING
+          {% elif agentcore_proc.stdout | length > 0 %}
+          PARTIAL
+          {% else %}
+          STOPPED
+          {% endif %}
+
+    - name: Debug Agent Core status
+      debug:
+        msg:
+          - "Status: {{ agentcore_status }}"
+          - "{{ agentcore_proc.stdout_lines }}"
