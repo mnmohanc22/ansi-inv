@@ -1,0 +1,91 @@
+- name: Start Informatica Agent Core
+  block:
+    - name: Check Agent Core status
+      shell: |
+        cd {{ agentcore_home }}
+        ./consoleAgentManager.sh getStatus
+      args:
+        executable: /bin/bash
+      register: agent_status
+      changed_when: false
+      failed_when: false
+
+    - name: Start Agent Core if not running
+      shell: |
+        cd {{ agentcore_home }}
+        ./infaagent.sh startup
+      args:
+        executable: /bin/bash
+      register: startup_result
+      when: "'READY' not in (agent_status.stdout | upper)"
+      changed_when: true
+
+    - name: Verify Agent Core is running
+      shell: |
+        cd {{ agentcore_home }}
+        ./consoleAgentManager.sh getStatus
+      args:
+        executable: /bin/bash
+      register: verify_status
+      retries: 18
+      delay: 10
+      until: "'READY' in (verify_status.stdout | upper)"
+      changed_when: false
+
+    - name: Display final status
+      debug:
+        msg: "{{ verify_status.stdout_lines }}"
+
+
+
+
+
+
+- name: Start dtllst listener
+  block:
+    - name: Print dtllst command to be run
+      debug:
+        msg: "dtllst: {{ pwx_home }}/dtllst {{ listener_node }} > {{ pwx_log_dir }}/dtllst_{{ listener_node }}.log"
+
+    - name: Start PowerExchange listener
+      ansible.builtin.shell: |
+        export PWX_HOME="{{ pwx_home }}"
+        export PWX_CONFIG="{{ dbmover_config }}"
+        export PATH="${PWX_HOME}:${PATH}"
+        export LD_LIBRARY_PATH="${PWX_HOME}:${LD_LIBRARY_PATH:-}"
+
+        "${PWX_HOME}/dtllst" "{{ listener_node }}" \
+          > "{{ pwx_log_dir }}/dtllst_{{ listener_node }}.log" 2>&1
+      args:
+        executable: /bin/bash
+      register: dtllst_start
+      async: 10
+      poll: 0
+      changed_when: true
+
+- name: Start pwxccl logger
+  block:
+    - name: Print pwxccl command to be run
+      debug:
+        msg: "pwxccl: {{ pwx_home }}/pwxccl config={{ pwxccl_config }} > {{ pwx_log_dir }}/pwxccl.log"
+
+    - name: Start PowerExchange logger
+      ansible.builtin.shell: |
+        export PWX_HOME="{{ pwx_home }}"
+        export PWX_CONFIG="{{ dbmover_config }}"
+        export PATH="${PWX_HOME}:${PATH}"
+        export LD_LIBRARY_PATH="${PWX_HOME}:${LD_LIBRARY_PATH:-}"
+
+        "${PWX_HOME}/pwxccl" \
+          config="{{ pwxccl_config }}" \
+          > "{{ pwx_log_dir }}/pwxccl.log" 2>&1
+      args:
+        executable: /bin/bash
+      register: pwxccl_start
+      async: 10
+      poll: 0
+      changed_when: true
+
+    - name: Debug pwxccl start result
+      debug:
+        msg: "{{ pwxccl_start }}"

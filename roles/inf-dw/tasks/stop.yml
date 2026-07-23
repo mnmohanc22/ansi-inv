@@ -1,0 +1,128 @@
+
+
+- name: Find pwxccl process
+  block:
+    - name: Find pwxccl process
+      shell: |
+        ps -eo pid,args | awk '/pwxccl/ && !/awk/'
+      register: pwxccl_process
+      changed_when: false
+      failed_when: false
+
+    - name: Set facts
+      set_fact:
+        pwxccl_pid: "{{ pwxccl_process.stdout.split()[0] if pwxccl_process.stdout else '' }}"
+        pwxccl_cmd: "{{ pwxccl_process.stdout }}"
+
+    - name: Debug pwxccl process info
+      debug:
+        msg:
+          - "PID: {{ pwxccl_pid }}"
+          - "Command: {{ pwxccl_cmd }}"
+
+
+
+- name: Find dtllst process
+  block:
+    - name: Find dtllst process
+      shell: |
+        ps -eo pid,args | awk '/dtllst/ && !/awk/'
+      register: dtllst_process
+      changed_when: false
+      failed_when: false
+
+    - name: Set facts
+      set_fact:
+        dtllst_pid: "{{ dtllst_process.stdout.split()[0] if dtllst_process.stdout else '' }}"
+        dtllst_cmd: "{{ dtllst_process.stdout }}"
+
+    - name: Debug dtllst process info
+      debug:
+        msg:
+          - "PID: {{ dtllst_pid }}"
+          - "Command: {{ dtllst_cmd }}"
+
+
+
+
+- name: Kill all pwxccl processes
+  block:
+    - name: Get all pwxccl PIDs
+      shell: |
+        pgrep -f pwxccl
+      register: pwxccl_pids
+      changed_when: false
+      failed_when: false
+
+    - name: Set fact
+      set_fact:
+        pwxccl_pid_list: "{{ pwxccl_pids.stdout_lines }}"
+
+    - name: Kill all pwxccl processes
+      shell: |
+        kill -9 {{ item }}
+      loop: "{{ pwxccl_pid_list }}"
+      when: pwxccl_pid_list | length > 0
+      register: kill_pwxccl_result
+      ignore_errors: true
+
+    - name: Debug kill result
+      debug:
+        msg: "{{ kill_pwxccl_result.results }}"
+
+- name: Kill all dtllst processes
+  block:
+    - name: Get all dtllst PIDs
+      shell: |
+        pgrep -f dtllst
+      register: dtllst_pids
+      changed_when: false
+      failed_when: false
+
+    - name: Set dtllst PID list
+      set_fact:
+        dtllst_pid_list: "{{ dtllst_pids.stdout_lines }}"
+
+    - name: Kill all dtllst processes
+      shell: |
+        kill -9 {{ item }}
+      loop: "{{ dtllst_pid_list }}"
+      when: dtllst_pid_list | length > 0
+      register: kill_dtllst_result
+      ignore_errors: true
+
+    - name: Debug dtllst kill result
+      debug:
+        msg: "{{ kill_dtllst_result.results }}"
+
+
+
+
+- name: Shutdown Secure Agent
+  block:
+    - name: Check Agent status
+      shell: |
+        cd {{ agentcore_home }}
+        ./consoleAgentManager.sh getStatus
+      register: agent_status
+      changed_when: false
+      failed_when: false
+
+    - name : Debug Agent status
+      debug:
+        msg: "Agent status: {{ agent_status.stdout }}"  
+
+    - name: Shutdown Secure Agent
+      shell: |
+        cd {{ agentcore_home }}
+        ./infaagent.sh shutdown
+      args:
+        executable: /bin/bash
+      when: "'RUNNING' in (agent_status.stdout | upper)"
+      register: shutdown_result
+      ignore_errors: true
+
+    - name: Debug shutdown result
+      debug:
+        msg: "Shutdown result: {{ shutdown_result.stdout }}"  
+

@@ -4,3 +4,10 @@
 
 infa_home: "/opt/informatica"
 agentcore_home: "/opt/informatica/agentcore"
+
+
+pwx_home: /opt/informatica/pwx
+pwx_log_dir: /opt/informatica/pwx/logs
+dbmover_config: /opt/informatica/pwx/config/dbmover.cfg
+pwxccl_config: /opt/informatica/pwx/config/pwxccl.cfg
+listener_node: PROD_LISTENER
