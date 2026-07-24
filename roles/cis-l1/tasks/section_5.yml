@@ -1,0 +1,307 @@
+---
+# Section 5 | Access, Authentication and Authorization
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1 Server
+
+# 5.1 Configure time-based job schedulers
+- name: "5.1 | Configure time-based job schedulers"
+  block:
+    - name: "5.1.1 | Ensure cron daemon is enabled and active"
+      ansible.builtin.service:
+        name: crond
+        state: started
+        enabled: true
+
+    - name: "5.1.2 | Ensure permissions on /etc/crontab are configured"
+      ansible.builtin.file:
+        path: /etc/crontab
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: "5.1.3 | Ensure permissions on /etc/cron.hourly are configured"
+      ansible.builtin.file:
+        path: /etc/cron.hourly
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: "5.1.4 | Ensure permissions on /etc/cron.daily are configured"
+      ansible.builtin.file:
+        path: /etc/cron.daily
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: "5.1.5 | Ensure permissions on /etc/cron.weekly are configured"
+      ansible.builtin.file:
+        path: /etc/cron.weekly
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: "5.1.6 | Ensure permissions on /etc/cron.monthly are configured"
+      ansible.builtin.file:
+        path: /etc/cron.monthly
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: "5.1.7 | Ensure permissions on /etc/cron.d are configured"
+      ansible.builtin.file:
+        path: /etc/cron.d
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: "5.1.8 | Ensure cron is restricted to authorized users"
+      ansible.builtin.file:
+        path: /etc/cron.deny
+        state: absent
+
+    - name: "5.1.9 | Ensure at is restricted to authorized users"
+      ansible.builtin.file:
+        path: /etc/at.deny
+        state: absent
+  tags:
+    - section5
+    - section5_1
+
+# 5.2 Configure SSH Server
+- name: "5.2 | Configure SSH Server"
+  block:
+    - name: "5.2.1 | Ensure permissions on /etc/ssh/sshd_config are configured"
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: "5.2.2 | Ensure SSH access is limited"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?AllowUsers'
+        line: '#AllowUsers <userlist>'
+        state: present
+
+    - name: "5.2.3 | Ensure permissions on SSH private host key files are configured"
+      ansible.builtin.shell: |
+        find /etc/ssh -xdev -type f -name 'ssh_host_*_key' -exec chmod 0600 {} \;
+      changed_when: false
+
+    - name: "5.2.4 | Ensure SSH LogLevel is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?LogLevel'
+        line: 'LogLevel INFO'
+
+    - name: "5.2.5 | Ensure SSH X11 forwarding is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?X11Forwarding'
+        line: 'X11Forwarding no'
+
+    - name: "5.2.6 | Ensure SSH MaxAuthTries is set to 4 or less"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MaxAuthTries'
+        line: 'MaxAuthTries 4'
+
+    - name: "5.2.7 | Ensure SSH IgnoreRhosts is enabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?IgnoreRhosts'
+        line: 'IgnoreRhosts yes'
+
+    - name: "5.2.8 | Ensure SSH HostbasedAuthentication is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?HostbasedAuthentication'
+        line: 'HostbasedAuthentication no'
+
+    - name: "5.2.9 | Ensure SSH root login is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+
+    - name: "5.2.10 | Ensure SSH PermitEmptyPasswords is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitEmptyPasswords'
+        line: 'PermitEmptyPasswords no'
+
+    - name: "5.2.11 | Ensure SSH PermitUserEnvironment is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitUserEnvironment'
+        line: 'PermitUserEnvironment no'
+
+    - name: "5.2.12 | Ensure only approved algorithms are used"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Ciphers'
+        line: 'Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com'
+
+    - name: "5.2.13 | Ensure only approved MAC algorithms are used"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MACs'
+        line: 'MACs hmac-sha2-256,hmac-sha2-512,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com'
+
+    - name: "5.2.14 | Ensure SSH Idle Timeout Interval is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^#?ClientAliveInterval', line: 'ClientAliveInterval 15' }
+        - { regexp: '^#?ClientAliveCountMax', line: 'ClientAliveCountMax 3' }
+
+    - name: "5.2.15 | Ensure SSH LoginGraceTime is set to one minute or less"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?LoginGraceTime'
+        line: 'LoginGraceTime 60'
+
+    - name: "5.2.16 | Ensure SSH warning banner is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Banner'
+        line: 'Banner /etc/issue.net'
+
+    - name: "5.2.17 | Ensure SSH UsePAM is enabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?UsePAM'
+        line: 'UsePAM yes'
+
+    - name: "5.2.18 | Ensure SSH AllowTcpForwarding is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?AllowTcpForwarding'
+        line: 'AllowTcpForwarding no'
+
+    - name: "5.2.19 | Ensure SSH MaxStartups is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MaxStartups'
+        line: 'MaxStartups 10:30:60'
+
+    - name: "5.2.20 | Ensure SSH MaxSessions is set to 10 or less"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?MaxSessions'
+        line: 'MaxSessions 10'
+
+    - name: "5.2 | Reload sshd"
+      ansible.builtin.service:
+        name: sshd
+        state: reloaded
+  tags:
+    - section5
+    - section5_2
+
+# 5.3 Configure PAM
+- name: "5.3 | Configure PAM"
+  block:
+    - name: "5.3.1 | Ensure password failed attempts lockout is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^#?deny'
+        line: 'deny = 5'
+        create: true
+
+    - name: "5.3.2 | Ensure password unlock time is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^#?unlock_time'
+        line: 'unlock_time = 900'
+
+    - name: "5.3.3 | Ensure password reuse is limited"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?remember'
+        line: 'remember = 24'
+        create: true
+
+    - name: "5.3.4 | Ensure password hashing algorithm is up to date"
+      ansible.builtin.lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^#?hash_algorithm'
+        line: 'hash_algorithm = sha512'
+  tags:
+    - section5
+    - section5_3
+
+# 5.4 User Accounts and Environment
+- name: "5.4 | User Accounts and Environment"
+  block:
+    - name: "5.4.1 | Ensure password expiration is 365 days or less"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^PASS_MAX_DAYS'
+        line: 'PASS_MAX_DAYS 365'
+
+    - name: "5.4.2 | Ensure minimum days between password changes is 7 or more"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^PASS_MIN_DAYS'
+        line: 'PASS_MIN_DAYS 7'
+
+    - name: "5.4.3 | Ensure password expiration warning days is 7 or more"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^PASS_WARN_AGE'
+        line: 'PASS_WARN_AGE 7'
+
+    - name: "5.4.4 | Ensure inactive password lock is 30 days or less"
+      ansible.builtin.shell: |
+        useradd -D -f 30
+      changed_when: false
+
+    - name: "5.4.5 | Ensure default user shell timeout is 900 seconds or less"
+      ansible.builtin.lineinfile:
+        path: /etc/profile.d/cis_timeout.sh
+        line: 'TMOUT=900'
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+  tags:
+    - section5
+    - section5_4
+
+# Audit Section 5
+- name: "Section 5 | Audit"
+  when: cis_run_audit_section5 or cis_run_audit_all
+  block:
+    - name: "Audit 5.2 | Check SSH configuration"
+      ansible.builtin.shell: |
+        sshd -T 2>/dev/null | grep -E 'permitrootlogin|permitemptypasswords|x11forwarding|maxauthtries|clientaliveinterval|usepam|allowtcpforwarding'
+      register: audit_sshd
+      changed_when: false
+      failed_when: false
+
+    - name: "Audit 5.4 | Check password policy"
+      ansible.builtin.shell: |
+        grep -E '^PASS_(MAX|MIN|WARN)' /etc/login.defs
+      register: audit_pwpolicy
+      changed_when: false
+
+    - name: "Audit 5.3 | Check faillock configuration"
+      ansible.builtin.shell: |
+        grep -E '^(deny|unlock_time)' /etc/security/faillock.conf 2>/dev/null || echo "faillock.conf not configured"
+      register: audit_faillock
+      changed_when: false
+
+    - name: "Audit Section 5 | Results"
+      ansible.builtin.debug:
+        msg:
+          - "=== Section 5 Audit Results ==="
+          - "SSH config: {{ audit_sshd.stdout_lines }}"
+          - "Password policy: {{ audit_pwpolicy.stdout_lines }}"
+          - "Faillock: {{ audit_faillock.stdout_lines }}"
+  tags:
+    - section5
+    - audit
+    - audit_section5

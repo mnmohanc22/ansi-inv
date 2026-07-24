@@ -1,0 +1,45 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for cis-l1
+
+- name: Section 1 | Initial Setup
+  ansible.builtin.import_tasks: section_1.yml
+  tags:
+    - section1
+    - cis_level1
+
+- name: Section 2 | Services
+  ansible.builtin.import_tasks: section_2.yml
+  tags:
+    - section2
+    - cis_level1
+
+- name: Section 3 | Network Configuration
+  ansible.builtin.import_tasks: section_3.yml
+  tags:
+    - section3
+    - cis_level1
+
+- name: Section 4 | Host Based Firewall
+  ansible.builtin.import_tasks: section_4.yml
+  tags:
+    - section4
+    - cis_level1
+
+- name: Section 5 | Access, Authentication and Authorization
+  ansible.builtin.import_tasks: section_5.yml
+  tags:
+    - section5
+    - cis_level1
+
+- name: Section 6 | Logging and Auditing
+  ansible.builtin.import_tasks: section_6.yml
+  tags:
+    - section6
+    - cis_level1
+
+- name: Section 7 | System Maintenance
+  ansible.builtin.import_tasks: section_7.yml
+  tags:
+    - section7
+    - cis_level1

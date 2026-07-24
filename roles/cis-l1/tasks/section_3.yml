@@ -1,0 +1,222 @@
+---
+# Section 3 | Network Configuration
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1 Server
+
+# 3.1 Disable Unused Network Protocols and Devices
+- name: "3.1 | Disable Unused Network Protocols and Devices"
+  block:
+    - name: "3.1.1 | Ensure IPv6 status is identified"
+      ansible.builtin.shell: |
+        ip6tables -L 2>/dev/null || echo "IPv6 not active"
+      register: ipv6_status
+      changed_when: false
+      failed_when: false
+
+    - name: "3.1.2 | Ensure wireless interfaces are disabled"
+      ansible.builtin.shell: |
+        nmcli radio wifi off 2>/dev/null || true
+      changed_when: false
+      failed_when: false
+
+    - name: "3.1.3 | Ensure bluetooth services are not in use"
+      ansible.builtin.service:
+        name: bluetooth
+        state: stopped
+        enabled: false
+      failed_when: false
+  tags:
+    - section3
+    - section3_1
+
+# 3.2 Network Kernel Modules
+- name: "3.2 | Network Kernel Modules"
+  block:
+    - name: "3.2.1 | Ensure dccp kernel module is not available"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/cis.conf
+        line: "install dccp /bin/false"
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "3.2.2 | Ensure tipc kernel module is not available"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/cis.conf
+        line: "install tipc /bin/false"
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "3.2.3 | Ensure rds kernel module is not available"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/cis.conf
+        line: "install rds /bin/false"
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "3.2.4 | Ensure sctp kernel module is not available"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/cis.conf
+        line: "install sctp /bin/false"
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+  tags:
+    - section3
+    - section3_2
+
+# 3.3 Network Kernel Parameters
+- name: "3.3 | Network Kernel Parameters"
+  block:
+    - name: "3.3.1 | Ensure ip forwarding is disabled"
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '0'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+
+    - name: "3.3.2 | Ensure packet redirect sending is disabled"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv4.conf.all.send_redirects, value: '0' }
+        - { name: net.ipv4.conf.default.send_redirects, value: '0' }
+
+    - name: "3.3.3 | Ensure bogus icmp responses are ignored"
+      ansible.posix.sysctl:
+        name: net.ipv4.icmp_ignore_bogus_error_responses
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+
+    - name: "3.3.4 | Ensure broadcast icmp requests are ignored"
+      ansible.posix.sysctl:
+        name: net.ipv4.icmp_echo_ignore_broadcasts
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+
+    - name: "3.3.5 | Ensure icmp redirects are not accepted"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv4.conf.all.accept_redirects, value: '0' }
+        - { name: net.ipv4.conf.default.accept_redirects, value: '0' }
+
+    - name: "3.3.6 | Ensure secure icmp redirects are not accepted"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv4.conf.all.secure_redirects, value: '0' }
+        - { name: net.ipv4.conf.default.secure_redirects, value: '0' }
+
+    - name: "3.3.7 | Ensure reverse path filtering is enabled"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv4.conf.all.rp_filter, value: '1' }
+        - { name: net.ipv4.conf.default.rp_filter, value: '1' }
+
+    - name: "3.3.8 | Ensure source routed packets are not accepted"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv4.conf.all.accept_source_route, value: '0' }
+        - { name: net.ipv4.conf.default.accept_source_route, value: '0' }
+
+    - name: "3.3.9 | Ensure suspicious packets are logged"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv4.conf.all.log_martians, value: '1' }
+        - { name: net.ipv4.conf.default.log_martians, value: '1' }
+
+    - name: "3.3.10 | Ensure tcp syn cookies is enabled"
+      ansible.posix.sysctl:
+        name: net.ipv4.tcp_syncookies
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+
+    - name: "3.3.11 | Ensure ipv6 router advertisements are not accepted"
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-netipv4_sysctl.conf
+      loop:
+        - { name: net.ipv6.conf.all.accept_ra, value: '0' }
+        - { name: net.ipv6.conf.default.accept_ra, value: '0' }
+  tags:
+    - section3
+    - section3_3
+
+# Audit Section 3
+- name: "Section 3 | Audit"
+  when: cis_run_audit_section3 or cis_run_audit_all
+  block:
+    - name: "Audit 3.2 | Check disabled network modules"
+      ansible.builtin.shell: |
+        for mod in dccp tipc rds sctp; do
+          echo "$mod: $(modprobe -n -v $mod 2>&1)"
+        done
+      register: audit_net_modules
+      changed_when: false
+
+    - name: "Audit 3.3 | Check network kernel parameters"
+      ansible.builtin.shell: |
+        sysctl net.ipv4.ip_forward \
+          net.ipv4.conf.all.send_redirects \
+          net.ipv4.conf.all.accept_redirects \
+          net.ipv4.icmp_ignore_bogus_error_responses \
+          net.ipv4.icmp_echo_ignore_broadcasts \
+          net.ipv4.tcp_syncookies \
+          net.ipv4.conf.all.rp_filter \
+          net.ipv4.conf.all.log_martians
+      register: audit_sysctl
+      changed_when: false
+
+    - name: "Audit Section 3 | Results"
+      ansible.builtin.debug:
+        msg:
+          - "=== Section 3 Audit Results ==="
+          - "Network modules: {{ audit_net_modules.stdout_lines }}"
+          - "Sysctl params: {{ audit_sysctl.stdout_lines }}"
+  tags:
+    - section3
+    - audit
+    - audit_section3

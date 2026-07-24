@@ -1,0 +1,237 @@
+---
+# Section 2 | Services
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1 Server
+
+# 2.1 Configure Time Synchronization
+- name: "2.1 | Configure Time Synchronization"
+  block:
+    - name: "2.1.1 | Ensure a single time synchronization daemon is in use"
+      ansible.builtin.dnf:
+        name: chrony
+        state: present
+
+    - name: "2.1.2 | Ensure chrony is configured"
+      ansible.builtin.service:
+        name: chronyd
+        state: started
+        enabled: true
+  tags:
+    - section2
+    - section2_1
+
+# 2.2 Special Purpose Services
+- name: "2.2 | Special Purpose Services"
+  block:
+    - name: "2.2.1 | Ensure autofs services are not in use"
+      ansible.builtin.service:
+        name: autofs
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.2 | Ensure avahi daemon services are not in use"
+      ansible.builtin.service:
+        name: avahi-daemon
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.3 | Ensure dhcp server services are not in use"
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - dhcpd
+        - dhcpd6
+      failed_when: false
+
+    - name: "2.2.4 | Ensure dns server services are not in use"
+      ansible.builtin.service:
+        name: named
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.5 | Ensure dnsmasq services are not in use"
+      ansible.builtin.service:
+        name: dnsmasq
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.6 | Ensure samba file server services are not in use"
+      ansible.builtin.service:
+        name: smb
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.7 | Ensure ftp server services are not in use"
+      ansible.builtin.service:
+        name: vsftpd
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.8 | Ensure message access server services are not in use"
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - dovecot
+        - cyrus-imapd
+      failed_when: false
+
+    - name: "2.2.9 | Ensure network file system services are not in use"
+      ansible.builtin.service:
+        name: nfs-server
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.10 | Ensure nis server services are not in use"
+      ansible.builtin.service:
+        name: ypserv
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.11 | Ensure print server services are not in use"
+      ansible.builtin.service:
+        name: cups
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.12 | Ensure rpcbind services are not in use"
+      ansible.builtin.service:
+        name: rpcbind
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.13 | Ensure rsync services are not in use"
+      ansible.builtin.service:
+        name: rsyncd
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.14 | Ensure snmp services are not in use"
+      ansible.builtin.service:
+        name: snmpd
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.15 | Ensure tftp server services are not in use"
+      ansible.builtin.service:
+        name: tftp
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.16 | Ensure web proxy server services are not in use"
+      ansible.builtin.service:
+        name: squid
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.17 | Ensure web server services are not in use"
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - httpd
+        - nginx
+      failed_when: false
+
+    - name: "2.2.18 | Ensure xinetd services are not in use"
+      ansible.builtin.service:
+        name: xinetd
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: "2.2.19 | Ensure X window server services are not in use"
+      ansible.builtin.dnf:
+        name: xorg-x11-server-common
+        state: absent
+      failed_when: false
+  tags:
+    - section2
+    - section2_2
+
+# 2.3 Service Clients
+- name: "2.3 | Service Clients"
+  block:
+    - name: "2.3.1 | Ensure ftp client is not installed"
+      ansible.builtin.dnf:
+        name: ftp
+        state: absent
+
+    - name: "2.3.2 | Ensure ldap client is not installed"
+      ansible.builtin.dnf:
+        name: openldap-clients
+        state: absent
+
+    - name: "2.3.3 | Ensure nis client is not installed"
+      ansible.builtin.dnf:
+        name: ypbind
+        state: absent
+
+    - name: "2.3.4 | Ensure telnet client is not installed"
+      ansible.builtin.dnf:
+        name: telnet
+        state: absent
+
+    - name: "2.3.5 | Ensure tftp client is not installed"
+      ansible.builtin.dnf:
+        name: tftp
+        state: absent
+  tags:
+    - section2
+    - section2_3
+
+# Audit Section 2
+- name: "Section 2 | Audit"
+  when: cis_run_audit_section2 or cis_run_audit_all
+  block:
+    - name: "Audit 2.1 | Check time synchronization status"
+      ansible.builtin.shell: |
+        chronyc tracking 2>/dev/null || timedatectl show --property=NTPSynchronized
+      register: audit_ntp
+      changed_when: false
+
+    - name: "Audit 2.2 | Check unnecessary services"
+      ansible.builtin.shell: |
+        for svc in autofs avahi-daemon dhcpd named dnsmasq smb vsftpd nfs-server ypserv cups rpcbind rsyncd snmpd tftp squid httpd nginx xinetd; do
+          state=$(systemctl is-enabled $svc 2>/dev/null || echo "not-found")
+          echo "$svc: $state"
+        done
+      register: audit_services
+      changed_when: false
+
+    - name: "Audit 2.3 | Check service clients"
+      ansible.builtin.shell: |
+        for pkg in ftp openldap-clients ypbind telnet tftp; do
+          echo "$pkg: $(rpm -q $pkg 2>/dev/null || echo 'not installed')"
+        done
+      register: audit_clients
+      changed_when: false
+
+    - name: "Audit Section 2 | Results"
+      ansible.builtin.debug:
+        msg:
+          - "=== Section 2 Audit Results ==="
+          - "Time sync: {{ audit_ntp.stdout_lines }}"
+          - "Services: {{ audit_services.stdout_lines }}"
+          - "Clients: {{ audit_clients.stdout_lines }}"
+  tags:
+    - section2
+    - audit
+    - audit_section2

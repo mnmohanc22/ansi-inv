@@ -1,0 +1,90 @@
+---
+# Section 4 | Host Based Firewall
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1 Server
+
+# 4.1 Configure Firewall software
+- name: "4.1 | Configure Firewall Software"
+  block:
+    - name: "4.1.1 | Ensure nftables is installed"
+      ansible.builtin.dnf:
+        name: nftables
+        state: present
+
+    - name: "4.1.2 | Ensure a single firewall configuration utility is in use"
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+  tags:
+    - section4
+    - section4_1
+
+# 4.2 Configure firewalld
+- name: "4.2 | Configure firewalld"
+  block:
+    - name: "4.2.1 | Ensure firewalld default zone is set"
+      ansible.builtin.shell: |
+        firewall-cmd --set-default-zone=drop
+      register: firewalld_default_zone
+      changed_when: "'success' in firewalld_default_zone.stdout"
+      failed_when: false
+
+    - name: "4.2.2 | Ensure loopback traffic is configured"
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=trusted --add-interface=lo
+        firewall-cmd --reload
+      register: firewalld_loopback
+      changed_when: "'success' in firewalld_loopback.stdout"
+      failed_when: false
+
+    - name: "4.2.3 | Ensure firewalld drops all unmatched traffic"
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --set-default-zone=drop
+        firewall-cmd --reload
+      register: firewalld_drop
+      changed_when: "'success' in firewalld_drop.stdout"
+      failed_when: false
+
+    - name: "4.2.4 | Ensure inbound and outbound traffic is configured"
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=public --add-service=ssh
+        firewall-cmd --reload
+      register: firewalld_ssh
+      changed_when: "'success' in firewalld_ssh.stdout"
+      failed_when: false
+  tags:
+    - section4
+    - section4_2
+
+# Audit Section 4
+- name: "Section 4 | Audit"
+  when: cis_run_audit_section4 or cis_run_audit_all
+  block:
+    - name: "Audit 4.1 | Check firewall package status"
+      ansible.builtin.shell: |
+        rpm -q nftables firewalld 2>/dev/null
+      register: audit_firewall_pkg
+      changed_when: false
+      failed_when: false
+
+    - name: "Audit 4.2 | Check firewalld status and zones"
+      ansible.builtin.shell: |
+        firewall-cmd --state 2>/dev/null
+        echo "---"
+        firewall-cmd --get-default-zone 2>/dev/null
+        echo "---"
+        firewall-cmd --list-all 2>/dev/null
+      register: audit_firewalld
+      changed_when: false
+      failed_when: false
+
+    - name: "Audit Section 4 | Results"
+      ansible.builtin.debug:
+        msg:
+          - "=== Section 4 Audit Results ==="
+          - "Firewall packages: {{ audit_firewall_pkg.stdout_lines }}"
+          - "Firewalld status: {{ audit_firewalld.stdout_lines }}"
+  tags:
+    - section4
+    - audit
+    - audit_section4

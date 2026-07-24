@@ -1,0 +1,256 @@
+---
+# Section 7 | System Maintenance
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1 Server
+
+# 7.1 System File Permissions
+- name: "7.1 | System File Permissions"
+  block:
+    - name: "7.1.1 | Ensure permissions on /etc/passwd are configured"
+      ansible.builtin.file:
+        path: /etc/passwd
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "7.1.2 | Ensure permissions on /etc/passwd- are configured"
+      ansible.builtin.file:
+        path: /etc/passwd-
+        owner: root
+        group: root
+        mode: '0644'
+      failed_when: false
+
+    - name: "7.1.3 | Ensure permissions on /etc/group are configured"
+      ansible.builtin.file:
+        path: /etc/group
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "7.1.4 | Ensure permissions on /etc/group- are configured"
+      ansible.builtin.file:
+        path: /etc/group-
+        owner: root
+        group: root
+        mode: '0644'
+      failed_when: false
+
+    - name: "7.1.5 | Ensure permissions on /etc/shadow are configured"
+      ansible.builtin.file:
+        path: /etc/shadow
+        owner: root
+        group: root
+        mode: '0000'
+
+    - name: "7.1.6 | Ensure permissions on /etc/shadow- are configured"
+      ansible.builtin.file:
+        path: /etc/shadow-
+        owner: root
+        group: root
+        mode: '0000'
+      failed_when: false
+
+    - name: "7.1.7 | Ensure permissions on /etc/gshadow are configured"
+      ansible.builtin.file:
+        path: /etc/gshadow
+        owner: root
+        group: root
+        mode: '0000'
+
+    - name: "7.1.8 | Ensure permissions on /etc/gshadow- are configured"
+      ansible.builtin.file:
+        path: /etc/gshadow-
+        owner: root
+        group: root
+        mode: '0000'
+      failed_when: false
+
+    - name: "7.1.9 | Ensure permissions on /etc/shells are configured"
+      ansible.builtin.file:
+        path: /etc/shells
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "7.1.10 | Ensure permissions on /etc/security/opasswd are configured"
+      ansible.builtin.file:
+        path: /etc/security/opasswd
+        owner: root
+        group: root
+        mode: '0600'
+      failed_when: false
+
+    - name: "7.1.11 | Ensure world writable files and directories are secured"
+      ansible.builtin.shell: |
+        find / -xdev -type f -perm -0002 2>/dev/null | \
+          grep -v '/proc/' | grep -v '/sys/' | \
+          while read f; do chmod o-w "$f"; done
+      changed_when: false
+      failed_when: false
+
+    - name: "7.1.12 | Ensure no unowned or ungrouped files or directories exist"
+      ansible.builtin.shell: |
+        find / -xdev \( -nouser -o -nogroup \) 2>/dev/null | grep -v '/proc/' | grep -v '/sys/'
+      register: unowned_files
+      changed_when: false
+      failed_when: false
+
+    - name: "7.1.12 | Debug unowned files"
+      ansible.builtin.debug:
+        msg: "{{ unowned_files.stdout_lines | default(['No unowned files found']) }}"
+  tags:
+    - section7
+    - section7_1
+
+# 7.2 Local User and Group Settings
+- name: "7.2 | Local User and Group Settings"
+  block:
+    - name: "7.2.1 | Ensure accounts in /etc/passwd use shadowed passwords"
+      ansible.builtin.shell: |
+        awk -F: '($2 != "x" ) { print $1}' /etc/passwd
+      register: nonshadowed_accounts
+      changed_when: false
+
+    - name: "7.2.1 | Debug non-shadowed accounts"
+      ansible.builtin.debug:
+        msg: "{{ nonshadowed_accounts.stdout_lines | default(['All accounts use shadowed passwords']) }}"
+
+    - name: "7.2.2 | Ensure /etc/shadow password fields are not empty"
+      ansible.builtin.shell: |
+        awk -F: '($2 == "" ) { print $1}' /etc/shadow
+      register: empty_pw_accounts
+      changed_when: false
+
+    - name: "7.2.2 | Debug accounts with empty passwords"
+      ansible.builtin.debug:
+        msg: "{{ empty_pw_accounts.stdout_lines | default(['No accounts with empty passwords']) }}"
+
+    - name: "7.2.3 | Ensure all groups in /etc/passwd exist in /etc/group"
+      ansible.builtin.shell: |
+        for i in $(cut -s -d: -f4 /etc/passwd | sort -u); do
+          grep -q -P "^.*?:[^:]*:$i:" /etc/group || echo "Group $i does not exist in /etc/group"
+        done
+      register: missing_groups
+      changed_when: false
+
+    - name: "7.2.3 | Debug missing groups"
+      ansible.builtin.debug:
+        msg: "{{ missing_groups.stdout_lines | default(['All groups exist in /etc/group']) }}"
+
+    - name: "7.2.4 | Ensure shadow group is empty"
+      ansible.builtin.shell: |
+        awk -F: '($1=="shadow") {print $NF}' /etc/group
+      register: shadow_group_members
+      changed_when: false
+
+    - name: "7.2.4 | Debug shadow group members"
+      ansible.builtin.debug:
+        msg: "Shadow group members: {{ shadow_group_members.stdout | default('empty') }}"
+
+    - name: "7.2.5 | Ensure no duplicate UIDs exist"
+      ansible.builtin.shell: |
+        cut -f3 -d: /etc/passwd | sort -n | uniq -d
+      register: duplicate_uids
+      changed_when: false
+
+    - name: "7.2.5 | Debug duplicate UIDs"
+      ansible.builtin.debug:
+        msg: "{{ duplicate_uids.stdout_lines | default(['No duplicate UIDs found']) }}"
+
+    - name: "7.2.6 | Ensure no duplicate GIDs exist"
+      ansible.builtin.shell: |
+        cut -f3 -d: /etc/group | sort -n | uniq -d
+      register: duplicate_gids
+      changed_when: false
+
+    - name: "7.2.6 | Debug duplicate GIDs"
+      ansible.builtin.debug:
+        msg: "{{ duplicate_gids.stdout_lines | default(['No duplicate GIDs found']) }}"
+
+    - name: "7.2.7 | Ensure no duplicate user names exist"
+      ansible.builtin.shell: |
+        cut -f1 -d: /etc/passwd | sort | uniq -d
+      register: duplicate_usernames
+      changed_when: false
+
+    - name: "7.2.7 | Debug duplicate usernames"
+      ansible.builtin.debug:
+        msg: "{{ duplicate_usernames.stdout_lines | default(['No duplicate usernames found']) }}"
+
+    - name: "7.2.8 | Ensure no duplicate group names exist"
+      ansible.builtin.shell: |
+        cut -f1 -d: /etc/group | sort | uniq -d
+      register: duplicate_groupnames
+      changed_when: false
+
+    - name: "7.2.8 | Debug duplicate group names"
+      ansible.builtin.debug:
+        msg: "{{ duplicate_groupnames.stdout_lines | default(['No duplicate group names found']) }}"
+
+    - name: "7.2.9 | Ensure local interactive user home directories are configured"
+      ansible.builtin.shell: |
+        awk -F: '($3>=1000 && $1!="nobody") {print $1": "$6}' /etc/passwd | \
+          while IFS=': ' read user homedir; do
+            [ ! -d "$homedir" ] && echo "Home dir $homedir for user $user does not exist"
+          done
+      register: missing_homedirs
+      changed_when: false
+      failed_when: false
+
+    - name: "7.2.9 | Debug missing home directories"
+      ansible.builtin.debug:
+        msg: "{{ missing_homedirs.stdout_lines | default(['All home directories exist']) }}"
+
+    - name: "7.2.10 | Ensure local interactive user dot files are configured"
+      ansible.builtin.shell: |
+        awk -F: '($3>=1000 && $1!="nobody") {print $6}' /etc/passwd | \
+          xargs -I{} find {} -maxdepth 1 -name ".*" -perm /o+w 2>/dev/null
+      register: world_writable_dotfiles
+      changed_when: false
+      failed_when: false
+
+    - name: "7.2.10 | Debug world writable dot files"
+      ansible.builtin.debug:
+        msg: "{{ world_writable_dotfiles.stdout_lines | default(['No world writable dot files found']) }}"
+  tags:
+    - section7
+    - section7_2
+
+# Audit Section 7
+- name: "Section 7 | Audit"
+  when: cis_run_audit_section7 or cis_run_audit_all
+  block:
+    - name: "Audit 7.1 | Check critical file permissions"
+      ansible.builtin.shell: |
+        for f in /etc/passwd /etc/shadow /etc/group /etc/gshadow; do
+          echo "$f: $(stat -c '%a %U %G' $f 2>/dev/null)"
+        done
+      register: audit_file_perms
+      changed_when: false
+
+    - name: "Audit 7.1 | Check for world writable files"
+      ansible.builtin.shell: |
+        find / -xdev -type f -perm -0002 2>/dev/null | grep -v '/proc/' | grep -v '/sys/' | wc -l
+      register: audit_world_writable
+      changed_when: false
+      failed_when: false
+
+    - name: "Audit 7.2 | Check for duplicate UIDs and GIDs"
+      ansible.builtin.shell: |
+        echo "=Duplicate UIDs="; cut -f3 -d: /etc/passwd | sort -n | uniq -d
+        echo "=Duplicate GIDs="; cut -f3 -d: /etc/group | sort -n | uniq -d
+        echo "=Empty passwords="; awk -F: '($2 == "" ) { print $1}' /etc/shadow
+      register: audit_user_group
+      changed_when: false
+
+    - name: "Audit Section 7 | Results"
+      ansible.builtin.debug:
+        msg:
+          - "=== Section 7 Audit Results ==="
+          - "File permissions: {{ audit_file_perms.stdout_lines }}"
+          - "World writable file count: {{ audit_world_writable.stdout }}"
+          - "User/Group checks: {{ audit_user_group.stdout_lines }}"
+  tags:
+    - section7
+    - audit
+    - audit_section7

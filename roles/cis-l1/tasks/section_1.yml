@@ -1,0 +1,172 @@
+---
+# Section 1 | Initial Setup
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1 Server
+
+# 1.1 Filesystem Configuration
+- name: "1.1 | Filesystem Configuration"
+  block:
+    - name: "1.1.1 | Ensure cramfs kernel module is not available"
+      ansible.builtin.shell: |
+        modprobe -n -v cramfs 2>&1 | grep -E 'install /bin/false|Module cramfs not found'
+      register: cramfs_check
+      changed_when: false
+      failed_when: false
+
+    - name: "1.1.1 | Disable cramfs module"
+      ansible.builtin.lineinfile:
+        path: /etc/modprobe.d/cis.conf
+        line: "install cramfs /bin/false"
+        create: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: cramfs_check.rc != 0
+  tags:
+    - section1
+    - section1_1
+
+# 1.2 Configure Software Updates
+- name: "1.2 | Configure Software Updates"
+  block:
+    - name: "1.2.1 | Ensure GPG keys are configured"
+      ansible.builtin.shell: |
+        rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}\n'
+      register: gpg_keys
+      changed_when: false
+      failed_when: false
+
+    - name: "1.2.1 | Debug GPG keys"
+      ansible.builtin.debug:
+        msg: "{{ gpg_keys.stdout_lines }}"
+
+    - name: "1.2.2 | Ensure gpgcheck is globally activated"
+      ansible.builtin.replace:
+        path: /etc/dnf/dnf.conf
+        regexp: '^gpgcheck\s*=\s*0'
+        replace: 'gpgcheck=1'
+  tags:
+    - section1
+    - section1_2
+
+# 1.3 Filesystem Integrity Checking
+- name: "1.3 | Filesystem Integrity Checking"
+  block:
+    - name: "1.3.1 | Ensure AIDE is installed"
+      ansible.builtin.dnf:
+        name: aide
+        state: present
+
+    - name: "1.3.2 | Ensure filesystem integrity is regularly checked"
+      ansible.builtin.cron:
+        name: "AIDE integrity check"
+        minute: "0"
+        hour: "5"
+        job: "/usr/sbin/aide --check"
+        user: root
+  tags:
+    - section1
+    - section1_3
+
+# 1.4 Secure Boot Settings
+- name: "1.4 | Secure Boot Settings"
+  block:
+    - name: "1.4.1 | Ensure bootloader password is set"
+      ansible.builtin.shell: |
+        grep -P '^\s*set\s+superusers' /boot/grub2/grub.cfg
+      register: grub_superuser
+      changed_when: false
+      failed_when: false
+
+    - name: "1.4.1 | Debug bootloader password status"
+      ansible.builtin.debug:
+        msg: "{{ grub_superuser.stdout | default('Bootloader password NOT set') }}"
+  tags:
+    - section1
+    - section1_4
+
+# 1.5 Additional Process Hardening
+- name: "1.5 | Additional Process Hardening"
+  block:
+    - name: "1.5.1 | Ensure address space layout randomization is enabled"
+      ansible.posix.sysctl:
+        name: kernel.randomize_va_space
+        value: '2'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-kernel_sysctl.conf
+
+    - name: "1.5.2 | Ensure ptrace_scope is restricted"
+      ansible.posix.sysctl:
+        name: kernel.yama.ptrace_scope
+        value: '1'
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/60-kernel_sysctl.conf
+  tags:
+    - section1
+    - section1_5
+
+# 1.6 Mandatory Access Control
+- name: "1.6 | Mandatory Access Control"
+  block:
+    - name: "1.6.1 | Ensure SELinux is installed"
+      ansible.builtin.dnf:
+        name: libselinux
+        state: present
+
+    - name: "1.6.2 | Ensure SELinux is not disabled in bootloader"
+      ansible.builtin.replace:
+        path: /etc/default/grub
+        regexp: '(selinux|enforcing)=0'
+        replace: ''
+
+    - name: "1.6.3 | Ensure SELinux policy is configured"
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUXTYPE='
+        line: 'SELINUXTYPE=targeted'
+
+    - name: "1.6.4 | Ensure SELinux mode is enforcing"
+      ansible.builtin.lineinfile:
+        path: /etc/selinux/config
+        regexp: '^SELINUX='
+        line: 'SELINUX=enforcing'
+  tags:
+    - section1
+    - section1_6
+
+# Audit Section 1
+- name: "Section 1 | Audit"
+  when: cis_run_audit_section1 or cis_run_audit_all
+  block:
+    - name: "Audit 1.1 | Check disabled filesystem modules"
+      ansible.builtin.shell: |
+        for mod in cramfs freevxfs hfs hfsplus jffs2 squashfs udf; do
+          echo "$mod: $(modprobe -n -v $mod 2>&1)"
+        done
+      register: audit_fs_modules
+      changed_when: false
+
+    - name: "Audit 1.5 | Check ASLR setting"
+      ansible.builtin.shell: |
+        sysctl kernel.randomize_va_space
+      register: audit_aslr
+      changed_when: false
+
+    - name: "Audit 1.6 | Check SELinux status"
+      ansible.builtin.shell: |
+        sestatus
+      register: audit_selinux
+      changed_when: false
+
+    - name: "Audit Section 1 | Results"
+      ansible.builtin.debug:
+        msg:
+          - "=== Section 1 Audit Results ==="
+          - "Filesystem modules: {{ audit_fs_modules.stdout_lines }}"
+          - "ASLR: {{ audit_aslr.stdout }}"
+          - "SELinux: {{ audit_selinux.stdout_lines }}"
+  tags:
+    - section1
+    - audit
+    - audit_section1

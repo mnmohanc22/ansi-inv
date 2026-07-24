@@ -1,0 +1,56 @@
+
+
+
+
+- name: Set server list based on env_name
+  block:
+    - name: print env_name for this block
+      ansible.builtin.debug:
+        msg: "Setting server list for env_name: {{ env_name }}"
+
+    - name: set fact for server_list based on env_name
+      ansible.builtin.set_fact:
+        server_list: "dev_srvs"
+      when: env_name == "dev"
+
+    - name: set fact for server_list for uat
+      ansible.builtin.set_fact:
+        server_list: "uat_srvs"
+      when: env_name == "uat"
+
+    - name: set fact for server_list for prod
+      ansible.builtin.set_fact:
+        server_list: "prod_srvs"
+      when: env_name == "prod"
+
+    - name: Print server_list
+      ansible.builtin.debug:
+        msg: "server_list for {{ env_name }}: {{ server_list | default('not set') }}"
+
+- name: Save workflow context
+  block:
+    - name: Debug workflow context before set_stats
+      ansible.builtin.debug:
+        msg:
+          - "account_id: {{ account_id }}"
+          - "oracle_home: {{ oracle_home }}"
+          - "oracle_sid: {{ oracle_sid }}"
+          - "listener: {{ listener_name }}"
+          - "opatch_version: {{ opatch_version }}"
+          - "patch_required: {{ patch_required }}"
+
+    - name: Save workflow context
+      ansible.builtin.set_stats:
+        data:
+          workflow_context:
+            account_id: "{{ account_id }}"
+            oracle_home: "{{ oracle_home }}"
+            oracle_sid: "{{ oracle_sid }}"
+            listener: "{{ listener_name }}"
+            opatch_version: "{{ opatch_version }}"
+            patch_required: "{{ patch_required }}"
+            server_list: "{{ server_list | default('') }}"
+
+    - name: Debug workflow context after set_stats
+      ansible.builtin.debug:
+        msg: "workflow_context saved: {{ workflow_context | default('not set') }}"

@@ -1,0 +1,15 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for cis-l1
+
+# Set to true to run audit checks after remediation for each section
+cis_run_audit_section1: false   # Initial Setup
+cis_run_audit_section2: false   # Services
+cis_run_audit_section3: false   # Network Configuration
+cis_run_audit_section4: false   # Host Based Firewall
+cis_run_audit_section5: false   # Access, Authentication and Authorization
+cis_run_audit_section6: false   # Logging and Auditing
+cis_run_audit_section7: false   # System Maintenance
+
+# Set to true to run audit for all sections
+cis_run_audit_all: false
