@@ -45,7 +45,12 @@
   block:
     - name: Print dtllst command to be run
       debug:
-        msg: "dtllst: {{ pwx_home }}/dtllst {{ listener_node }} > {{ pwx_log_dir }}/dtllst_{{ listener_node }}.log"
+        msg:
+          - "export PWX_HOME={{ pwx_home }}"
+          - "export PWX_CONFIG={{ dbmover_config }}"
+          - "export PATH={{ pwx_home }}:${PATH}"
+          - "export LD_LIBRARY_PATH={{ pwx_home }}:${LD_LIBRARY_PATH:-}"
+          - "{{ pwx_home }}/dtllst {{ listener_node }} > {{ pwx_log_dir }}/dtllst_{{ listener_node }}.log 2>&1"
 
     - name: Start PowerExchange listener
       ansible.builtin.shell: |
@@ -67,7 +72,12 @@
   block:
     - name: Print pwxccl command to be run
       debug:
-        msg: "pwxccl: {{ pwx_home }}/pwxccl config={{ pwxccl_config }} > {{ pwx_log_dir }}/pwxccl.log"
+        msg:
+          - "export PWX_HOME={{ pwx_home }}"
+          - "export PWX_CONFIG={{ dbmover_config }}"
+          - "export PATH={{ pwx_home }}:${PATH}"
+          - "export LD_LIBRARY_PATH={{ pwx_home }}:${LD_LIBRARY_PATH:-}"
+          - "{{ pwx_home }}/pwxccl config={{ pwxccl_config }} > {{ pwx_log_dir }}/pwxccl.log 2>&1"
 
     - name: Start PowerExchange logger
       ansible.builtin.shell: |
