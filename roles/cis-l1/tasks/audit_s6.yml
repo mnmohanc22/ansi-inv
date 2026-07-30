@@ -1,0 +1,194 @@
+---
+# Section 6 | Logging and Auditing - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 6.1.1
+- name: "Audit | 6.1.1 Ensure AIDE is installed"
+  ansible.builtin.shell: |
+    rpm -q aide &>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_6_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.1.1', 'title': 'Ensure AIDE is installed', 'status': 'PASS' if 'PASS' in cis_6_1_1.stdout else 'FAIL'}] }}"
+
+# 6.1.2
+- name: "Audit | 6.1.2 Ensure filesystem integrity is regularly checked"
+  ansible.builtin.shell: |
+    (crontab -u root -l 2>/dev/null | grep -q aide || \
+     grep -rqs aide /etc/cron.* /etc/crontab 2>/dev/null || \
+     systemctl is-enabled aidecheck.timer 2>/dev/null | grep -q enabled) && \
+    echo "PASS" || echo "FAIL"
+  register: cis_6_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.1.2', 'title': 'Ensure filesystem integrity is regularly checked', 'status': 'PASS' if 'PASS' in cis_6_1_2.stdout else 'FAIL'}] }}"
+
+# 6.1.3
+- name: "Audit | 6.1.3 Ensure cryptographic mechanisms are used to protect integrity of audit tools"
+  ansible.builtin.shell: |
+    grep -Ps '^\s*(\/sbin\/auditctl|\/sbin\/auditd|\/sbin\/ausearch|\/sbin\/aureport|\/sbin\/autrace|\/sbin\/augenrules)\b' \
+      /etc/aide.conf /etc/aide.conf.d/*.conf 2>/dev/null | grep -q . && echo "PASS" || echo "FAIL"
+  register: cis_6_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.1.3', 'title': 'Ensure cryptographic mechanisms protect integrity of audit tools', 'status': 'PASS' if 'PASS' in cis_6_1_3.stdout else 'FAIL'}] }}"
+
+# 6.2.1.1
+- name: "Audit | 6.2.1.1 Ensure journald service is enabled and active"
+  ansible.builtin.shell: |
+    systemctl is-enabled systemd-journald 2>/dev/null | grep -q 'static\|enabled' && \
+    systemctl is-active systemd-journald 2>/dev/null | grep -q 'active' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_6_2_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.1.1', 'title': 'Ensure journald service is enabled and active', 'status': 'PASS' if 'PASS' in cis_6_2_1_1.stdout else 'FAIL'}] }}"
+
+# 6.2.1.2
+- name: "Audit | 6.2.1.2 Ensure journald log file access is configured"
+  ansible.builtin.shell: |
+    stat -c "%a" /var/log/journal 2>/dev/null | grep -Pq '^2[57][05]$' && echo "PASS" || echo "FAIL"
+  register: cis_6_2_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.1.2', 'title': 'Ensure journald log file access is configured', 'status': 'PASS' if 'PASS' in cis_6_2_1_2.stdout else 'FAIL'}] }}"
+
+# 6.2.2.2
+- name: "Audit | 6.2.2.2 Ensure journald ForwardToSyslog is disabled"
+  ansible.builtin.shell: |
+    grep -Pqs '^\s*ForwardToSyslog\s*=\s*no\b' \
+      /etc/systemd/journald.conf /etc/systemd/journald.conf.d/*.conf 2>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_6_2_2_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.2.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.2.2', 'title': 'Ensure journald ForwardToSyslog is disabled', 'status': 'PASS' if 'PASS' in cis_6_2_2_2.stdout else 'FAIL'}] }}"
+
+# 6.2.2.3
+- name: "Audit | 6.2.2.3 Ensure journald Compress is configured"
+  ansible.builtin.shell: |
+    grep -Pqs '^\s*Compress\s*=\s*yes\b' \
+      /etc/systemd/journald.conf /etc/systemd/journald.conf.d/*.conf 2>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_6_2_2_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.2.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.2.3', 'title': 'Ensure journald Compress is configured', 'status': 'PASS' if 'PASS' in cis_6_2_2_3.stdout else 'FAIL'}] }}"
+
+# 6.2.2.4
+- name: "Audit | 6.2.2.4 Ensure journald Storage is configured"
+  ansible.builtin.shell: |
+    grep -Pqs '^\s*Storage\s*=\s*persistent\b' \
+      /etc/systemd/journald.conf /etc/systemd/journald.conf.d/*.conf 2>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_6_2_2_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.2.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.2.4', 'title': 'Ensure journald Storage is configured', 'status': 'PASS' if 'PASS' in cis_6_2_2_4.stdout else 'FAIL'}] }}"
+
+# 6.2.3.1
+- name: "Audit | 6.2.3.1 Ensure rsyslog is installed"
+  ansible.builtin.shell: |
+    rpm -q rsyslog &>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_6_2_3_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.3.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.3.1', 'title': 'Ensure rsyslog is installed', 'status': 'PASS' if 'PASS' in cis_6_2_3_1.stdout else 'FAIL'}] }}"
+
+# 6.2.3.2
+- name: "Audit | 6.2.3.2 Ensure rsyslog service is enabled and active"
+  ansible.builtin.shell: |
+    systemctl is-enabled rsyslog 2>/dev/null | grep -q 'enabled' && \
+    systemctl is-active rsyslog 2>/dev/null | grep -q 'active' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_6_2_3_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.3.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.3.2', 'title': 'Ensure rsyslog service is enabled and active', 'status': 'PASS' if 'PASS' in cis_6_2_3_2.stdout else 'FAIL'}] }}"
+
+# 6.2.3.4
+- name: "Audit | 6.2.3.4 Ensure rsyslog log file creation mode is configured"
+  ansible.builtin.shell: |
+    grep -Pqs '^\s*\$FileCreateMode\s+0[0-6][04][04]\b' \
+      /etc/rsyslog.conf /etc/rsyslog.d/*.conf 2>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_6_2_3_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.3.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.3.4', 'title': 'Ensure rsyslog log file creation mode is configured', 'status': 'PASS' if 'PASS' in cis_6_2_3_4.stdout else 'FAIL'}] }}"
+
+# 6.2.3.7
+- name: "Audit | 6.2.3.7 Ensure rsyslog is not configured to receive logs from a remote client"
+  ansible.builtin.shell: |
+    ! grep -Pqs '^\s*module\s*\(\s*load\s*=\s*"imtcp"\s*\)' \
+      /etc/rsyslog.conf /etc/rsyslog.d/*.conf 2>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_6_2_3_7
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.3.7 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.3.7', 'title': 'Ensure rsyslog is not configured to receive logs from a remote client', 'status': 'PASS' if 'PASS' in cis_6_2_3_7.stdout else 'FAIL'}] }}"
+
+# 6.2.4.1
+- name: "Audit | 6.2.4.1 Ensure access to all logfiles has been configured"
+  ansible.builtin.shell: |
+    find /var/log -type f ! -perm /g+wx,o+rwx 2>/dev/null | wc -l | \
+    xargs -I{} bash -c '[ {} -gt 0 ] && echo "PASS" || echo "FAIL"'
+  register: cis_6_2_4_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 6.2.4.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '6.2.4.1', 'title': 'Ensure access to all logfiles has been configured', 'status': 'PASS' if 'PASS' in cis_6_2_4_1.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 6 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 6 | Logging and Auditing - Audit Summary ====="
+      - "Total : {{ s6_results | length }}"
+      - "PASS  : {{ s6_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s6_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s6_results: "{{ cis_audit_results | selectattr('id', 'match', '^6\\.') | list }}"
+
+- name: "Audit | Section 6 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^6\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"

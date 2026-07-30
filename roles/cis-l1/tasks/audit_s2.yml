@@ -1,0 +1,312 @@
+---
+# Section 2 | Services - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 2.1.1
+- name: "Audit | 2.1.1 Ensure autofs services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled autofs 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.1', 'title': 'Ensure autofs services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_1.stdout else 'FAIL'}] }}"
+
+# 2.1.2
+- name: "Audit | 2.1.2 Ensure avahi daemon services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled avahi-daemon 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.2', 'title': 'Ensure avahi daemon services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_2.stdout else 'FAIL'}] }}"
+
+# 2.1.3
+- name: "Audit | 2.1.3 Ensure dhcp server services are not in use"
+  ansible.builtin.shell: |
+    (systemctl is-enabled dhcpd 2>/dev/null | grep -qE 'enabled' || \
+     systemctl is-enabled dhcpd6 2>/dev/null | grep -qE 'enabled') && echo "FAIL" || echo "PASS"
+  register: cis_2_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.3', 'title': 'Ensure dhcp server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_3.stdout else 'FAIL'}] }}"
+
+# 2.1.4
+- name: "Audit | 2.1.4 Ensure dns server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled named 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.4', 'title': 'Ensure dns server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_4.stdout else 'FAIL'}] }}"
+
+# 2.1.5
+- name: "Audit | 2.1.5 Ensure dnsmasq services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled dnsmasq 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.5', 'title': 'Ensure dnsmasq services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_5.stdout else 'FAIL'}] }}"
+
+# 2.1.6
+- name: "Audit | 2.1.6 Ensure samba file server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled smb 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_6
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.6 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.6', 'title': 'Ensure samba file server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_6.stdout else 'FAIL'}] }}"
+
+# 2.1.7
+- name: "Audit | 2.1.7 Ensure ftp server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled vsftpd 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_7
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.7 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.7', 'title': 'Ensure ftp server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_7.stdout else 'FAIL'}] }}"
+
+# 2.1.8
+- name: "Audit | 2.1.8 Ensure message access server services are not in use"
+  ansible.builtin.shell: |
+    (systemctl is-enabled dovecot 2>/dev/null | grep -qE 'enabled' || \
+     systemctl is-enabled cyrus-imapd 2>/dev/null | grep -qE 'enabled') && echo "FAIL" || echo "PASS"
+  register: cis_2_1_8
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.8 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.8', 'title': 'Ensure message access server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_8.stdout else 'FAIL'}] }}"
+
+# 2.1.9
+- name: "Audit | 2.1.9 Ensure network file system services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled nfs-server 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_9
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.9 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.9', 'title': 'Ensure network file system services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_9.stdout else 'FAIL'}] }}"
+
+# 2.1.10
+- name: "Audit | 2.1.10 Ensure nis server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled ypserv 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_10
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.10 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.10', 'title': 'Ensure nis server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_10.stdout else 'FAIL'}] }}"
+
+# 2.1.11
+- name: "Audit | 2.1.11 Ensure print server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled cups 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_11
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.11 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.11', 'title': 'Ensure print server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_11.stdout else 'FAIL'}] }}"
+
+# 2.1.12
+- name: "Audit | 2.1.12 Ensure rpcbind services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled rpcbind 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_12
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.12 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.12', 'title': 'Ensure rpcbind services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_12.stdout else 'FAIL'}] }}"
+
+# 2.1.13
+- name: "Audit | 2.1.13 Ensure rsync services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled rsyncd 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_13
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.13 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.13', 'title': 'Ensure rsync services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_13.stdout else 'FAIL'}] }}"
+
+# 2.1.14
+- name: "Audit | 2.1.14 Ensure snmp services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled snmpd 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_14
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.14 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.14', 'title': 'Ensure snmp services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_14.stdout else 'FAIL'}] }}"
+
+# 2.1.15
+- name: "Audit | 2.1.15 Ensure tftp server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled tftp 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_15
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.15 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.15', 'title': 'Ensure tftp server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_15.stdout else 'FAIL'}] }}"
+
+# 2.1.16
+- name: "Audit | 2.1.16 Ensure web proxy server services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled squid 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_16
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.16 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.16', 'title': 'Ensure web proxy server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_16.stdout else 'FAIL'}] }}"
+
+# 2.1.17
+- name: "Audit | 2.1.17 Ensure web server services are not in use"
+  ansible.builtin.shell: |
+    (systemctl is-enabled httpd 2>/dev/null | grep -qE 'enabled' || \
+     systemctl is-enabled nginx 2>/dev/null | grep -qE 'enabled') && echo "FAIL" || echo "PASS"
+  register: cis_2_1_17
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.17 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.17', 'title': 'Ensure web server services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_17.stdout else 'FAIL'}] }}"
+
+# 2.1.18
+- name: "Audit | 2.1.18 Ensure xinetd services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled xinetd 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_2_1_18
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.1.18 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.1.18', 'title': 'Ensure xinetd services are not in use', 'status': 'PASS' if 'PASS' in cis_2_1_18.stdout else 'FAIL'}] }}"
+
+# 2.2.1 - Time sync
+- name: "Audit | 2.2.1 Ensure a single time synchronization daemon is in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled chronyd 2>/dev/null | grep -qE 'enabled' && echo "PASS" || echo "FAIL"
+  register: cis_2_2_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.2.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.2.1', 'title': 'Ensure a single time synchronization daemon is in use', 'status': 'PASS' if 'PASS' in cis_2_2_1.stdout else 'FAIL'}] }}"
+
+# 2.3.1
+- name: "Audit | 2.3.1 Ensure ftp client is not installed"
+  ansible.builtin.shell: |
+    rpm -q ftp &>/dev/null && echo "FAIL" || echo "PASS"
+  register: cis_2_3_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.3.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.3.1', 'title': 'Ensure ftp client is not installed', 'status': 'PASS' if 'PASS' in cis_2_3_1.stdout else 'FAIL'}] }}"
+
+# 2.3.2
+- name: "Audit | 2.3.2 Ensure ldap client is not installed"
+  ansible.builtin.shell: |
+    rpm -q openldap-clients &>/dev/null && echo "FAIL" || echo "PASS"
+  register: cis_2_3_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.3.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.3.2', 'title': 'Ensure ldap client is not installed', 'status': 'PASS' if 'PASS' in cis_2_3_2.stdout else 'FAIL'}] }}"
+
+# 2.3.3
+- name: "Audit | 2.3.3 Ensure nis client is not installed"
+  ansible.builtin.shell: |
+    rpm -q ypbind &>/dev/null && echo "FAIL" || echo "PASS"
+  register: cis_2_3_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.3.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.3.3', 'title': 'Ensure nis client is not installed', 'status': 'PASS' if 'PASS' in cis_2_3_3.stdout else 'FAIL'}] }}"
+
+# 2.3.4
+- name: "Audit | 2.3.4 Ensure telnet client is not installed"
+  ansible.builtin.shell: |
+    rpm -q telnet &>/dev/null && echo "FAIL" || echo "PASS"
+  register: cis_2_3_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.3.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.3.4', 'title': 'Ensure telnet client is not installed', 'status': 'PASS' if 'PASS' in cis_2_3_4.stdout else 'FAIL'}] }}"
+
+# 2.3.5
+- name: "Audit | 2.3.5 Ensure tftp client is not installed"
+  ansible.builtin.shell: |
+    rpm -q tftp &>/dev/null && echo "FAIL" || echo "PASS"
+  register: cis_2_3_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 2.3.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '2.3.5', 'title': 'Ensure tftp client is not installed', 'status': 'PASS' if 'PASS' in cis_2_3_5.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 2 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 2 | Services - Audit Summary ====="
+      - "Total : {{ s2_results | length }}"
+      - "PASS  : {{ s2_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s2_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s2_results: "{{ cis_audit_results | selectattr('id', 'match', '^2\\.') | list }}"
+
+- name: "Audit | Section 2 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^2\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"

@@ -1,0 +1,271 @@
+---
+# Section 5 | Access, Authentication and Authorization - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 5.1.1
+- name: "Audit | 5.1.1 Ensure cron daemon is enabled and active"
+  ansible.builtin.shell: |
+    systemctl is-enabled crond 2>/dev/null | grep -q 'enabled' && \
+    systemctl is-active crond 2>/dev/null | grep -q 'active' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_5_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.1.1', 'title': 'Ensure cron daemon is enabled and active', 'status': 'PASS' if 'PASS' in cis_5_1_1.stdout else 'FAIL'}] }}"
+
+# 5.1.2
+- name: "Audit | 5.1.2 Ensure permissions on /etc/crontab are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/crontab | grep -Pq '^\s*[0-7][06][06]\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_5_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.1.2', 'title': 'Ensure permissions on /etc/crontab are configured', 'status': 'PASS' if 'PASS' in cis_5_1_2.stdout else 'FAIL'}] }}"
+
+# 5.1.8
+- name: "Audit | 5.1.8 Ensure cron is restricted to authorized users"
+  ansible.builtin.shell: |
+    [ ! -f /etc/cron.deny ] && \
+    stat -c "%a %u %g" /etc/cron.allow 2>/dev/null | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_5_1_8
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.1.8 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.1.8', 'title': 'Ensure cron is restricted to authorized users', 'status': 'PASS' if 'PASS' in cis_5_1_8.stdout else 'FAIL'}] }}"
+
+# 5.2.1
+- name: "Audit | 5.2.1 Ensure permissions on /etc/ssh/sshd_config are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/ssh/sshd_config | grep -Pq '^\s*[0-7][06][06]\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.1', 'title': 'Ensure permissions on /etc/ssh/sshd_config are configured', 'status': 'PASS' if 'PASS' in cis_5_2_1.stdout else 'FAIL'}] }}"
+
+# 5.2.5
+- name: "Audit | 5.2.5 Ensure SSH LogLevel is configured"
+  ansible.builtin.shell: |
+    sshd -T -C user=root -C host="$(hostname)" -C addr="$(hostname -I | awk '{print $1}')" 2>/dev/null | \
+    grep -Piq '^\s*loglevel\s+(VERBOSE|INFO)\b' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.5', 'title': 'Ensure SSH LogLevel is configured', 'status': 'PASS' if 'PASS' in cis_5_2_5.stdout else 'FAIL'}] }}"
+
+# 5.2.6
+- name: "Audit | 5.2.6 Ensure SSH PAM is enabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'usepam yes' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_6
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.6 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.6', 'title': 'Ensure SSH PAM is enabled', 'status': 'PASS' if 'PASS' in cis_5_2_6.stdout else 'FAIL'}] }}"
+
+# 5.2.7
+- name: "Audit | 5.2.7 Ensure SSH root login is disabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'permitrootlogin no' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_7
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.7 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.7', 'title': 'Ensure SSH root login is disabled', 'status': 'PASS' if 'PASS' in cis_5_2_7.stdout else 'FAIL'}] }}"
+
+# 5.2.8
+- name: "Audit | 5.2.8 Ensure SSH HostbasedAuthentication is disabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'hostbasedauthentication no' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_8
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.8 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.8', 'title': 'Ensure SSH HostbasedAuthentication is disabled', 'status': 'PASS' if 'PASS' in cis_5_2_8.stdout else 'FAIL'}] }}"
+
+# 5.2.9
+- name: "Audit | 5.2.9 Ensure SSH PermitEmptyPasswords is disabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'permitemptypasswords no' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_9
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.9 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.9', 'title': 'Ensure SSH PermitEmptyPasswords is disabled', 'status': 'PASS' if 'PASS' in cis_5_2_9.stdout else 'FAIL'}] }}"
+
+# 5.2.10
+- name: "Audit | 5.2.10 Ensure SSH PermitUserEnvironment is disabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'permituserenvironment no' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_10
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.10 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.10', 'title': 'Ensure SSH PermitUserEnvironment is disabled', 'status': 'PASS' if 'PASS' in cis_5_2_10.stdout else 'FAIL'}] }}"
+
+# 5.2.11
+- name: "Audit | 5.2.11 Ensure SSH IgnoreRhosts is enabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'ignorerhosts yes' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_11
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.11 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.11', 'title': 'Ensure SSH IgnoreRhosts is enabled', 'status': 'PASS' if 'PASS' in cis_5_2_11.stdout else 'FAIL'}] }}"
+
+# 5.2.14
+- name: "Audit | 5.2.14 Ensure SSH X11 forwarding is disabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'x11forwarding no' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_14
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.14 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.14', 'title': 'Ensure SSH X11 forwarding is disabled', 'status': 'PASS' if 'PASS' in cis_5_2_14.stdout else 'FAIL'}] }}"
+
+# 5.2.15
+- name: "Audit | 5.2.15 Ensure SSH MaxAuthTries is set to 4 or less"
+  ansible.builtin.shell: |
+    val=$(sshd -T 2>/dev/null | grep -i maxauthtries | awk '{print $2}')
+    [ -n "$val" ] && [ "$val" -le 4 ] && echo "PASS" || echo "FAIL"
+  register: cis_5_2_15
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.15 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.15', 'title': 'Ensure SSH MaxAuthTries is set to 4 or less', 'status': 'PASS' if 'PASS' in cis_5_2_15.stdout else 'FAIL'}] }}"
+
+# 5.2.16
+- name: "Audit | 5.2.16 Ensure SSH MaxStartups is configured"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'maxstartups' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_16
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.16 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.16', 'title': 'Ensure SSH MaxStartups is configured', 'status': 'PASS' if 'PASS' in cis_5_2_16.stdout else 'FAIL'}] }}"
+
+# 5.2.18
+- name: "Audit | 5.2.18 Ensure SSH AllowTcpForwarding is disabled"
+  ansible.builtin.shell: |
+    sshd -T 2>/dev/null | grep -qi 'allowtcpforwarding no' && echo "PASS" || echo "FAIL"
+  register: cis_5_2_18
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.2.18 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.2.18', 'title': 'Ensure SSH AllowTcpForwarding is disabled', 'status': 'PASS' if 'PASS' in cis_5_2_18.stdout else 'FAIL'}] }}"
+
+# 5.3.1 - PAM faillock
+- name: "Audit | 5.3.1 Ensure password failed attempts lockout is configured"
+  ansible.builtin.shell: |
+    grep -Pqs '^\s*deny\s*=\s*[1-5]\b' /etc/security/faillock.conf && echo "PASS" || echo "FAIL"
+  register: cis_5_3_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.3.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.3.1', 'title': 'Ensure password failed attempts lockout is configured', 'status': 'PASS' if 'PASS' in cis_5_3_1.stdout else 'FAIL'}] }}"
+
+# 5.4.1 - Password expiration
+- name: "Audit | 5.4.1 Ensure password expiration is 365 days or less"
+  ansible.builtin.shell: |
+    val=$(grep -P '^\s*PASS_MAX_DAYS\s+\d+' /etc/login.defs | awk '{print $2}')
+    [ -n "$val" ] && [ "$val" -le 365 ] && [ "$val" -gt 0 ] && echo "PASS" || echo "FAIL"
+  register: cis_5_4_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.4.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.4.1', 'title': 'Ensure password expiration is 365 days or less', 'status': 'PASS' if 'PASS' in cis_5_4_1.stdout else 'FAIL'}] }}"
+
+# 5.4.2
+- name: "Audit | 5.4.2 Ensure minimum days between password changes is configured"
+  ansible.builtin.shell: |
+    val=$(grep -P '^\s*PASS_MIN_DAYS\s+\d+' /etc/login.defs | awk '{print $2}')
+    [ -n "$val" ] && [ "$val" -ge 1 ] && echo "PASS" || echo "FAIL"
+  register: cis_5_4_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.4.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.4.2', 'title': 'Ensure minimum days between password changes is configured', 'status': 'PASS' if 'PASS' in cis_5_4_2.stdout else 'FAIL'}] }}"
+
+# 5.4.3
+- name: "Audit | 5.4.3 Ensure password expiration warning days is 7 or more"
+  ansible.builtin.shell: |
+    val=$(grep -P '^\s*PASS_WARN_AGE\s+\d+' /etc/login.defs | awk '{print $2}')
+    [ -n "$val" ] && [ "$val" -ge 7 ] && echo "PASS" || echo "FAIL"
+  register: cis_5_4_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.4.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.4.3', 'title': 'Ensure password expiration warning days is 7 or more', 'status': 'PASS' if 'PASS' in cis_5_4_3.stdout else 'FAIL'}] }}"
+
+# 5.4.3.2 - shell timeout
+- name: "Audit | 5.4.3.2 Ensure default user shell timeout is configured"
+  ansible.builtin.shell: |
+    grep -rPqs '^\s*TMOUT\s*=\s*(9[0-9][0-9]|[1-8][0-9]{2}|[1-9][0-9]|[1-9])\b' \
+      /etc/profile /etc/profile.d/*.sh 2>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_5_4_3_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 5.4.3.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '5.4.3.2', 'title': 'Ensure default user shell timeout is configured', 'status': 'PASS' if 'PASS' in cis_5_4_3_2.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 5 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 5 | Access, Authentication and Authorization - Audit Summary ====="
+      - "Total : {{ s5_results | length }}"
+      - "PASS  : {{ s5_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s5_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s5_results: "{{ cis_audit_results | selectattr('id', 'match', '^5\\.') | list }}"
+
+- name: "Audit | Section 5 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^5\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"

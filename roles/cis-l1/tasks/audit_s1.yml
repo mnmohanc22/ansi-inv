@@ -1,0 +1,418 @@
+---
+# Section 1 | Initial Setup - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 1.1.1.1
+- name: "Audit | 1.1.1.1 Ensure cramfs kernel module is not available"
+  ansible.builtin.shell: |
+    l_output="" l_output2="" l_dl=""
+    l_mod_name="cramfs"; l_mod_type="fs"
+    l_mod_path="$(readlink -f /lib/modules/**/kernel/$l_mod_type | sort -u)"
+    f_module_chk() {
+      l_dl="y"
+      a_showconfig=()
+      while IFS= read -r l_showconfig; do
+        a_showconfig+=("$l_showconfig")
+      done < <(modprobe --showconfig | grep -P -- '\b(install|blacklist)\h+'"${l_mod_name//-/_}"'\b')
+      ! lsmod | grep "$l_mod_name" &>/dev/null && l_output+=" - not loaded" || l_output2+=" - loaded"
+      grep -Pq '\binstall\h+'"${l_mod_name//-/_}"'\h+\/bin\/(true|false)\b' <<< "${a_showconfig[*]}" && \
+        l_output+=" - not loadable" || l_output2+=" - loadable"
+      grep -Pq '\bblacklist\h+'"${l_mod_name//-/_}"'\b' <<< "${a_showconfig[*]}" && \
+        l_output+=" - deny listed" || l_output2+=" - not deny listed"
+    }
+    for l_mod_base_directory in $l_mod_path; do
+      [ -d "$l_mod_base_directory/${l_mod_name/-/\/}" ] && [ -n "$(ls -A $l_mod_base_directory/${l_mod_name/-/\/})" ] && \
+        [ "$l_dl" != "y" ] && f_module_chk
+    done
+    [ -z "$l_output2" ] && echo "PASS" || echo "FAIL"
+  register: cis_1_1_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.1.1', 'title': 'Ensure cramfs kernel module is not available', 'status': 'PASS' if 'PASS' in cis_1_1_1_1.stdout else 'FAIL'}] }}"
+
+# 1.1.1.2
+- name: "Audit | 1.1.1.2 Ensure freevxfs kernel module is not available"
+  ansible.builtin.shell: |
+    mod="freevxfs"
+    ! lsmod | grep -q "$mod" && \
+    modprobe --showconfig | grep -Pq "\binstall\h+${mod}\h+/bin/(true|false)\b" && \
+    modprobe --showconfig | grep -Pq "\bblacklist\h+${mod}\b" && echo "PASS" || echo "FAIL"
+  register: cis_1_1_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.1.2', 'title': 'Ensure freevxfs kernel module is not available', 'status': 'PASS' if 'PASS' in cis_1_1_1_2.stdout else 'FAIL'}] }}"
+
+# 1.1.1.3
+- name: "Audit | 1.1.1.3 Ensure hfs kernel module is not available"
+  ansible.builtin.shell: |
+    mod="hfs"
+    ! lsmod | grep -q "$mod" && \
+    modprobe --showconfig | grep -Pq "\binstall\h+${mod}\h+/bin/(true|false)\b" && \
+    modprobe --showconfig | grep -Pq "\bblacklist\h+${mod}\b" && echo "PASS" || echo "FAIL"
+  register: cis_1_1_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.1.3', 'title': 'Ensure hfs kernel module is not available', 'status': 'PASS' if 'PASS' in cis_1_1_1_3.stdout else 'FAIL'}] }}"
+
+# 1.1.1.4
+- name: "Audit | 1.1.1.4 Ensure hfsplus kernel module is not available"
+  ansible.builtin.shell: |
+    mod="hfsplus"
+    ! lsmod | grep -q "$mod" && \
+    modprobe --showconfig | grep -Pq "\binstall\h+${mod}\h+/bin/(true|false)\b" && \
+    modprobe --showconfig | grep -Pq "\bblacklist\h+${mod}\b" && echo "PASS" || echo "FAIL"
+  register: cis_1_1_1_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.1.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.1.4', 'title': 'Ensure hfsplus kernel module is not available', 'status': 'PASS' if 'PASS' in cis_1_1_1_4.stdout else 'FAIL'}] }}"
+
+# 1.1.1.5
+- name: "Audit | 1.1.1.5 Ensure jffs2 kernel module is not available"
+  ansible.builtin.shell: |
+    mod="jffs2"
+    ! lsmod | grep -q "$mod" && \
+    modprobe --showconfig | grep -Pq "\binstall\h+${mod}\h+/bin/(true|false)\b" && \
+    modprobe --showconfig | grep -Pq "\bblacklist\h+${mod}\b" && echo "PASS" || echo "FAIL"
+  register: cis_1_1_1_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.1.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.1.5', 'title': 'Ensure jffs2 kernel module is not available', 'status': 'PASS' if 'PASS' in cis_1_1_1_5.stdout else 'FAIL'}] }}"
+
+# 1.1.1.8
+- name: "Audit | 1.1.1.8 Ensure usb-storage kernel module is not available"
+  ansible.builtin.shell: |
+    mod="usb-storage"
+    ! lsmod | grep -q "$mod" && \
+    modprobe --showconfig | grep -Pq "\binstall\h+${mod//-/_}\h+/bin/(true|false)\b" && \
+    modprobe --showconfig | grep -Pq "\bblacklist\h+${mod//-/_}\b" && echo "PASS" || echo "FAIL"
+  register: cis_1_1_1_8
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.1.8 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.1.8', 'title': 'Ensure usb-storage kernel module is not available', 'status': 'PASS' if 'PASS' in cis_1_1_1_8.stdout else 'FAIL'}] }}"
+
+# 1.1.2.1.1
+- name: "Audit | 1.1.2.1.1 Ensure /tmp is a separate partition"
+  ansible.builtin.shell: |
+    findmnt -kn /tmp &>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.1.1', 'title': 'Ensure /tmp is a separate partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_1_1.stdout else 'FAIL'}] }}"
+
+# 1.1.2.1.2
+- name: "Audit | 1.1.2.1.2 Ensure nodev option set on /tmp partition"
+  ansible.builtin.shell: |
+    findmnt -kn /tmp | grep -q 'nodev' && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.1.2', 'title': 'Ensure nodev option set on /tmp partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_1_2.stdout else 'FAIL'}] }}"
+
+# 1.1.2.1.3
+- name: "Audit | 1.1.2.1.3 Ensure nosuid option set on /tmp partition"
+  ansible.builtin.shell: |
+    findmnt -kn /tmp | grep -q 'nosuid' && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.1.3', 'title': 'Ensure nosuid option set on /tmp partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_1_3.stdout else 'FAIL'}] }}"
+
+# 1.1.2.1.4
+- name: "Audit | 1.1.2.1.4 Ensure noexec option set on /tmp partition"
+  ansible.builtin.shell: |
+    findmnt -kn /tmp | grep -q 'noexec' && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_1_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.1.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.1.4', 'title': 'Ensure noexec option set on /tmp partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_1_4.stdout else 'FAIL'}] }}"
+
+# 1.1.2.2.2
+- name: "Audit | 1.1.2.2.2 Ensure nodev option set on /dev/shm partition"
+  ansible.builtin.shell: |
+    findmnt -kn /dev/shm | grep -q 'nodev' && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_2_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.2.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.2.2', 'title': 'Ensure nodev option set on /dev/shm partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_2_2.stdout else 'FAIL'}] }}"
+
+# 1.1.2.2.3
+- name: "Audit | 1.1.2.2.3 Ensure nosuid option set on /dev/shm partition"
+  ansible.builtin.shell: |
+    findmnt -kn /dev/shm | grep -q 'nosuid' && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_2_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.2.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.2.3', 'title': 'Ensure nosuid option set on /dev/shm partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_2_3.stdout else 'FAIL'}] }}"
+
+# 1.1.2.2.4
+- name: "Audit | 1.1.2.2.4 Ensure noexec option set on /dev/shm partition"
+  ansible.builtin.shell: |
+    findmnt -kn /dev/shm | grep -q 'noexec' && echo "PASS" || echo "FAIL"
+  register: cis_1_1_2_2_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.1.2.2.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.1.2.2.4', 'title': 'Ensure noexec option set on /dev/shm partition', 'status': 'PASS' if 'PASS' in cis_1_1_2_2_4.stdout else 'FAIL'}] }}"
+
+# 1.2.1.1
+- name: "Audit | 1.2.1.1 Ensure GPG keys are configured"
+  ansible.builtin.shell: |
+    rpm -q gpg-pubkey --qf '%{summary}\n' | grep -qi 'red hat' && echo "PASS" || echo "FAIL"
+  register: cis_1_2_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.2.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.2.1.1', 'title': 'Ensure GPG keys are configured', 'status': 'PASS' if 'PASS' in cis_1_2_1_1.stdout else 'FAIL'}] }}"
+
+# 1.2.1.2
+- name: "Audit | 1.2.1.2 Ensure gpgcheck is globally activated"
+  ansible.builtin.shell: |
+    grep -P '^\s*gpgcheck\s*=\s*1' /etc/dnf/dnf.conf &>/dev/null && \
+    ! grep -P '^\s*gpgcheck\s*=\s*0' /etc/yum.repos.d/*.repo &>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_2_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.2.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.2.1.2', 'title': 'Ensure gpgcheck is globally activated', 'status': 'PASS' if 'PASS' in cis_1_2_1_2.stdout else 'FAIL'}] }}"
+
+# 1.3.1.1
+- name: "Audit | 1.3.1.1 Ensure SELinux is installed"
+  ansible.builtin.shell: |
+    rpm -q libselinux &>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_1_3_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.3.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.3.1.1', 'title': 'Ensure SELinux is installed', 'status': 'PASS' if 'PASS' in cis_1_3_1_1.stdout else 'FAIL'}] }}"
+
+# 1.3.1.2
+- name: "Audit | 1.3.1.2 Ensure SELinux is not disabled in bootloader configuration"
+  ansible.builtin.shell: |
+    ! grubby --info=ALL | grep -Pq '\bselinux=0\b|\benforcing=0\b' && echo "PASS" || echo "FAIL"
+  register: cis_1_3_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.3.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.3.1.2', 'title': 'Ensure SELinux is not disabled in bootloader configuration', 'status': 'PASS' if 'PASS' in cis_1_3_1_2.stdout else 'FAIL'}] }}"
+
+# 1.3.1.3
+- name: "Audit | 1.3.1.3 Ensure SELinux policy is configured"
+  ansible.builtin.shell: |
+    grep -E '^\s*SELINUXTYPE=(targeted|mls)\b' /etc/selinux/config &>/dev/null && \
+    sestatus | grep -E 'Loaded policy name:\s+(targeted|mls)' &>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_3_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.3.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.3.1.3', 'title': 'Ensure SELinux policy is configured', 'status': 'PASS' if 'PASS' in cis_1_3_1_3.stdout else 'FAIL'}] }}"
+
+# 1.3.1.4
+- name: "Audit | 1.3.1.4 Ensure the SELinux mode is enforcing"
+  ansible.builtin.shell: |
+    getenforce | grep -qi 'enforcing' && \
+    grep -E '^\s*SELINUX=enforcing\b' /etc/selinux/config &>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_3_1_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.3.1.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.3.1.4', 'title': 'Ensure the SELinux mode is enforcing', 'status': 'PASS' if 'PASS' in cis_1_3_1_4.stdout else 'FAIL'}] }}"
+
+# 1.4.2
+- name: "Audit | 1.4.2 Ensure access to bootloader config is configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /boot/grub2/grub.cfg 2>/dev/null | grep -Pq '^\s*[0-7][0]{2}\s+0\s+0\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_4_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.4.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.4.2', 'title': 'Ensure access to bootloader config is configured', 'status': 'PASS' if 'PASS' in cis_1_4_2.stdout else 'FAIL'}] }}"
+
+# 1.5.1
+- name: "Audit | 1.5.1 Ensure address space layout randomization is enabled"
+  ansible.builtin.shell: |
+    val=$(sysctl kernel.randomize_va_space 2>/dev/null | awk '{print $NF}')
+    [ "$val" = "2" ] && echo "PASS" || echo "FAIL"
+  register: cis_1_5_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.5.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.5.1', 'title': 'Ensure address space layout randomization is enabled', 'status': 'PASS' if 'PASS' in cis_1_5_1.stdout else 'FAIL'}] }}"
+
+# 1.5.2
+- name: "Audit | 1.5.2 Ensure ptrace_scope is restricted"
+  ansible.builtin.shell: |
+    val=$(sysctl kernel.yama.ptrace_scope 2>/dev/null | awk '{print $NF}')
+    [ "$val" = "1" ] || [ "$val" = "2" ] || [ "$val" = "3" ] && echo "PASS" || echo "FAIL"
+  register: cis_1_5_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.5.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.5.2', 'title': 'Ensure ptrace_scope is restricted', 'status': 'PASS' if 'PASS' in cis_1_5_2.stdout else 'FAIL'}] }}"
+
+# 1.5.3
+- name: "Audit | 1.5.3 Ensure core dump backtraces are disabled"
+  ansible.builtin.shell: |
+    grep -Psi '^\s*ProcessSizeMax\s*=\s*0\b' /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/*.conf 2>/dev/null | \
+    grep -q . && echo "PASS" || echo "FAIL"
+  register: cis_1_5_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.5.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.5.3', 'title': 'Ensure core dump backtraces are disabled', 'status': 'PASS' if 'PASS' in cis_1_5_3.stdout else 'FAIL'}] }}"
+
+# 1.5.4
+- name: "Audit | 1.5.4 Ensure core dump storage is disabled"
+  ansible.builtin.shell: |
+    grep -Psi '^\s*Storage\s*=\s*none\b' /etc/systemd/coredump.conf /etc/systemd/coredump.conf.d/*.conf 2>/dev/null | \
+    grep -q . && echo "PASS" || echo "FAIL"
+  register: cis_1_5_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.5.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.5.4', 'title': 'Ensure core dump storage is disabled', 'status': 'PASS' if 'PASS' in cis_1_5_4.stdout else 'FAIL'}] }}"
+
+# 1.6.1
+- name: "Audit | 1.6.1 Ensure system wide crypto policy is not set to legacy"
+  ansible.builtin.shell: |
+    update-crypto-policies --show 2>/dev/null | grep -Pq '^\s*LEGACY\b' && echo "FAIL" || echo "PASS"
+  register: cis_1_6_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.6.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.6.1', 'title': 'Ensure system wide crypto policy is not set to legacy', 'status': 'PASS' if 'PASS' in cis_1_6_1.stdout else 'FAIL'}] }}"
+
+# 1.7.1
+- name: "Audit | 1.7.1 Ensure message of the day is configured properly"
+  ansible.builtin.shell: |
+    ! grep -Pqs "(\\\v|\\\r|\\\m|\\\s|$(grep '^ID=' /etc/os-release | cut -d= -f2 | sed -e 's/\"//g'))" /etc/motd && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_7_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.7.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.7.1', 'title': 'Ensure message of the day is configured properly', 'status': 'PASS' if 'PASS' in cis_1_7_1.stdout else 'FAIL'}] }}"
+
+# 1.7.4
+- name: "Audit | 1.7.4 Ensure access to /etc/motd is configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/motd 2>/dev/null | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_7_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.7.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.7.4', 'title': 'Ensure access to /etc/motd is configured', 'status': 'PASS' if 'PASS' in cis_1_7_4.stdout else 'FAIL'}] }}"
+
+# 1.7.5
+- name: "Audit | 1.7.5 Ensure access to /etc/issue is configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/issue 2>/dev/null | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_7_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.7.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.7.5', 'title': 'Ensure access to /etc/issue is configured', 'status': 'PASS' if 'PASS' in cis_1_7_5.stdout else 'FAIL'}] }}"
+
+# 1.7.6
+- name: "Audit | 1.7.6 Ensure access to /etc/issue.net is configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/issue.net 2>/dev/null | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_1_7_6
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 1.7.6 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '1.7.6', 'title': 'Ensure access to /etc/issue.net is configured', 'status': 'PASS' if 'PASS' in cis_1_7_6.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 1 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 1 | Initial Setup - Audit Summary ====="
+      - "Total : {{ s1_results | length }}"
+      - "PASS  : {{ s1_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s1_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s1_results: "{{ cis_audit_results | selectattr('id', 'match', '^1\\.') | list }}"
+
+- name: "Audit | Section 1 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^1\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"

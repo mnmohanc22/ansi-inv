@@ -1,0 +1,225 @@
+---
+# Section 3 | Network Configuration - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 3.1.2
+- name: "Audit | 3.1.2 Ensure wireless interfaces are disabled"
+  ansible.builtin.shell: |
+    if command -v nmcli &>/dev/null; then
+      nmcli radio wifi 2>/dev/null | grep -qi 'disabled' && echo "PASS" || echo "FAIL"
+    else
+      echo "PASS"
+    fi
+  register: cis_3_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.1.2', 'title': 'Ensure wireless interfaces are disabled', 'status': 'PASS' if 'PASS' in cis_3_1_2.stdout else 'FAIL'}] }}"
+
+# 3.1.3
+- name: "Audit | 3.1.3 Ensure bluetooth services are not in use"
+  ansible.builtin.shell: |
+    systemctl is-enabled bluetooth 2>/dev/null | grep -qE 'enabled' && echo "FAIL" || echo "PASS"
+  register: cis_3_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.1.3', 'title': 'Ensure bluetooth services are not in use', 'status': 'PASS' if 'PASS' in cis_3_1_3.stdout else 'FAIL'}] }}"
+
+# 3.2.1
+- name: "Audit | 3.2.1 Ensure dccp kernel module is not available"
+  ansible.builtin.shell: |
+    ! lsmod | grep -q dccp && \
+    modprobe --showconfig | grep -Pq '\binstall\h+dccp\h+/bin/(true|false)\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_2_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.2.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.2.1', 'title': 'Ensure dccp kernel module is not available', 'status': 'PASS' if 'PASS' in cis_3_2_1.stdout else 'FAIL'}] }}"
+
+# 3.2.2
+- name: "Audit | 3.2.2 Ensure tipc kernel module is not available"
+  ansible.builtin.shell: |
+    ! lsmod | grep -q tipc && \
+    modprobe --showconfig | grep -Pq '\binstall\h+tipc\h+/bin/(true|false)\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_2_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.2.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.2.2', 'title': 'Ensure tipc kernel module is not available', 'status': 'PASS' if 'PASS' in cis_3_2_2.stdout else 'FAIL'}] }}"
+
+# 3.2.3
+- name: "Audit | 3.2.3 Ensure rds kernel module is not available"
+  ansible.builtin.shell: |
+    ! lsmod | grep -q rds && \
+    modprobe --showconfig | grep -Pq '\binstall\h+rds\h+/bin/(true|false)\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_2_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.2.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.2.3', 'title': 'Ensure rds kernel module is not available', 'status': 'PASS' if 'PASS' in cis_3_2_3.stdout else 'FAIL'}] }}"
+
+# 3.2.4
+- name: "Audit | 3.2.4 Ensure sctp kernel module is not available"
+  ansible.builtin.shell: |
+    ! lsmod | grep -q sctp && \
+    modprobe --showconfig | grep -Pq '\binstall\h+sctp\h+/bin/(true|false)\b' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_2_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.2.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.2.4', 'title': 'Ensure sctp kernel module is not available', 'status': 'PASS' if 'PASS' in cis_3_2_4.stdout else 'FAIL'}] }}"
+
+# 3.3.1
+- name: "Audit | 3.3.1 Ensure ip forwarding is disabled"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.ip_forward | grep -q '= 0' && \
+    grep -qrP '^\s*net\.ipv4\.ip_forward\s*=\s*0\b' /etc/sysctl.conf /etc/sysctl.d/*.conf 2>/dev/null && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_3_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.1', 'title': 'Ensure ip forwarding is disabled', 'status': 'PASS' if 'PASS' in cis_3_3_1.stdout else 'FAIL'}] }}"
+
+# 3.3.2
+- name: "Audit | 3.3.2 Ensure packet redirect sending is disabled"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.conf.all.send_redirects | grep -q '= 0' && \
+    sysctl net.ipv4.conf.default.send_redirects | grep -q '= 0' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_3_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.2', 'title': 'Ensure packet redirect sending is disabled', 'status': 'PASS' if 'PASS' in cis_3_3_2.stdout else 'FAIL'}] }}"
+
+# 3.3.3
+- name: "Audit | 3.3.3 Ensure bogus icmp responses are ignored"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.icmp_ignore_bogus_error_responses | grep -q '= 1' && echo "PASS" || echo "FAIL"
+  register: cis_3_3_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.3', 'title': 'Ensure bogus icmp responses are ignored', 'status': 'PASS' if 'PASS' in cis_3_3_3.stdout else 'FAIL'}] }}"
+
+# 3.3.4
+- name: "Audit | 3.3.4 Ensure broadcast icmp requests are ignored"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.icmp_echo_ignore_broadcasts | grep -q '= 1' && echo "PASS" || echo "FAIL"
+  register: cis_3_3_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.4', 'title': 'Ensure broadcast icmp requests are ignored', 'status': 'PASS' if 'PASS' in cis_3_3_4.stdout else 'FAIL'}] }}"
+
+# 3.3.5
+- name: "Audit | 3.3.5 Ensure icmp redirects are not accepted"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.conf.all.accept_redirects | grep -q '= 0' && \
+    sysctl net.ipv4.conf.default.accept_redirects | grep -q '= 0' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_3_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.5', 'title': 'Ensure icmp redirects are not accepted', 'status': 'PASS' if 'PASS' in cis_3_3_5.stdout else 'FAIL'}] }}"
+
+# 3.3.7
+- name: "Audit | 3.3.7 Ensure reverse path filtering is enabled"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.conf.all.rp_filter | grep -q '= 1' && \
+    sysctl net.ipv4.conf.default.rp_filter | grep -q '= 1' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_3_7
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.7 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.7', 'title': 'Ensure reverse path filtering is enabled', 'status': 'PASS' if 'PASS' in cis_3_3_7.stdout else 'FAIL'}] }}"
+
+# 3.3.9
+- name: "Audit | 3.3.9 Ensure suspicious packets are logged"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.conf.all.log_martians | grep -q '= 1' && \
+    sysctl net.ipv4.conf.default.log_martians | grep -q '= 1' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_3_9
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.9 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.9', 'title': 'Ensure suspicious packets are logged', 'status': 'PASS' if 'PASS' in cis_3_3_9.stdout else 'FAIL'}] }}"
+
+# 3.3.10
+- name: "Audit | 3.3.10 Ensure tcp syn cookies is enabled"
+  ansible.builtin.shell: |
+    sysctl net.ipv4.tcp_syncookies | grep -q '= 1' && echo "PASS" || echo "FAIL"
+  register: cis_3_3_10
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.10 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.10', 'title': 'Ensure tcp syn cookies is enabled', 'status': 'PASS' if 'PASS' in cis_3_3_10.stdout else 'FAIL'}] }}"
+
+# 3.3.11
+- name: "Audit | 3.3.11 Ensure ipv6 router advertisements are not accepted"
+  ansible.builtin.shell: |
+    sysctl net.ipv6.conf.all.accept_ra | grep -q '= 0' && \
+    sysctl net.ipv6.conf.default.accept_ra | grep -q '= 0' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_3_3_11
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 3.3.11 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '3.3.11', 'title': 'Ensure ipv6 router advertisements are not accepted', 'status': 'PASS' if 'PASS' in cis_3_3_11.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 3 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 3 | Network Configuration - Audit Summary ====="
+      - "Total : {{ s3_results | length }}"
+      - "PASS  : {{ s3_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s3_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s3_results: "{{ cis_audit_results | selectattr('id', 'match', '^3\\.') | list }}"
+
+- name: "Audit | Section 3 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^3\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"

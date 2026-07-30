@@ -53,4 +53,11 @@
 
     - name: Debug workflow context after set_stats
       ansible.builtin.debug:
-        msg: "workflow_context saved: {{ workflow_context | default('not set') }}"
+        msg:
+          - "account_id: {{ account_id }}"
+          - "oracle_home: {{ oracle_home }}"
+          - "oracle_sid: {{ oracle_sid }}"
+          - "listener: {{ listener_name }}"
+          - "opatch_version: {{ opatch_version }}"
+          - "patch_required: {{ patch_required }}"
+          - "server_list: {{ server_list | default('') }}"

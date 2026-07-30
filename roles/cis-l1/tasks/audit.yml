@@ -1,0 +1,82 @@
+---
+# CIS RHEL 9 v2.0.0 L1 - Compliance Audit
+# Runs audit checks per section and generates a report.
+# Usage: ansible-playbook site.yml --tags cis_audit
+#        or per section: --tags audit_s1
+
+- name: Initialize CIS audit results list
+  ansible.builtin.set_fact:
+    cis_audit_results: []
+  tags:
+    - cis_audit
+    - audit_s1
+    - audit_s2
+    - audit_s3
+    - audit_s4
+    - audit_s5
+    - audit_s6
+    - audit_s7
+
+- name: Section 1 | Initial Setup audit
+  ansible.builtin.import_tasks: audit_s1.yml
+  tags:
+    - cis_audit
+    - audit_s1
+
+- name: Section 2 | Services audit
+  ansible.builtin.import_tasks: audit_s2.yml
+  tags:
+    - cis_audit
+    - audit_s2
+
+- name: Section 3 | Network Configuration audit
+  ansible.builtin.import_tasks: audit_s3.yml
+  tags:
+    - cis_audit
+    - audit_s3
+
+- name: Section 4 | Host Based Firewall audit
+  ansible.builtin.import_tasks: audit_s4.yml
+  tags:
+    - cis_audit
+    - audit_s4
+
+- name: Section 5 | Access, Authentication and Authorization audit
+  ansible.builtin.import_tasks: audit_s5.yml
+  tags:
+    - cis_audit
+    - audit_s5
+
+- name: Section 6 | Logging and Auditing audit
+  ansible.builtin.import_tasks: audit_s6.yml
+  tags:
+    - cis_audit
+    - audit_s6
+
+- name: Section 7 | System Maintenance audit
+  ansible.builtin.import_tasks: audit_s7.yml
+  tags:
+    - cis_audit
+    - audit_s7
+
+- name: CIS Audit | Compliance Report
+  ansible.builtin.debug:
+    msg: |
+      ===== CIS RHEL 9 v2.0.0 L1 Compliance Report =====
+      Host: {{ inventory_hostname }}
+      Total Checks : {{ cis_audit_results | length }}
+      PASS         : {{ cis_audit_results | selectattr('status', 'eq', 'PASS') | list | length }}
+      FAIL         : {{ cis_audit_results | selectattr('status', 'eq', 'FAIL') | list | length }}
+      ===================================================
+      {% for r in cis_audit_results %}
+      [{{ r.status }}] {{ r.id }} - {{ r.title }}
+      {% endfor %}
+  tags:
+    - cis_audit
+    - audit_s1
+    - audit_s2
+    - audit_s3
+    - audit_s4
+    - audit_s5
+    - audit_s6
+    - audit_s7

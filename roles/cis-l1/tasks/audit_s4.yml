@@ -1,0 +1,101 @@
+---
+# Section 4 | Host Based Firewall - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 4.1.1
+- name: "Audit | 4.1.1 Ensure nftables is installed"
+  ansible.builtin.shell: |
+    rpm -q nftables &>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_4_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 4.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '4.1.1', 'title': 'Ensure nftables is installed', 'status': 'PASS' if 'PASS' in cis_4_1_1.stdout else 'FAIL'}] }}"
+
+# 4.2.1
+- name: "Audit | 4.2.1 Ensure firewalld is installed and active"
+  ansible.builtin.shell: |
+    rpm -q firewalld &>/dev/null && \
+    systemctl is-enabled firewalld 2>/dev/null | grep -q 'enabled' && \
+    systemctl is-active firewalld 2>/dev/null | grep -q 'active' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_4_2_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 4.2.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '4.2.1', 'title': 'Ensure firewalld is installed and active', 'status': 'PASS' if 'PASS' in cis_4_2_1.stdout else 'FAIL'}] }}"
+
+# 4.2.2
+- name: "Audit | 4.2.2 Ensure iptables-services package is not installed with firewalld"
+  ansible.builtin.shell: |
+    ! rpm -q iptables-services &>/dev/null && echo "PASS" || echo "FAIL"
+  register: cis_4_2_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 4.2.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '4.2.2', 'title': 'Ensure iptables-services package is not installed with firewalld', 'status': 'PASS' if 'PASS' in cis_4_2_2.stdout else 'FAIL'}] }}"
+
+# 4.2.3
+- name: "Audit | 4.2.3 Ensure firewalld default zone is set"
+  ansible.builtin.shell: |
+    zone=$(firewall-cmd --get-default-zone 2>/dev/null)
+    [ -n "$zone" ] && echo "PASS: default zone is $zone" || echo "FAIL"
+  register: cis_4_2_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 4.2.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '4.2.3', 'title': 'Ensure firewalld default zone is set', 'status': 'PASS' if 'PASS' in cis_4_2_3.stdout else 'FAIL'}] }}"
+
+# 4.2.4
+- name: "Audit | 4.2.4 Ensure network interfaces are assigned to appropriate zone"
+  ansible.builtin.shell: |
+    nmcli -t connection show 2>/dev/null | cut -d: -f1 | while read con; do
+      zone=$(nmcli -g connection.zone connection show "$con" 2>/dev/null)
+      [ -z "$zone" ] && echo "FAIL: $con has no zone" && exit 1
+    done && echo "PASS" || echo "FAIL"
+  register: cis_4_2_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 4.2.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '4.2.4', 'title': 'Ensure network interfaces are assigned to appropriate zone', 'status': 'PASS' if 'PASS' in cis_4_2_4.stdout else 'FAIL'}] }}"
+
+# 4.2.5 - loopback traffic
+- name: "Audit | 4.2.5 Ensure loopback traffic is configured"
+  ansible.builtin.shell: |
+    firewall-cmd --list-interfaces --zone=trusted 2>/dev/null | grep -q 'lo' && \
+    echo "PASS" || echo "FAIL"
+  register: cis_4_2_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 4.2.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '4.2.5', 'title': 'Ensure loopback traffic is configured', 'status': 'PASS' if 'PASS' in cis_4_2_5.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 4 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 4 | Host Based Firewall - Audit Summary ====="
+      - "Total : {{ s4_results | length }}"
+      - "PASS  : {{ s4_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s4_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s4_results: "{{ cis_audit_results | selectattr('id', 'match', '^4\\.') | list }}"
+
+- name: "Audit | Section 4 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^4\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"

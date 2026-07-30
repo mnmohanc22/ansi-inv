@@ -209,3 +209,5 @@ __marimo__/
 
 
 .claude
+
+inventory/aws/inventory.ini

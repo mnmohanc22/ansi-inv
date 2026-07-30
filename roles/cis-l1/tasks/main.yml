@@ -43,3 +43,15 @@
   tags:
     - section7
     - cis_level1
+
+- name: CIS Audit | Run compliance checks for all sections
+  ansible.builtin.import_tasks: audit.yml
+  tags:
+    - cis_audit
+    - audit_s1
+    - audit_s2
+    - audit_s3
+    - audit_s4
+    - audit_s5
+    - audit_s6
+    - audit_s7

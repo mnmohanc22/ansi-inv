@@ -1,0 +1,283 @@
+---
+# Section 7 | System Maintenance - Audit Checks
+# CIS Red Hat Enterprise Linux 9 Benchmark v2.0.0 L1
+
+# 7.1.1
+- name: "Audit | 7.1.1 Ensure permissions on /etc/passwd are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/passwd | grep -Pq '^\s*644\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.1', 'title': 'Ensure permissions on /etc/passwd are configured', 'status': 'PASS' if 'PASS' in cis_7_1_1.stdout else 'FAIL'}] }}"
+
+# 7.1.2
+- name: "Audit | 7.1.2 Ensure permissions on /etc/passwd- are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/passwd- 2>/dev/null | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.2', 'title': 'Ensure permissions on /etc/passwd- are configured', 'status': 'PASS' if 'PASS' in cis_7_1_2.stdout else 'FAIL'}] }}"
+
+# 7.1.3
+- name: "Audit | 7.1.3 Ensure permissions on /etc/group are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/group | grep -Pq '^\s*644\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.3', 'title': 'Ensure permissions on /etc/group are configured', 'status': 'PASS' if 'PASS' in cis_7_1_3.stdout else 'FAIL'}] }}"
+
+# 7.1.4
+- name: "Audit | 7.1.4 Ensure permissions on /etc/group- are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/group- 2>/dev/null | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.4', 'title': 'Ensure permissions on /etc/group- are configured', 'status': 'PASS' if 'PASS' in cis_7_1_4.stdout else 'FAIL'}] }}"
+
+# 7.1.5
+- name: "Audit | 7.1.5 Ensure permissions on /etc/shadow are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/shadow | grep -Pq '^\s*[0]{3,4}\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.5', 'title': 'Ensure permissions on /etc/shadow are configured', 'status': 'PASS' if 'PASS' in cis_7_1_5.stdout else 'FAIL'}] }}"
+
+# 7.1.6
+- name: "Audit | 7.1.6 Ensure permissions on /etc/shadow- are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/shadow- 2>/dev/null | grep -Pq '^\s*[0]{3,4}\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_6
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.6 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.6', 'title': 'Ensure permissions on /etc/shadow- are configured', 'status': 'PASS' if 'PASS' in cis_7_1_6.stdout else 'FAIL'}] }}"
+
+# 7.1.7
+- name: "Audit | 7.1.7 Ensure permissions on /etc/gshadow are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/gshadow | grep -Pq '^\s*[0]{3,4}\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_7
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.7 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.7', 'title': 'Ensure permissions on /etc/gshadow are configured', 'status': 'PASS' if 'PASS' in cis_7_1_7.stdout else 'FAIL'}] }}"
+
+# 7.1.8
+- name: "Audit | 7.1.8 Ensure permissions on /etc/gshadow- are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/gshadow- 2>/dev/null | grep -Pq '^\s*[0]{3,4}\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_8
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.8 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.8', 'title': 'Ensure permissions on /etc/gshadow- are configured', 'status': 'PASS' if 'PASS' in cis_7_1_8.stdout else 'FAIL'}] }}"
+
+# 7.1.9
+- name: "Audit | 7.1.9 Ensure permissions on /etc/shells are configured"
+  ansible.builtin.shell: |
+    stat -c "%a %u %g" /etc/shells | grep -Pq '^\s*6[04][04]\s+0\s+0\b' && echo "PASS" || echo "FAIL"
+  register: cis_7_1_9
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.9 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.9', 'title': 'Ensure permissions on /etc/shells are configured', 'status': 'PASS' if 'PASS' in cis_7_1_9.stdout else 'FAIL'}] }}"
+
+# 7.1.11
+- name: "Audit | 7.1.11 Ensure world writable files and directories are secured"
+  ansible.builtin.shell: |
+    count=$(find / -xdev -type f -perm -0002 2>/dev/null | grep -v '/proc/' | grep -v '/sys/' | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count world-writable files found"
+  register: cis_7_1_11
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.11 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.11', 'title': 'Ensure world writable files and directories are secured', 'status': 'PASS' if 'PASS' in cis_7_1_11.stdout else 'FAIL'}] }}"
+
+# 7.1.12
+- name: "Audit | 7.1.12 Ensure no files or directories without an owner and a group exist"
+  ansible.builtin.shell: |
+    count=$(find / -xdev \( -nouser -o -nogroup \) 2>/dev/null | grep -v '/proc/' | grep -v '/sys/' | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count unowned files found"
+  register: cis_7_1_12
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.1.12 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.1.12', 'title': 'Ensure no files or directories without an owner and a group exist', 'status': 'PASS' if 'PASS' in cis_7_1_12.stdout else 'FAIL'}] }}"
+
+# 7.2.1
+- name: "Audit | 7.2.1 Ensure accounts in /etc/passwd use shadowed passwords"
+  ansible.builtin.shell: |
+    count=$(awk -F: '($2 != "x") {print $1}' /etc/passwd | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count accounts not using shadow passwords"
+  register: cis_7_2_1
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.1 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.1', 'title': 'Ensure accounts in /etc/passwd use shadowed passwords', 'status': 'PASS' if 'PASS' in cis_7_2_1.stdout else 'FAIL'}] }}"
+
+# 7.2.2
+- name: "Audit | 7.2.2 Ensure /etc/shadow password fields are not empty"
+  ansible.builtin.shell: |
+    count=$(awk -F: '($2 == "") {print $1}' /etc/shadow | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count accounts with empty passwords"
+  register: cis_7_2_2
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.2 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.2', 'title': 'Ensure /etc/shadow password fields are not empty', 'status': 'PASS' if 'PASS' in cis_7_2_2.stdout else 'FAIL'}] }}"
+
+# 7.2.3
+- name: "Audit | 7.2.3 Ensure all groups in /etc/passwd exist in /etc/group"
+  ansible.builtin.shell: |
+    missing=0
+    for gid in $(cut -s -d: -f4 /etc/passwd | sort -u); do
+      grep -Pq "^.*:.*:${gid}:" /etc/group || missing=$((missing+1))
+    done
+    [ "$missing" -eq 0 ] && echo "PASS" || echo "FAIL: $missing missing groups"
+  register: cis_7_2_3
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.3 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.3', 'title': 'Ensure all groups in /etc/passwd exist in /etc/group', 'status': 'PASS' if 'PASS' in cis_7_2_3.stdout else 'FAIL'}] }}"
+
+# 7.2.4
+- name: "Audit | 7.2.4 Ensure no duplicate UIDs exist"
+  ansible.builtin.shell: |
+    count=$(cut -f3 -d: /etc/passwd | sort -n | uniq -d | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count duplicate UIDs"
+  register: cis_7_2_4
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.4 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.4', 'title': 'Ensure no duplicate UIDs exist', 'status': 'PASS' if 'PASS' in cis_7_2_4.stdout else 'FAIL'}] }}"
+
+# 7.2.5
+- name: "Audit | 7.2.5 Ensure no duplicate GIDs exist"
+  ansible.builtin.shell: |
+    count=$(cut -f3 -d: /etc/group | sort -n | uniq -d | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count duplicate GIDs"
+  register: cis_7_2_5
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.5 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.5', 'title': 'Ensure no duplicate GIDs exist', 'status': 'PASS' if 'PASS' in cis_7_2_5.stdout else 'FAIL'}] }}"
+
+# 7.2.6
+- name: "Audit | 7.2.6 Ensure no duplicate user names exist"
+  ansible.builtin.shell: |
+    count=$(cut -f1 -d: /etc/passwd | sort | uniq -d | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count duplicate usernames"
+  register: cis_7_2_6
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.6 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.6', 'title': 'Ensure no duplicate user names exist', 'status': 'PASS' if 'PASS' in cis_7_2_6.stdout else 'FAIL'}] }}"
+
+# 7.2.7
+- name: "Audit | 7.2.7 Ensure no duplicate group names exist"
+  ansible.builtin.shell: |
+    count=$(cut -f1 -d: /etc/group | sort | uniq -d | wc -l)
+    [ "$count" -eq 0 ] && echo "PASS" || echo "FAIL: $count duplicate group names"
+  register: cis_7_2_7
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.7 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.7', 'title': 'Ensure no duplicate group names exist', 'status': 'PASS' if 'PASS' in cis_7_2_7.stdout else 'FAIL'}] }}"
+
+# 7.2.8
+- name: "Audit | 7.2.8 Ensure local interactive user home directories are configured"
+  ansible.builtin.shell: |
+    fail=0
+    while IFS=: read -r user _ uid _ _ home _; do
+      [ "$uid" -ge 1000 ] && [ "$user" != "nobody" ] && [ ! -d "$home" ] && fail=$((fail+1))
+    done < /etc/passwd
+    [ "$fail" -eq 0 ] && echo "PASS" || echo "FAIL: $fail missing home directories"
+  register: cis_7_2_8
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.8 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.8', 'title': 'Ensure local interactive user home directories are configured', 'status': 'PASS' if 'PASS' in cis_7_2_8.stdout else 'FAIL'}] }}"
+
+# 7.2.9
+- name: "Audit | 7.2.9 Ensure local interactive user dot files access is configured"
+  ansible.builtin.shell: |
+    fail=0
+    while IFS=: read -r user _ uid _ _ home _; do
+      if [ "$uid" -ge 1000 ] && [ "$user" != "nobody" ] && [ -d "$home" ]; then
+        find "$home" -maxdepth 1 -name ".*" -perm /o+w 2>/dev/null | grep -q . && fail=$((fail+1))
+      fi
+    done < /etc/passwd
+    [ "$fail" -eq 0 ] && echo "PASS" || echo "FAIL: $fail users with world-writable dot files"
+  register: cis_7_2_9
+  changed_when: false
+  failed_when: false
+
+- name: "Audit | 7.2.9 Set result"
+  ansible.builtin.set_fact:
+    cis_audit_results: "{{ cis_audit_results + [{'id': '7.2.9', 'title': 'Ensure local interactive user dot files access is configured', 'status': 'PASS' if 'PASS' in cis_7_2_9.stdout else 'FAIL'}] }}"
+
+- name: "Audit | Section 7 Summary Header"
+  ansible.builtin.debug:
+    msg:
+      - "===== Section 7 | System Maintenance - Audit Summary ====="
+      - "Total : {{ s7_results | length }}"
+      - "PASS  : {{ s7_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL  : {{ s7_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "-------------------------------------------------------"
+  vars:
+    s7_results: "{{ cis_audit_results | selectattr('id', 'match', '^7\\.') | list }}"
+
+- name: "Audit | Section 7 Summary Items"
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results | selectattr('id', 'match', '^7\\.') | list }}"
+  loop_control:
+    label: "{{ item.id }}"
