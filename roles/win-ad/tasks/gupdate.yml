@@ -1,0 +1,23 @@
+- name: Manage Google update services
+  block:
+    - name: Get Google update services
+      ansible.windows.win_service_info:
+        name: "{{ item }}"
+      loop:
+        - GoogleUpdaterService
+        - GoogleUpdaterInternalService
+        - gupdate
+        - gupdatem
+      register: google_services
+
+    - name: Display installed Google update services
+      debug:
+        msg: |
+          Service: {{ item.item }}
+          Exists: {{ item.exists }}
+          {% if item.exists %}
+          State: {{ item.services[0].state }}
+          Start Mode: {{ item.services[0].start_mode }}
+          Display Name: {{ item.services[0].display_name }}
+          {% endif %}
+      loop: "{{ google_services.results }}"
