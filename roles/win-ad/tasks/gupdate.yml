@@ -27,30 +27,31 @@
   ignore_errors: true
   block:
     - name: Run PowerShell to check Google update service status
-      ansible.windows.win_powershell:
-        script: |
-          $services = @('GoogleUpdaterService', 'GoogleUpdaterInternalService', 'gupdate', 'gupdatem')
-          $results = foreach ($svc in $services) {
-            $s = Get-Service -Name $svc -ErrorAction SilentlyContinue
-            if ($s) {
-              [PSCustomObject]@{
-                Name        = $s.Name
-                DisplayName = $s.DisplayName
-                Status      = $s.Status
-                StartType   = $s.StartType
-                Exists      = $true
-              }
-            } else {
-              [PSCustomObject]@{
-                Name        = $svc
-                DisplayName = 'N/A'
-                Status      = 'NotFound'
-                StartType   = 'N/A'
-                Exists      = $false
-              }
+      ansible.windows.win_shell: |
+        $services = @('GoogleUpdaterService', 'GoogleUpdaterInternalService', 'gupdate', 'gupdatem')
+        $results = foreach ($svc in $services) {
+          $s = Get-Service -Name $svc -ErrorAction SilentlyContinue
+          if ($s) {
+            [PSCustomObject]@{
+              Name        = $s.Name
+              DisplayName = $s.DisplayName
+              Status      = $s.Status
+              StartType   = $s.StartType
+              Exists      = $true
+            }
+          } else {
+            [PSCustomObject]@{
+              Name        = $svc
+              DisplayName = 'N/A'
+              Status      = 'NotFound'
+              StartType   = 'N/A'
+              Exists      = $false
             }
           }
-          $results | Format-Table -AutoSize | Out-String
+        }
+        $results | Format-Table -AutoSize | Out-String
+      args:
+        executable: powershell.exe
       register: ps_service_status
 
     - name: Display PowerShell service status result
