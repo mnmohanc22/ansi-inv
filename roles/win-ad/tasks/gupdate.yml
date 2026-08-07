@@ -1,4 +1,5 @@
 - name: Manage Google update services
+  ignore_errors: true
   block:
     - name: Get Google update services
       ansible.windows.win_service_info:
@@ -21,3 +22,37 @@
           Display Name: {{ item.services[0].display_name }}
           {% endif %}
       loop: "{{ google_services.results }}"
+
+- name: Check Google update services status via PowerShell
+  ignore_errors: true
+  block:
+    - name: Run PowerShell to check Google update service status
+      ansible.windows.win_powershell:
+        script: |
+          $services = @('GoogleUpdaterService', 'GoogleUpdaterInternalService', 'gupdate', 'gupdatem')
+          $results = foreach ($svc in $services) {
+            $s = Get-Service -Name $svc -ErrorAction SilentlyContinue
+            if ($s) {
+              [PSCustomObject]@{
+                Name        = $s.Name
+                DisplayName = $s.DisplayName
+                Status      = $s.Status
+                StartType   = $s.StartType
+                Exists      = $true
+              }
+            } else {
+              [PSCustomObject]@{
+                Name        = $svc
+                DisplayName = 'N/A'
+                Status      = 'NotFound'
+                StartType   = 'N/A'
+                Exists      = $false
+              }
+            }
+          }
+          $results | Format-Table -AutoSize | Out-String
+      register: ps_service_status
+
+    - name: Display PowerShell service status result
+      debug:
+        msg: "{{ ps_service_status.output }}"
