@@ -1,6 +1,10 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # tasks file for cis-l1
+# Run all sections  : --tags cis_level1
+# Run one section   : --tags section1
+# Run audit only    : --tags cis_audit
+# Run section audit : --tags audit_s3
 
 - name: Section 1 | Initial Setup
   ansible.builtin.import_tasks: section_1.yml
@@ -44,9 +48,97 @@
     - section7
     - cis_level1
 
-- name: CIS Audit | Run compliance checks for all sections
-  ansible.builtin.import_tasks: audit.yml
+- name: CIS Audit | Initialize results list
+  ansible.builtin.set_fact:
+    cis_audit_results: []
   tags:
+    - never
+    - cis_audit
+    - audit_s1
+    - audit_s2
+    - audit_s3
+    - audit_s4
+    - audit_s5
+    - audit_s6
+    - audit_s7
+
+- name: CIS Audit | Section 1 Initial Setup
+  ansible.builtin.import_tasks: audit_s1.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s1
+
+- name: CIS Audit | Section 2 Services
+  ansible.builtin.import_tasks: audit_s2.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s2
+
+- name: CIS Audit | Section 3 Network Configuration
+  ansible.builtin.import_tasks: audit_s3.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s3
+
+- name: CIS Audit | Section 4 Host Based Firewall
+  ansible.builtin.import_tasks: audit_s4.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s4
+
+- name: CIS Audit | Section 5 Access Authentication and Authorization
+  ansible.builtin.import_tasks: audit_s5.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s5
+
+- name: CIS Audit | Section 6 Logging and Auditing
+  ansible.builtin.import_tasks: audit_s6.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s6
+
+- name: CIS Audit | Section 7 System Maintenance
+  ansible.builtin.import_tasks: audit_s7.yml
+  tags:
+    - never
+    - cis_audit
+    - audit_s7
+
+- name: CIS Audit | Final Summary Header
+  ansible.builtin.debug:
+    msg:
+      - "========== CIS RHEL 9 v2.0.0 L1 - Full Compliance Report =========="
+      - "Host   : {{ inventory_hostname }}"
+      - "Total  : {{ cis_audit_results | length }}"
+      - "PASS   : {{ cis_audit_results | selectattr('status', 'eq', 'PASS') | list | length }}"
+      - "FAIL   : {{ cis_audit_results | selectattr('status', 'eq', 'FAIL') | list | length }}"
+      - "=================================================================="
+  tags:
+    - never
+    - cis_audit
+    - audit_s1
+    - audit_s2
+    - audit_s3
+    - audit_s4
+    - audit_s5
+    - audit_s6
+    - audit_s7
+
+- name: CIS Audit | Final Summary Items
+  ansible.builtin.debug:
+    msg: "[{{ item.status }}]  {{ item.id }} - {{ item.title }}"
+  loop: "{{ cis_audit_results }}"
+  loop_control:
+    label: "{{ item.id }}"
+  tags:
+    - never
     - cis_audit
     - audit_s1
     - audit_s2
