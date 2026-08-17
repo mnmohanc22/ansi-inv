@@ -224,9 +224,13 @@
   loop_control:
     label: "{{ item.id }}"
 
+- name: "Audit | Section 3 init summary list"
+  ansible.builtin.set_fact:
+    s3_summary_lines: []
+
 - name: "Audit | Section 3 build summary lines"
   ansible.builtin.set_fact:
-    s3_summary_lines: "{{ (s3_summary_lines | default([])) + ['[' + item.status + ']  ' + item.id + ' - ' + item.title] }}"
+    s3_summary_lines: "{{ s3_summary_lines + ['[' + item.status + ']  ' + item.id + ' - ' + item.title] }}"
   loop: "{{ cis_audit_results | selectattr('id', 'match', '^3\\.') | list }}"
   loop_control:
     label: "{{ item.id }}"

@@ -417,14 +417,18 @@
   loop_control:
     label: "{{ item.id }}"
 
+- name: "Audit | Section 1 init summary list"
+  ansible.builtin.set_fact:
+    s1_summary_lines: []
+
 - name: "Audit | Section 1 build summary lines"
   ansible.builtin.set_fact:
-    s1_summary_lines: "{{ (s1_summary_lines | default([])) + ['[' + item.status + ']  ' + item.id + ' - ' + item.title] }}"
+    s1_summary_lines: "{{ s1_summary_lines + ['[' + item.status + ']  ' + item.id + ' - ' + item.title] }}"
   loop: "{{ cis_audit_results | selectattr('id', 'match', '^1\\.') | list }}"
   loop_control:
     label: "{{ item.id }}"
 
 - name: "Audit | Section 1 Summary Items - Single Message"
   ansible.builtin.debug:
-    msg: "{{ s1_summary_lines | join('\n') }}"
+    msg: "{{ s1_summary_lines }}"
 

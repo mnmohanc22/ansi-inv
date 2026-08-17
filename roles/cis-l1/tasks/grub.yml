@@ -1,0 +1,83 @@
+---
+# CIS RHEL 9 - 1.4.1
+# Ensure bootloader password is set
+
+- name: CIS 1.4.1 | Pre-check bootloader password status
+  block:
+    - name: CIS 1.4.1 | Detect UEFI or BIOS
+      ansible.builtin.stat:
+        path: /sys/firmware/efi
+      register: cis_efi
+
+    - name: CIS 1.4.1 | Set boot mode
+      ansible.builtin.set_fact:
+        cis_boot_mode: "{{ 'UEFI' if cis_efi.stat.exists else 'BIOS' }}"
+
+    - name: CIS 1.4.1 | Check GRUB password file
+      ansible.builtin.stat:
+        path: /boot/grub2/user.cfg
+      register: cis_grub_user_cfg
+
+    - name: CIS 1.4.1 | Check whether GRUB password is configured
+      ansible.builtin.command:
+        cmd: grep -q '^GRUB2_PASSWORD=grub\.pbkdf2\.sha512' /boot/grub2/user.cfg
+      register: cis_grub_password_check
+      changed_when: false
+      failed_when: false
+      when: cis_grub_user_cfg.stat.exists
+
+    - name: CIS 1.4.1 | Determine compliance
+      ansible.builtin.set_fact:
+        cis_1_4_1_compliant: >-
+          {{
+            cis_grub_user_cfg.stat.exists and
+            (cis_grub_password_check.rc | default(1)) == 0
+          }}
+
+    - name: CIS 1.4.1 | Show pre-remediation status
+      ansible.builtin.debug:
+        msg:
+          - "Boot mode: {{ cis_boot_mode }}"
+          - "CIS 1.4.1 compliant: {{ cis_1_4_1_compliant }}"
+
+# ---------------------------------------------------------
+# REMEDIATION
+# ---------------------------------------------------------
+
+- name: CIS 1.4.1 | Configure GRUB bootloader password
+  block:
+    - name: CIS 1.4.1 | Write GRUB password to user.cfg
+      ansible.builtin.copy:
+        dest: /boot/grub2/user.cfg
+        content: |
+          GRUB2_PASSWORD={{ grub_password_hash }}
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+  when:
+    - not cis_1_4_1_compliant
+    - grub_password_hash is defined
+
+# ---------------------------------------------------------
+# POST VALIDATION
+# ---------------------------------------------------------
+
+- name: CIS 1.4.1 | Post-remediation validation
+  block:
+    - name: CIS 1.4.1 | Validate GRUB password after remediation
+      ansible.builtin.command:
+        cmd: grep -q '^GRUB2_PASSWORD=grub\.pbkdf2\.sha512' /boot/grub2/user.cfg
+      register: cis_grub_password_final
+      changed_when: false
+      failed_when: false
+
+    - name: CIS 1.4.1 | Final compliance result
+      ansible.builtin.debug:
+        msg:
+          - "Boot Mode: {{ cis_boot_mode }}"
+          - >-
+            CIS 1.4.1:
+            {{ 'COMPLIANT'
+               if cis_grub_password_final.rc == 0
+               else 'NON-COMPLIANT' }}

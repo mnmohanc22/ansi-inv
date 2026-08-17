@@ -100,9 +100,13 @@
   loop_control:
     label: "{{ item.id }}"
 
+- name: "Audit | Section 4 init summary list"
+  ansible.builtin.set_fact:
+    s4_summary_lines: []
+
 - name: "Audit | Section 4 build summary lines"
   ansible.builtin.set_fact:
-    s4_summary_lines: "{{ (s4_summary_lines | default([])) + ['[' + item.status + ']  ' + item.id + ' - ' + item.title] }}"
+    s4_summary_lines: "{{ s4_summary_lines + ['[' + item.status + ']  ' + item.id + ' - ' + item.title] }}"
   loop: "{{ cis_audit_results | selectattr('id', 'match', '^4\\.') | list }}"
   loop_control:
     label: "{{ item.id }}"

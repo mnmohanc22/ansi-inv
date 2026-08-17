@@ -1,0 +1,94 @@
+# CIS - Ensure GPG checking is enabled globally and for all repositories
+
+# --------------------------------------------------
+# 1. Enable global gpgcheck
+# --------------------------------------------------
+
+- name: CIS | Enable gpgcheck globally
+  block:
+    - name: Ensure gpgcheck is globally enabled
+      community.general.ini_file:
+        path: /etc/dnf/dnf.conf
+        section: main
+        option: gpgcheck
+        value: "1"
+        mode: '0644'
+        backup: true
+
+# --------------------------------------------------
+# 2. Find all repository files
+# --------------------------------------------------
+
+- name: CIS | Find all YUM/DNF repository files
+  block:
+    - name: Find all YUM/DNF repository files
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d
+        patterns: "*.repo"
+        file_type: file
+      register: repo_files
+
+    - name: Display repository files
+      ansible.builtin.debug:
+        msg: "{{ repo_files.files | map(attribute='path') | list }}"
+
+# --------------------------------------------------
+# 3. Find repo sections
+# --------------------------------------------------
+
+- name: CIS | Get repository sections from each repo file
+  block:
+    - name: Get repository sections
+      ansible.builtin.shell: |
+        awk '/^\[[^]]+\]/ {
+          gsub(/^\[/, "");
+          gsub(/\]$/, "");
+          print
+        }' "{{ item.path }}"
+      loop: "{{ repo_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: repo_sections
+      changed_when: false
+
+    - name: Get current gpgcheck value per repo section
+      ansible.builtin.shell: |
+        awk -v section="" '
+          /^\[[^]]+\]/ { gsub(/[\[\]]/, ""); section=$0 }
+          /^gpgcheck/ && section != "" { print section ": " $0 }
+        ' "{{ item.path }}"
+      loop: "{{ repo_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: repo_gpgcheck_values
+      changed_when: false
+
+    - name: Display current gpgcheck value per repo section
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ repo_gpgcheck_values.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+      
+
+# --------------------------------------------------
+# 4. Enable gpgcheck=1 for every repository section
+# --------------------------------------------------
+
+- name: CIS | Enable gpgcheck for every repository section
+  block:
+    - name: Ensure gpgcheck is enabled for every repository
+      community.general.ini_file:
+        path: "{{ item.0.item.path }}"
+        section: "{{ item.1 }}"
+        option: gpgcheck
+        value: "1"
+        backup: true
+      loop: >-
+        {{
+          repo_sections.results
+          | subelements('stdout_lines', skip_missing=True)
+        }}
+      loop_control:
+        label: "{{ item.0.item.path }} -> {{ item.1 }}"
