@@ -1,0 +1,7 @@
+- name: Show run and skip tags
+  ansible.builtin.debug:
+    msg:
+      - "Run tags: {{ ansible_run_tags }}"
+      - "Skip tags: {{ ansible_skip_tags }}"
+  tags:
+    - always
