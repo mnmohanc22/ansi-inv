@@ -5,3 +5,17 @@
       - "Skip tags: {{ ansible_skip_tags }}"
   tags:
     - always
+
+
+- name: Check mail utilities
+  ansible.builtin.shell: |
+    echo "HOST=$(hostname)"
+    echo "mailx=$(command -v mailx || echo NOT_FOUND)"
+    echo "mail=$(command -v mail || echo NOT_FOUND)"
+    echo "s-nail=$(command -v s-nail || echo NOT_FOUND)"
+    echo "sendmail=$(command -v sendmail || echo NOT_FOUND)"
+  register: mail_check
+  changed_when: false
+
+- debug:
+    var: mail_check.stdout_lines

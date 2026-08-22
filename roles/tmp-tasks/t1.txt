@@ -1,0 +1,6 @@
+echo "AAP test" | \
+s-nail \
+  -S mta=smtp://smtp-relay.company.com:25 \
+  -S smtp-auth=none \
+  -s "AAP Test" \
+  user@example.com
