@@ -235,3 +235,37 @@
     - section2
     - audit
     - audit_section2
+
+
+
+
+
+
+- name: "CIS 2.2.4 | Ensure telnet is not installed"
+  block:
+    - name: "CIS 2.2.4 | Verify telnet is not installed"
+      ansible.builtin.command:
+        cmd: rpm -q telnet
+      register: telnet_check
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.2.4 | Display telnet status"
+      ansible.builtin.debug:
+        msg:
+          - "telnet status : {{ 'INSTALLED' if telnet_check.rc == 0 else 'NOT INSTALLED' }}"
+          - "package info  : {{ telnet_check.stdout | default('n/a') }}"
+
+    - name: "CIS 2.2.4 | Remove telnet packages"
+      ansible.builtin.dnf:
+        name:
+          - telnet
+          - telnet-server
+        state: absent
+      register: telnet_remove
+      when: telnet_check.rc == 0
+
+    - name: "CIS 2.2.4 | Display remove telnet status"
+      ansible.builtin.debug:
+        msg:
+          - "remove status : {{ 'REMOVED' if (telnet_remove.changed | default(false)) else 'SKIPPED (not installed)' }}"
