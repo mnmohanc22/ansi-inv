@@ -1,0 +1,99 @@
+---
+# CIS - Cryptographic Policy Checks
+
+- name: CIS | Check whether SSH currently allows ChaCha20
+  block:
+    - name: CIS | Check active SSH ciphers
+      ansible.builtin.shell: |
+        sshd -T 2>/dev/null | grep -i '^ciphers'
+      register: ssh_ciphers
+      changed_when: false
+      failed_when: false
+
+    - name: CIS | Check system-wide crypto policy ciphers
+      ansible.builtin.shell: |
+        grep -r 'Cipher' /etc/crypto-policies/back-ends/openssh.config 2>/dev/null || echo "not found"
+      register: crypto_policy_ciphers
+      changed_when: false
+      failed_when: false
+
+    - name: CIS | Display SSH ChaCha20 status
+      ansible.builtin.debug:
+        msg:
+          - "Active SSH ciphers  : {{ ssh_ciphers.stdout | default('n/a') }}"
+          - "Crypto policy       : {{ crypto_policy_ciphers.stdout | default('n/a') }}"
+          - "ChaCha20 allowed    : {{ 'YES' if 'chacha20' in (ssh_ciphers.stdout | lower) else 'NO' }}"
+
+- name: CIS | List crypto policy module files
+  block:
+    - name: CIS | Find files in /etc/crypto-policies/policies/modules/
+      ansible.builtin.find:
+        paths: /etc/crypto-policies/policies/modules/
+        file_type: file
+      register: crypto_modules
+
+    - name: CIS | Display crypto policy module files
+      ansible.builtin.debug:
+        msg:
+          - "Crypto policy modules dir : /etc/crypto-policies/policies/modules/"
+          - "Files found : {{ crypto_modules.files | map(attribute='path') | list }}"
+
+
+
+
+- name: "CIS 1.6.6 | Disable ChaCha20 in SSH crypto policy"
+  block:
+    - name: "CIS 1.6.6 | Get current system-wide crypto policy"
+      ansible.builtin.command:
+        cmd: update-crypto-policies --show
+      register: current_crypto_policy
+      changed_when: false
+
+    - name: "CIS 1.6.6 | Display current crypto policy"
+      ansible.builtin.debug:
+        msg: "Current crypto policy: {{ current_crypto_policy.stdout | trim }}"
+
+    - name: "CIS 1.6.6 | Create NO-SSHCHACHA20 crypto policy module"
+      ansible.builtin.copy:
+        dest: /etc/crypto-policies/policies/modules/NO-SSHCHACHA20.pmod
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          cipher@SSH = -*-CHACHA20-POLY1305
+
+    - name: "CIS 1.6.6 | Add NO-SSHCHACHA20 to existing crypto policy"
+      ansible.builtin.command:
+        cmd: >-
+          update-crypto-policies --set
+          {{ current_crypto_policy.stdout | trim }}:NO-SSHCHACHA20
+      when: "'NO-SSHCHACHA20' not in (current_crypto_policy.stdout | trim).split(':')"
+
+- name: "CIS | Print current system-wide crypto policy"
+  block:
+    - name: "CIS | Get current crypto policy"
+      ansible.builtin.command:
+        cmd: update-crypto-policies --show
+      register: crypto_policy_current
+      changed_when: false
+
+    - name: "CIS | Get active crypto policy details"
+      ansible.builtin.shell: |
+        update-crypto-policies --show
+        echo "---"
+        cat /etc/crypto-policies/state/current 2>/dev/null || echo "state file not found"
+        echo "---"
+        cat /etc/crypto-policies/config 2>/dev/null || echo "config file not found"
+      register: crypto_policy_details
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS | Display current system-wide crypto policy"
+      ansible.builtin.debug:
+        msg:
+          - "Active policy       : {{ crypto_policy_current.stdout | trim }}"
+          - "Policy details      : {{ crypto_policy_details.stdout_lines }}"
+
+
+
+      
