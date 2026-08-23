@@ -131,3 +131,78 @@
     - name: "CIS 1.6.3 | Display crypto policy"
       ansible.builtin.debug:
         msg: "Crypto policy: {{ crypto_policy_verify.stdout | trim }}"
+
+
+
+- name: "CIS 5.1.4 | Restrict SSH ciphers via crypto policy"
+  block:
+    - name: "CIS 5.1.4 | Get effective SSH ciphers"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: sshd_config
+      changed_when: false
+
+    - name: "CIS 5.1.4 | Display configured SSH ciphers"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            sshd_config.stdout_lines
+            | select('match', '^ciphers ')
+            | list
+          }}
+
+    - name: "CIS 5.1.4 | Create SSH cipher crypto-policy module"
+      ansible.builtin.copy:
+        dest: /etc/crypto-policies/policies/modules/SSH-CIPHERS.pmod
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          cipher@SSH = AES-256-GCM AES-128-GCM AES-256-CTR AES-192-CTR AES-128-CTR
+
+    - name: "CIS 5.1.4 | Get current crypto policy"
+      ansible.builtin.command:
+        cmd: update-crypto-policies --show
+      register: current_crypto_policy
+      changed_when: false
+
+    - name: "CIS 5.1.4 | Add SSH-CIPHERS to existing crypto policy"
+      ansible.builtin.command:
+        cmd: >-
+          update-crypto-policies --set
+          {{ current_crypto_policy.stdout | trim }}:SSH-CIPHERS
+      register: cipher_policy_set
+      when: "'SSH-CIPHERS' not in (current_crypto_policy.stdout | trim).split(':')"
+
+    - name: "CIS 5.1.4 | Validate sshd config before restart"
+      ansible.builtin.command:
+        cmd: sshd -t
+      register: sshd_config_test
+      changed_when: false
+      when: cipher_policy_set.changed | default(false)
+
+    - name: "CIS 5.1.4 | Display sshd config validation result"
+      ansible.builtin.debug:
+        msg: "sshd config test : {{ 'PASSED' if sshd_config_test.rc | default(1) == 0 else 'FAILED - ' + (sshd_config_test.stderr | default('unknown error')) }}"
+      when: cipher_policy_set.changed | default(false)
+
+    - name: "CIS 5.1.4 | Restart sshd to apply new cipher policy"
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+      when:
+        - cipher_policy_set.changed | default(false)
+        - sshd_config_test.rc | default(1) == 0
+
+    - name: "CIS 5.1.4 | Check sshd status after restart"
+      ansible.builtin.command:
+        cmd: systemctl status sshd
+      register: sshd_status
+      changed_when: false
+      failed_when: false
+      when: cipher_policy_set.changed | default(false)
+
+    - name: "CIS 5.1.4 | Display sshd status after restart"
+      ansible.builtin.debug:
+        msg: "{{ sshd_status.stdout_lines | default(['sshd status check skipped']) }}"
+      when: cipher_policy_set.changed | default(false)
