@@ -243,7 +243,12 @@
       when: bt_status.rc == 0
 
     - name: CIS 3.1.3 | Remove bluez package
-      ansible.builtin.package:
+      ansible.builtin.dnf:
         name: bluez
         state: absent
+      register: bluez_remove
       when: bt_status.rc == 0
+
+    - name: CIS 3.1.3 | Display bluez remove status
+      ansible.builtin.debug:
+        msg: "bluez remove status : {{ 'REMOVED' if (bluez_remove.changed | default(false)) else 'SKIPPED (not installed)' }}"
