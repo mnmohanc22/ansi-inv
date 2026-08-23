@@ -206,3 +206,103 @@
       ansible.builtin.debug:
         msg: "{{ sshd_status.stdout_lines | default(['sshd status check skipped']) }}"
       when: cipher_policy_set.changed | default(false)
+
+
+
+
+- name: "CIS 5.1.15 | Check sshd LogLevel"
+  block:
+    - name: "CIS 5.1.15 | Check LogLevel in sshd_config and drop-ins"
+      ansible.builtin.shell: |
+        grep -RniE '^[[:space:]]*LogLevel[[:space:]]+' \
+          /etc/ssh/sshd_config \
+          /etc/ssh/sshd_config.d/*.conf 2>/dev/null || true
+      register: sshd_loglevel_config
+      changed_when: false
+
+    - name: "CIS 5.1.15 | Display configured LogLevel entries"
+      ansible.builtin.debug:
+        msg: "{{ sshd_loglevel_config.stdout_lines }}"
+
+    - name: "CIS 5.1.15 | Check effective sshd LogLevel"
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: sshd_effective_config
+      changed_when: false
+
+    - name: "CIS 5.1.15 | Display sshd_effective_config"
+      ansible.builtin.debug:
+        msg: "{{ sshd_effective_config.stdout_lines }}"
+
+    - name: "CIS 5.1.15 | Display effective LogLevel"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            sshd_effective_config.stdout_lines
+            | select('match', '^loglevel ')
+            | list
+          }}
+
+    - name: "CIS 5.1.15 | Get effective sshd LogLevel"
+      ansible.builtin.shell: |
+        sshd -T | awk '$1 == "loglevel" {print $2}'
+      register: sshd_loglevel
+      changed_when: false
+
+    - name: "CIS 5.1.15 | Validate sshd LogLevel"
+      ansible.builtin.assert:
+        that:
+          - sshd_loglevel.stdout | trim in ['INFO', 'VERBOSE', 'info', 'verbose']
+        fail_msg: "FAILED - effective sshd LogLevel is {{ sshd_loglevel.stdout | trim }}"
+        success_msg: "PASSED - effective sshd LogLevel is {{ sshd_loglevel.stdout | trim }}"
+
+
+
+- name: "CIS 5.1.15 | Set sshd LogLevel and restart"
+  block:
+    - name: "CIS 5.1.15 | Remove existing LogLevel settings from sshd_config"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^[\s]*LogLevel\s+'
+        state: absent
+        backup: true
+      register: loglevel_removed
+
+    - name: "CIS 5.1.15 | Set LogLevel INFO in sshd_config"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#LogLevel\s+'
+        line: 'LogLevel INFO'
+        insertafter: '^# Logging'
+        state: present
+      register: loglevel_set
+
+    - name: "CIS 5.1.15 | Validate sshd config before restart"
+      ansible.builtin.command:
+        cmd: sshd -t
+      register: sshd_config_test
+      changed_when: false
+      when: loglevel_removed.changed or loglevel_set.changed
+
+    - name: "CIS 5.1.15 | Display sshd config validation result"
+      ansible.builtin.debug:
+        msg: "sshd config test : {{ 'PASSED' if sshd_config_test.rc | default(1) == 0 else 'FAILED - ' + (sshd_config_test.stderr | default('unknown error')) }}"
+      when: loglevel_removed.changed or loglevel_set.changed
+
+    - name: "CIS 5.1.15 | Restart sshd to apply LogLevel change"
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+      when:
+        - loglevel_removed.changed or loglevel_set.changed
+        - sshd_config_test.rc | default(1) == 0
+
+    - name: "CIS 5.1.15 | Verify effective LogLevel"
+      ansible.builtin.shell: |
+        sshd -T | grep -i '^loglevel'
+      register: ssh_loglevel
+      changed_when: false
+
+    - name: "CIS 5.1.15 | Display effective LogLevel"
+      ansible.builtin.debug:
+        msg: "{{ ssh_loglevel.stdout }}"
