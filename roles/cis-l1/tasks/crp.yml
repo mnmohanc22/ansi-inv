@@ -306,3 +306,68 @@
     - name: "CIS 5.1.15 | Display effective LogLevel"
       ansible.builtin.debug:
         msg: "{{ ssh_loglevel.stdout }}"
+
+
+
+
+- name: "CIS 5.1.20 | Check PermitRootLogin"
+  block:
+    - name: "CIS 5.1.20 | Find PermitRootLogin settings"
+      ansible.builtin.shell: |
+        grep -RniE '^[[:space:]]*PermitRootLogin[[:space:]]+' \
+          /etc/ssh/sshd_config \
+          /etc/ssh/sshd_config.d/ 2>/dev/null || true
+      register: permit_root_login_files
+      changed_when: false
+
+    - name: "CIS 5.1.20 | Display PermitRootLogin settings"
+      ansible.builtin.debug:
+        var: permit_root_login_files.stdout_lines
+
+    - name: "CIS 5.1.20 | Validate sshd configuration"
+      ansible.builtin.command:
+        cmd: sshd -t
+      changed_when: false
+
+    - name: "CIS 5.1.20 | Get effective PermitRootLogin"
+      ansible.builtin.shell: |
+        sshd -T | grep -i '^permitrootlogin'
+      register: sshd_permitrootlogin
+      changed_when: false
+
+    - name: "CIS 5.1.20 | Display effective PermitRootLogin"
+      ansible.builtin.debug:
+        msg: "{{ sshd_permitrootlogin.stdout }}"
+
+
+
+- name: "CIS 5.1.20 | Disable SSH root login"
+  block:
+    - name: "CIS 5.1.20 | Ensure SSH root login is disabled"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^[ \t]*#?[ \t]*PermitRootLogin[ \t]+'
+        line: 'PermitRootLogin no'
+        state: present
+        backup: true
+      register: permitrootlogin_set
+
+    - name: "CIS 5.1.20 | Validate sshd config before reload"
+      ansible.builtin.command:
+        cmd: sshd -t
+      register: sshd_config_test
+      changed_when: false
+      when: permitrootlogin_set.changed
+
+    - name: "CIS 5.1.20 | Display sshd config validation result"
+      ansible.builtin.debug:
+        msg: "sshd config test : {{ 'PASSED' if sshd_config_test.rc | default(1) == 0 else 'FAILED - ' + (sshd_config_test.stderr | default('unknown error')) }}"
+      when: permitrootlogin_set.changed
+
+    - name: "CIS 5.1.20 | Reload sshd to apply PermitRootLogin change"
+      ansible.builtin.service:
+        name: sshd
+        state: reloaded
+      when:
+        - permitrootlogin_set.changed
+        - sshd_config_test.rc | default(1) == 0
