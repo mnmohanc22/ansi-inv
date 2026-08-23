@@ -96,4 +96,38 @@
 
 
 
-      
+
+- name: "CIS 1.6.3 | Disable SHA1 in crypto policy"
+  block:
+    - name: "CIS 1.6.3 | Create NO-SHA1 crypto policy module"
+      ansible.builtin.copy:
+        dest: /etc/crypto-policies/policies/modules/NO-SHA1.pmod
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          hash = -SHA1
+          sign = -*-SHA1
+
+    - name: "CIS 1.6.3 | Get current crypto policy"
+      ansible.builtin.command:
+        cmd: update-crypto-policies --show
+      register: current_crypto_policy
+      changed_when: false
+
+    - name: "CIS 1.6.3 | Add NO-SHA1 to existing policy"
+      ansible.builtin.command:
+        cmd: >-
+          update-crypto-policies --set
+          {{ current_crypto_policy.stdout | trim }}:NO-SHA1
+      when: "'NO-SHA1' not in (current_crypto_policy.stdout | trim).split(':')"
+
+    - name: "CIS 1.6.3 | Verify crypto policy"
+      ansible.builtin.command:
+        cmd: update-crypto-policies --show
+      register: crypto_policy_verify
+      changed_when: false
+
+    - name: "CIS 1.6.3 | Display crypto policy"
+      ansible.builtin.debug:
+        msg: "Crypto policy: {{ crypto_policy_verify.stdout | trim }}"
