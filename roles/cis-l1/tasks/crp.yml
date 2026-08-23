@@ -60,7 +60,7 @@
         group: root
         mode: '0644'
         content: |
-          cipher@SSH = -*-CHACHA20-POLY1305
+          cipher@SSH = -CHACHA20-POLY1305
 
     - name: "CIS 1.6.6 | Add NO-SSHCHACHA20 to existing crypto policy"
       ansible.builtin.command:
