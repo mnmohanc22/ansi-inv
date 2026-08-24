@@ -39,6 +39,26 @@
       when: loopback_ipv4_rule.changed
 
 
+- name: "CIS 4.2.2 | Drop spoofed IPv6 loopback traffic"
+  block:
+    - name: "CIS 4.2.2 | Add direct rule to drop spoofed IPv6 loopback traffic"
+      ansible.builtin.command:
+        cmd: >-
+          firewall-cmd --permanent --direct
+          --add-rule ipv6 filter INPUT 0
+          ! -i lo -s ::1 -j DROP
+      register: loopback_ipv6_rule
+      changed_when: "'ALREADY_ENABLED' not in loopback_ipv6_rule.stderr"
+      failed_when:
+        - loopback_ipv6_rule.rc != 0
+        - "'ALREADY_ENABLED' not in loopback_ipv6_rule.stderr"
+
+    - name: "CIS 4.2.2 | Reload firewalld to apply IPv6 direct rule"
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+      when: loopback_ipv6_rule.changed
+
+
 - name: "CIS 4.2.2 | Verify IPv4 loopback drop rule"
   block:
     - name: "CIS 4.2.2 | Get all firewall direct rules"
@@ -50,3 +70,18 @@
     - name: "CIS 4.2.2 | Display loopback rules"
       ansible.builtin.debug:
         var: firewall_direct_rules.stdout_lines
+
+
+- name: "CIS 4.2.2 | Verify IPv6 loopback drop rule"
+  block:
+    - name: "CIS 4.2.2 | Get IPv6 firewall direct rules"
+      ansible.builtin.command:
+        cmd: firewall-cmd --direct --get-all-rules
+      register: firewall_ipv6_rules
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display IPv6 loopback drop rule status"
+      ansible.builtin.debug:
+        msg:
+          - "IPv6 loopback drop rule present : {{ 'YES' if '! -i lo -s ::1 -j DROP' in firewall_ipv6_rules.stdout else 'NO' }}"
+          - "Direct rules                    : {{ firewall_ipv6_rules.stdout_lines }}"
