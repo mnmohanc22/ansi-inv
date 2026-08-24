@@ -1,0 +1,66 @@
+- name: "CIS 1.2.1.2 | Find and display repository files"
+  block:
+    - name: "CIS 1.2.1.2 | Find repository and repo backup files"
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d
+        patterns:
+          - "*.repo"
+          - "*.repo.*"
+        file_type: file
+        recurse: false
+      register: repo_files
+
+    - name: "CIS 1.2.1.2 | Display repository files"
+      ansible.builtin.debug:
+        msg: "{{ repo_files.files | map(attribute='path') | list }}"
+
+
+- name: "CIS 1.2.1.2 | Check gpgcheck in repository files"
+  block:
+    - name: "CIS 1.2.1.2 | Get gpgcheck=0 entries in repository files"
+      ansible.builtin.shell: |
+        grep -HniE '^[[:space:]]*gpgcheck[[:space:]]*=[[:space:]]*0' \
+          "{{ item.path }}" || true
+      loop: "{{ repo_files.files }}"
+      register: repo_gpgcheck
+      changed_when: false
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 1.2.1.2 | Display gpgcheck=0 entries"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ repo_gpgcheck.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+
+- name: "CIS 1.2.1.2 | Enable gpgcheck in repository files"
+  block:
+    - name: "CIS 1.2.1.2 | Set gpgcheck=1 in all repository files"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '(^[ \t]*gpgcheck[ \t]*=[ \t]*)0([ \t]*$)'
+        replace: '\g<1>1'
+        backup: true
+      loop: "{{ repo_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 1.2.1.2 | Get updated gpgcheck value per repo file"
+      ansible.builtin.shell: |
+        grep -HniE '^[[:space:]]*gpgcheck[[:space:]]*=' "{{ item.path }}" || true
+      loop: "{{ repo_files.files }}"
+      register: repo_gpgcheck_updated
+      changed_when: false
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 1.2.1.2 | Display updated gpgcheck values"
+      ansible.builtin.debug:
+        msg:
+          - "file   : {{ item.item.path }}"
+          - "gpgcheck : {{ item.stdout | default('not found') | trim }}"
+      loop: "{{ repo_gpgcheck_updated.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
