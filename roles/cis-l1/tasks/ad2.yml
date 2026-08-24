@@ -1,0 +1,58 @@
+- name: "CIS 6.2.4.1 | Find log files with excessive permissions"
+  block:
+    - name: "CIS 6.2.4.1 | Get log files with excessive permissions"
+      ansible.builtin.shell: |
+        find /var/log -type f \
+          \( -perm /0137 \) \
+          -printf '%m %u %g %p\n'
+      register: insecure_log_files
+      changed_when: false
+
+    - name: "CIS 6.2.4.1 | Display log files with excessive permissions"
+      ansible.builtin.debug:
+        var: insecure_log_files.stdout_lines
+
+- name: "CIS 6.2.4.1 | Audit logfile permissions"
+  block:
+    - name: "CIS 6.2.4.1 | Get logfile permissions"
+      ansible.builtin.shell: |
+        find /var/log -type f -printf '%m %-15u %-15g %p\n' | sort
+      register: logfile_permissions
+      changed_when: false
+
+    - name: "CIS 6.2.4.1 | Display logfile permissions"
+      ansible.builtin.debug:
+        var: logfile_permissions.stdout_lines
+
+- name: "CIS 6.2.4.1 | Find world writable log files"
+  block:
+    - name: "CIS 6.2.4.1 | Get world writable log files"
+      ansible.builtin.shell: |
+        find /var/log -type f -perm -0002 \
+          -printf '%m %u %g %p\n'
+      register: world_writable_logs
+      changed_when: false
+
+    - name: "CIS 6.2.4.1 | Display world writable log files"
+      ansible.builtin.debug:
+        var: world_writable_logs.stdout_lines
+
+
+- name: "CIS 6.2.4.1 | Remediate log file permissions"
+  block:
+    - name: "CIS 6.2.4.1 | Find log files"
+      ansible.builtin.find:
+        paths: /var/log
+        file_type: file
+        recurse: true
+      register: log_files
+
+    - name: "CIS 6.2.4.1 | Remove excessive permissions from log files"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: '0640'
+      loop: "{{ log_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      when:
+        - item.path is not search('/var/log/(wtmp|btmp|lastlog)$')
