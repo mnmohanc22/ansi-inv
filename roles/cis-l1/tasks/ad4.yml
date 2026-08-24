@@ -61,7 +61,7 @@
     - name: "CIS 7.2.9 | Remove excessive permissions from dot files"
       ansible.builtin.file:
         path: "{{ item.1.path }}"
-        mode: "go-w"
+        mode: '0600'
       loop: "{{ dot_files.results | subelements('files', skip_missing=True) }}"
       register: dot_files_chmod
       loop_control:

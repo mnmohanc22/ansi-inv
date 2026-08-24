@@ -1,0 +1,52 @@
+- name: "CIS 4.2.2 | Check firewalld loopback configuration"
+  block:
+    - name: "CIS 4.2.2 | Get firewalld loopback configuration"
+      ansible.builtin.shell: |
+        echo "=== Active zones ==="
+        firewall-cmd --get-active-zones
+
+        echo "=== Loopback zone ==="
+        firewall-cmd --get-zone-of-interface=lo || true
+
+        echo "=== Direct rules ==="
+        firewall-cmd --direct --get-all-rules || true
+      register: firewalld_loopback
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display loopback configuration"
+      ansible.builtin.debug:
+        var: firewalld_loopback.stdout_lines
+
+
+
+- name: "CIS 4.2.2 | Drop spoofed IPv4 loopback traffic"
+  block:
+    - name: "CIS 4.2.2 | Add direct rule to drop spoofed IPv4 loopback traffic"
+      ansible.builtin.command:
+        cmd: >-
+          firewall-cmd --permanent --direct
+          --add-rule ipv4 filter INPUT 0
+          ! -i lo -s 127.0.0.0/8 -j DROP
+      register: loopback_ipv4_rule
+      changed_when: "'ALREADY_ENABLED' not in loopback_ipv4_rule.stderr"
+      failed_when:
+        - loopback_ipv4_rule.rc != 0
+        - "'ALREADY_ENABLED' not in loopback_ipv4_rule.stderr"
+
+    - name: "CIS 4.2.2 | Reload firewalld to apply direct rule"
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+      when: loopback_ipv4_rule.changed
+
+
+- name: "CIS 4.2.2 | Verify IPv4 loopback drop rule"
+  block:
+    - name: "CIS 4.2.2 | Get all firewall direct rules"
+      ansible.builtin.command:
+        cmd: firewall-cmd --direct --get-all-rules
+      register: firewall_direct_rules
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display loopback rules"
+      ansible.builtin.debug:
+        var: firewall_direct_rules.stdout_lines
