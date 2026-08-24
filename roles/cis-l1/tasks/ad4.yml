@@ -1,0 +1,78 @@
+- name: "CIS 7.2.9 | Get local interactive users and home directories"
+  block:
+    - name: "CIS 7.2.9 | Get local interactive users and home directories"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($3 >= 1000 &&
+           $1 != "nobody" &&
+           $7 !~ /(nologin|false)$/) {
+             print $1 ":" $6
+          }' /etc/passwd
+      register: interactive_users
+      changed_when: false
+
+    - name: "CIS 7.2.9 | Display local interactive users"
+      ansible.builtin.debug:
+        var: interactive_users.stdout_lines
+
+
+- name: "CIS 7.2.9 | Check local interactive user dot files"
+  block:
+    - name: "CIS 7.2.9 | Get dot files for each user"
+      ansible.builtin.shell: |
+        user="{{ item.split(':')[0] }}"
+        home="{{ item.split(':')[1] }}"
+
+        if [ -d "$home" ]; then
+          find "$home" -xdev -type f -name '.*' \
+            -printf '%m %u %g %p\n'
+        fi
+      loop: "{{ interactive_users.stdout_lines }}"
+      register: user_dotfiles
+      changed_when: false
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+
+    - name: "CIS 7.2.9 | Display user dot files"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ user_dotfiles.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"
+
+
+
+- name: "CIS 7.2.9 | Remediate dot file permissions"
+  block:
+    - name: "CIS 7.2.9 | Find local interactive user dot files"
+      ansible.builtin.find:
+        paths: "{{ item.split(':')[1] }}"
+        patterns: ".*"
+        hidden: true
+        file_type: file
+        recurse: false
+      loop: "{{ interactive_users.stdout_lines }}"
+      register: dot_files
+      when:
+        - item.split(':')[1] | length > 1
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+
+    - name: "CIS 7.2.9 | Remove excessive permissions from dot files"
+      ansible.builtin.file:
+        path: "{{ item.1.path }}"
+        mode: "go-w"
+      loop: "{{ dot_files.results | subelements('files', skip_missing=True) }}"
+      register: dot_files_chmod
+      loop_control:
+        label: "{{ item.1.path }}"
+
+    - name: "CIS 7.2.9 | Display dot files permission changes"
+      ansible.builtin.debug:
+        msg:
+          - "file    : {{ item.item.1.path }}"
+          - "changed : {{ item.changed }}"
+      loop: "{{ dot_files_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.1.path }}"
+      when: item.changed
