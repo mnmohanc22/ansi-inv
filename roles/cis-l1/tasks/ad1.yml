@@ -54,3 +54,32 @@
     - name: "CIS 1.7.3 | Display effective SSH banner"
       ansible.builtin.debug:
         msg: "{{ ssh_banner.stdout }}"
+
+
+- name: "CIS 6.2.2.1.3 | Check systemd-journal-upload service"
+  block:
+    - name: "CIS 6.2.2.1.3 | Get systemd-journal-upload service status"
+      ansible.builtin.command:
+        cmd: systemctl status systemd-journal-upload.service
+      register: journal_upload_status
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.2.2.1.3 | Display journal upload status"
+      ansible.builtin.debug:
+        var: journal_upload_status.stdout_lines
+
+
+- name: "CIS 6.2.2.1.3 | Configure systemd-journal-remote and upload"
+  block:
+    - name: "CIS 6.2.2.1.3 | Ensure systemd-journal-remote package is installed"
+      ansible.builtin.dnf:
+        name: systemd-journal-remote
+        state: present
+
+    - name: "CIS 6.2.2.1.3 | Enable and start journal upload"
+      ansible.builtin.systemd:
+        name: systemd-journal-upload.service
+        masked: false
+        enabled: true
+        state: started
