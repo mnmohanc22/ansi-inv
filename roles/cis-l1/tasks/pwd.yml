@@ -1,0 +1,137 @@
+- name: "CIS | Ensure password expiration warning days is configured"
+  block:
+    - name: "CIS | Get current PASS_WARN_AGE value"
+      ansible.builtin.shell: |
+        grep -E '^[ \t]*PASS_WARN_AGE[ \t]+' /etc/login.defs || echo "PASS_WARN_AGE not set"
+      register: current_pass_warn_age
+      changed_when: false
+
+    - name: "CIS | Display current PASS_WARN_AGE value"
+      ansible.builtin.debug:
+        msg: "Current PASS_WARN_AGE : {{ current_pass_warn_age.stdout | trim }}"
+
+    - name: "CIS | Set PASS_WARN_AGE in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^[ \t]*PASS_WARN_AGE[ \t]+'
+        line: 'PASS_WARN_AGE   7'
+        state: present
+        backup: true
+
+
+- name: "CIS 5.4.1.3 | Set password warning age for existing users"
+  block:
+    - name: "CIS 5.4.1.3 | Get local interactive users"
+      ansible.builtin.shell: |
+        awk -F: '($3 >= 1000 && $1 != "nobody" && $7 !~ /(nologin|false)$/) {print $1}' /etc/passwd
+      register: local_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.3 | Display local interactive users"
+      ansible.builtin.debug:
+        msg: "Local interactive users : {{ local_users.stdout_lines }}"
+
+    - name: "CIS 5.4.1.3 | Get current password warning age for each user"
+      ansible.builtin.shell: |
+        chage -l {{ item }} | grep -i 'Password expires warning'
+      register: current_warn_age
+      loop: "{{ local_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+
+    - name: "CIS 5.4.1.3 | Display current password warning age per user"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} : {{ item.stdout | trim }}"
+      loop: "{{ current_warn_age.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "CIS 5.4.1.3 | Set password warning age for existing users"
+      ansible.builtin.user:
+        name: "{{ item }}"
+        password_warn_age: 7
+      loop: "{{ local_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+
+
+
+- name: "CIS | Ensure password expiration day is configured"
+  block:
+    - name: "CIS | Get current PASS_MAX_DAYS value"
+      ansible.builtin.shell: |
+        grep -E '^[ \t]*PASS_MAX_DAYS[ \t]+' /etc/login.defs || echo "PASS_MAX_DAYS not set"
+      register: current_pass_max_days
+      changed_when: false
+
+    - name: "CIS | Display current PASS_MAX_DAYS value"
+      ansible.builtin.debug:
+        msg: "Current PASS_MAX_DAYS : {{ current_pass_max_days.stdout | trim }}"
+
+    - name: "CIS | Set PASS_MAX_DAYS in /etc/login.defs"
+      ansible.builtin.lineinfile:
+        path: /etc/login.defs
+        regexp: '^[ \t]*PASS_MAX_DAYS[ \t]+'
+        line: 'PASS_MAX_DAYS   90'
+        state: present
+        backup: true        
+
+
+- name: "CIS | Check current authselect configuration"
+  block:
+    - name: "CIS | Get current authselect configuration"
+      ansible.builtin.command:
+        cmd: authselect current
+      register: authselect_current
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS | Display current authselect configuration"
+      ansible.builtin.debug:
+        var: authselect_current.stdout_lines
+
+- name: "CIS | Check deny setting in faillock.conf"
+  block:
+    - name: "CIS | Get deny setting from faillock.conf"
+      ansible.builtin.shell: |
+        grep -Pi '^[[:space:]]*deny[[:space:]]*=' \
+          /etc/security/faillock.conf || true
+      register: faillock_deny
+      changed_when: false
+
+    - name: "CIS | Display deny setting from faillock.conf"
+      ansible.builtin.debug:
+        msg: >-
+          deny in faillock.conf:
+          {{ faillock_deny.stdout_lines | default([]) }}
+
+- name: "CIS | Check pam_faillock entries in PAM files"
+  block:
+    - name: "CIS | Get pam_faillock entries from PAM files"
+      ansible.builtin.shell: |
+        grep -Pn '^[[:space:]]*[^#].*pam_faillock\.so' \
+          /etc/pam.d/system-auth \
+          /etc/pam.d/password-auth 2>/dev/null || true
+      register: pam_faillock_entries
+      changed_when: false
+
+    - name: "CIS | Display pam_faillock entries"
+      ansible.builtin.debug:
+        var: pam_faillock_entries.stdout_lines
+
+- name: "CIS | Check deny argument in pam_faillock entries"
+  block:
+    - name: "CIS | Get deny argument from pam_faillock entries"
+      ansible.builtin.shell: |
+        grep -Pn '^[[:space:]]*[^#].*pam_faillock\.so.*[[:space:]]deny=[0-9]+' \
+          /etc/pam.d/system-auth \
+          /etc/pam.d/password-auth 2>/dev/null || true
+      register: pam_faillock_deny
+      changed_when: false
+
+    - name: "CIS | Display deny settings found in PAM"
+      ansible.builtin.debug:
+        msg: >-
+          deny settings in PAM:
+          {{ pam_faillock_deny.stdout_lines | default([]) }}
