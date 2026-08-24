@@ -1,0 +1,27 @@
+- name: "CIS 2.3.3 | Check configured chrony time sources"
+  block:
+    - name: "CIS 2.3.3 | Get configured chrony time sources"
+      ansible.builtin.shell: |
+        grep -Prs '^[[:space:]]*\(server\|pool\)[[:space:]]' \
+          /etc/chrony.conf /etc/chrony.d/*.conf 2>/dev/null || true
+      register: chrony_sources
+      changed_when: false
+
+    - name: "CIS 2.3.3 | Display configured chrony time sources"
+      ansible.builtin.debug:
+        var: chrony_sources.stdout_lines
+
+
+
+- name: "CIS 2.3.3 | Check active chrony sources"
+  block:
+    - name: "CIS 2.3.3 | Get active chrony sources"
+      ansible.builtin.command:
+        cmd: chronyc sources -v
+      register: chrony_active_sources
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.3.3 | Display active chrony sources"
+      ansible.builtin.debug:
+        var: chrony_active_sources.stdout_lines
