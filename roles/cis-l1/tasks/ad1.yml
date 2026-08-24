@@ -139,3 +139,132 @@
       ansible.builtin.debug:
         var: journald_status.stdout_lines
       when: journald_forwardtosyslog_set.changed
+
+
+
+- name: "CIS 6.1.2 | Check AIDE scheduling"
+  block:
+    - name: "CIS 6.1.2 | Check AIDE timers"
+      ansible.builtin.shell: |
+        systemctl list-timers --all | grep -i aide || true
+      register: aide_timer_check
+      changed_when: false
+
+    - name: "CIS 6.1.2 | Display AIDE timers"
+      ansible.builtin.debug:
+        var: aide_timer_check.stdout_lines
+
+    - name: "CIS 6.1.2 | Check scheduled AIDE cron jobs"
+      ansible.builtin.shell: |
+        grep -RsiE '(^|[[:space:]])aide([[:space:]]|$)' \
+          /etc/crontab /etc/cron.d/ /var/spool/cron/ 2>/dev/null || true
+      register: aide_cron
+      changed_when: false
+
+    - name: "CIS 6.1.2 | Display AIDE cron schedules"
+      ansible.builtin.debug:
+        var: aide_cron.stdout_lines
+
+
+- name: "CIS 6.1.1 | Install and initialize AIDE"
+  block:
+    - name: "CIS 6.1.1 | Ensure AIDE is installed"
+      ansible.builtin.dnf:
+        name: aide
+        state: present
+
+    - name: "CIS 6.1.1 | Check for existing AIDE database"
+      ansible.builtin.stat:
+        path: /var/lib/aide/aide.db.gz
+      register: aide_db
+
+    - name: "CIS 6.1.1 | Initialize AIDE database"
+      ansible.builtin.command:
+        cmd: /usr/sbin/aide --init
+      when: not aide_db.stat.exists
+
+    - name: "CIS 6.1.1 | Activate new AIDE database"
+      ansible.builtin.command:
+        cmd: mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+      when: not aide_db.stat.exists
+
+- name: "CIS 6.1.1 | Verify AIDE database"
+  block:
+    - name: "CIS 6.1.1 | Check AIDE database exists"
+      ansible.builtin.stat:
+        path: /var/lib/aide/aide.db.gz
+      register: aide_db_verify
+
+    - name: "CIS 6.1.1 | Display AIDE database status"
+      ansible.builtin.debug:
+        msg: "AIDE database exists: {{ aide_db_verify.stat.exists }}"
+
+
+- name: "CIS 6.1.2 | Create AIDE check service"
+  block:
+    - name: "CIS 6.1.2 | Create aidecheck.service unit file"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/aidecheck.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=AIDE filesystem integrity check
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/sbin/aide --check
+      register: aidecheck_service
+
+    - name: "CIS 6.1.2 | Reload systemd to pick up aidecheck.service"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: aidecheck_service.changed
+
+
+- name: "CIS 6.1.2 | Create daily AIDE check timer"
+  block:
+    - name: "CIS 6.1.2 | Create aidecheck.timer unit file"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/aidecheck.timer
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Run AIDE filesystem integrity check daily
+
+          [Timer]
+          OnCalendar=daily
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+      register: aidecheck_timer
+
+    - name: "CIS 6.1.2 | Reload systemd to pick up aidecheck.timer"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: aidecheck_timer.changed
+
+
+
+- name: "CIS 6.1.2 | Enable and verify AIDE timer"
+  block:
+    - name: "CIS 6.1.2 | Enable and start AIDE timer"
+      ansible.builtin.systemd:
+        name: aidecheck.timer
+        enabled: true
+        state: started
+
+    - name: "CIS 6.1.2 | Get AIDE timer status"
+      ansible.builtin.command:
+        cmd: systemctl status aidecheck.timer
+      register: aide_timer_status
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.1.2 | Display AIDE timer status"
+      ansible.builtin.debug:
+        var: aide_timer_status.stdout_lines
