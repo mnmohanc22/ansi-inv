@@ -39,13 +39,15 @@
       loop_control:
         label: "{{ item }}"
       changed_when: false
+      failed_when: false
 
     - name: "CIS 5.4.1.3 | Display current password warning age per user"
       ansible.builtin.debug:
-        msg: "{{ item.item }} : {{ item.stdout | trim }}"
+        msg: "{{ item.item }} : {{ item.stdout | default('not configured') | trim }}"
       loop: "{{ current_warn_age.results }}"
       loop_control:
         label: "{{ item.item }}"
+      failed_when: false
 
     - name: "CIS 5.4.1.3 | Set password warning age for existing users"
       ansible.builtin.user:
@@ -98,13 +100,15 @@
       loop_control:
         label: "{{ item }}"
       changed_when: false
+      failed_when: false
 
     - name: "Display current password expiration day per user"
       ansible.builtin.debug:
-        msg: "{{ item.item }} : {{ item.stdout | trim }}"
+        msg: "{{ item.item }} : {{ item.stdout | default('not configured') | trim }}"
       loop: "{{ current_expiration_day.results }}"
       loop_control:
         label: "{{ item.item }}"
+      failed_when: false
 
     - name: "Set password expiration day for existing users"
       ansible.builtin.user:
@@ -172,3 +176,43 @@
         msg: >-
           deny settings in PAM:
           {{ pam_faillock_deny.stdout_lines | default([]) }}
+
+
+
+- name: "CIS | Verify faillock configuration"
+  block:
+    - name: "CIS | Get faillock configuration"
+      ansible.builtin.shell: |
+        grep -Pi '^[[:space:]]*(deny[[:space:]]*=|unlock_time[[:space:]]*=|local_users_only)' \
+          /etc/security/faillock.conf
+      register: faillock_config
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS | Display faillock configuration"
+      ansible.builtin.debug:
+        var: faillock_config.stdout_lines
+
+- name: "CIS | Configure faillock settings"
+  block:
+    - name: "CIS | Configure faillock deny attempts"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^[ \t]*#?[ \t]*deny[ \t]*='
+        line: 'deny = 5'
+        state: present
+        backup: true
+
+    - name: "CIS | Configure faillock unlock time"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^[ \t]*#?[ \t]*unlock_time[ \t]*='
+        line: 'unlock_time = 900'
+        state: present
+
+    - name: "CIS | Configure faillock for local users only"
+      ansible.builtin.lineinfile:
+        path: /etc/security/faillock.conf
+        regexp: '^[ \t]*#?[ \t]*local_users_only[ \t]*$'
+        line: 'local_users_only'
+        state: present
