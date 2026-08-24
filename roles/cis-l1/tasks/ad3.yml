@@ -38,10 +38,11 @@
 - name: "CIS 1.2.1.2 | Enable gpgcheck in repository files"
   block:
     - name: "CIS 1.2.1.2 | Set gpgcheck=1 in all repository files"
-      ansible.builtin.replace:
+      ansible.builtin.lineinfile:
         path: "{{ item.path }}"
-        regexp: '(^[ \t]*gpgcheck[ \t]*=[ \t]*)0([ \t]*$)'
-        replace: '\g<1>1'
+        regexp: '^[ \t]*gpgcheck[ \t]*='
+        line: 'gpgcheck=1'
+        state: present
         backup: true
       loop: "{{ repo_files.files }}"
       loop_control:
