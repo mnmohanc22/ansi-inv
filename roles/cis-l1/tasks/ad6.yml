@@ -1,0 +1,33 @@
+- name: "CIS 5.4.2.4 | Check root password status"
+  block:
+    - name: "CIS 5.4.2.4 | Get root password status"
+      ansible.builtin.command:
+        cmd: passwd -S root
+      register: root_password_status
+      changed_when: false
+
+    - name: "CIS 5.4.2.4 | Display root password status"
+      ansible.builtin.debug:
+        msg: "{{ root_password_status.stdout }}"
+
+
+- name: "CIS 5.4.2.4 | Verify root password is locked"
+  block:
+    - name: "CIS 5.4.2.4 | Get root lock status"
+      ansible.builtin.shell: |
+        passwd -S root | awk '{print $2}'
+      register: root_lock_status
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 5.4.2.4 | Display root lock status"
+      ansible.builtin.debug:
+        msg: "Root password status: {{ root_lock_status.stdout }}"
+
+
+- name: "CIS 5.4.2.4 | Lock root password"
+  block:
+    - name: "CIS 5.4.2.4 | Lock root password"
+      ansible.builtin.user:
+        name: root
+        password_lock: true
