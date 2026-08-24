@@ -83,3 +83,59 @@
         masked: false
         enabled: true
         state: started
+
+
+
+- name: "CIS 6.2.2.2 | Check journald ForwardToSyslog configuration"
+  block:
+    - name: "CIS 6.2.2.2 | Get journald ForwardToSyslog configuration"
+      ansible.builtin.shell: |
+        systemd-analyze cat-config systemd/journald.conf |
+        grep -iE '^[[:space:]]*ForwardToSyslog=' || true
+      register: journald_forward
+      changed_when: false
+
+    - name: "CIS 6.2.2.2 | Display ForwardToSyslog"
+      ansible.builtin.debug:
+        var: journald_forward.stdout_lines
+
+
+- name: "CIS 6.2.2.2 | Disable forwarding journals to syslog"
+  block:
+    - name: "CIS 6.2.2.2 | Ensure journald drop-in directory exists"
+      ansible.builtin.file:
+        path: /etc/systemd/journald.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "CIS 6.2.2.2 | Disable forwarding journals to syslog"
+      ansible.builtin.copy:
+        dest: /etc/systemd/journald.conf.d/60-cis-forwardtosyslog.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Journal]
+          ForwardToSyslog=no
+      register: journald_forwardtosyslog_set
+
+    - name: "CIS 6.2.2.2 | Restart systemd-journald to apply config"
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+      when: journald_forwardtosyslog_set.changed
+
+    - name: "CIS 6.2.2.2 | Check systemd-journald status after restart"
+      ansible.builtin.command:
+        cmd: systemctl status systemd-journald
+      register: journald_status
+      changed_when: false
+      failed_when: false
+      when: journald_forwardtosyslog_set.changed
+
+    - name: "CIS 6.2.2.2 | Display systemd-journald status"
+      ansible.builtin.debug:
+        var: journald_status.stdout_lines
+      when: journald_forwardtosyslog_set.changed
