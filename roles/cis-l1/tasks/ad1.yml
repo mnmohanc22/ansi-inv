@@ -25,3 +25,32 @@
     - name: "CIS 2.3.3 | Display active chrony sources"
       ansible.builtin.debug:
         var: chrony_active_sources.stdout_lines
+
+
+
+- name: "CIS 1.7.3 | Check remote login banner content"
+  block:
+    - name: "CIS 1.7.3 | Get remote login banner content"
+      ansible.builtin.command:
+        cmd: cat /etc/issue.net
+      register: remote_banner
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 1.7.3 | Display remote login banner"
+      ansible.builtin.debug:
+        msg: "{{ remote_banner.stdout_lines }}"
+
+
+- name: "CIS 1.7.3 | Check effective SSH banner configuration"
+  block:
+    - name: "CIS 1.7.3 | Get effective SSH banner configuration"
+      ansible.builtin.shell: |
+        sshd -T | grep -i '^banner'
+      register: ssh_banner
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 1.7.3 | Display effective SSH banner"
+      ansible.builtin.debug:
+        msg: "{{ ssh_banner.stdout }}"
