@@ -78,6 +78,43 @@
         backup: true        
 
 
+- name: "Set password expiration day is configured for existing users"
+  block:
+    - name: "Get local interactive users"
+      ansible.builtin.shell: |
+        awk -F: '($3 >= 1000 && $1 != "nobody" && $7 !~ /(nologin|false)$/) {print $1}' /etc/passwd
+      register: local_users
+      changed_when: false
+
+    - name: "Display local interactive users"
+      ansible.builtin.debug:
+        msg: "Local interactive users : {{ local_users.stdout_lines }}"
+
+    - name: "Get current password expiration day for each user"
+      ansible.builtin.shell: |
+        chage -l {{ item }} | grep -i 'Password expires'
+      register: current_expiration_day
+      loop: "{{ local_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      changed_when: false
+
+    - name: "Display current password expiration day per user"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} : {{ item.stdout | trim }}"
+      loop: "{{ current_expiration_day.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "Set password expiration day for existing users"
+      ansible.builtin.user:
+        name: "{{ item }}"
+        password_expire: 90
+      loop: "{{ local_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+
+
 - name: "CIS | Check current authselect configuration"
   block:
     - name: "CIS | Get current authselect configuration"
