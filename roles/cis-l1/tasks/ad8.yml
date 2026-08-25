@@ -128,4 +128,31 @@
       loop_control:
         label: "{{ item.item }}"
 
+    - name: "CIS | Stop and mask bluetooth.service"
+      ansible.builtin.systemd:
+        name: bluetooth.service
+        state: stopped
+        enabled: false
+        masked: true
+      when: >-
+        systemd_service_status.results
+        | selectattr('item', 'eq', 'bluetooth.service')
+        | map(attribute='stdout')
+        | first
+        | regex_search('Active:\s+active') is not none
+      failed_when: false
 
+
+- name: "CIS | Remove bluetooth packages"
+  block:
+    - name: "CIS | Remove bluez and bluez-libs packages"
+      ansible.builtin.dnf:
+        name:
+          - bluez
+          - bluez-libs
+        state: absent
+      register: bt_remove
+
+    - name: "CIS | Display bluetooth package removal status"
+      ansible.builtin.debug:
+        msg: "bluetooth packages remove status : {{ 'REMOVED' if bt_remove.changed else 'SKIPPED (not installed)' }}"
