@@ -51,6 +51,7 @@
         firewall-cmd --list-all-zones
       register: firewalld_config
       changed_when: false
+      failed_when: false
 
     - name: "CIS Firewall | Display firewall configuration"
       ansible.builtin.debug:
@@ -77,6 +78,7 @@
         nft list ruleset | grep -E '127\.0\.0\.0/8|::1|iifname.*lo' || true
       register: loopback_firewall
       changed_when: false
+      failed_when: false
 
     - name: "CIS 4.2.2 | Display loopback configuration"
       ansible.builtin.debug:
