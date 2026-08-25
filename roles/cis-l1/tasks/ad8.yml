@@ -90,6 +90,23 @@
 
 - name: "CIS | Check systemd service states"
   block:
+    - name: "CIS | Check bluetooth related packages"
+      ansible.builtin.command:
+        cmd: rpm -q "{{ item }}"
+      loop:
+        - bluez
+        - bluez-libs
+      register: bt_packages
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS | Display bluetooth package status"
+      ansible.builtin.debug:
+        msg: "{{ item.item }} : {{ 'INSTALLED' if item.rc == 0 else 'NOT INSTALLED' }}"
+      loop: "{{ bt_packages.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
     - name: "CIS | Get systemd service states"
       ansible.builtin.shell: |
         service="{{ item }}"
@@ -110,3 +127,5 @@
       loop: "{{ systemd_service_status.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+
