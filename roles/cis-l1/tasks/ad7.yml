@@ -93,3 +93,51 @@
         name: rsyslog
         state: restarted
       when: rsyslog_deployed.changed
+
+
+- name: "CIS 2.1.12 | Check rpcbind install status"
+  block:
+    - name: "CIS 2.1.12 | Check whether rpcbind is installed"
+      ansible.builtin.command:
+        cmd: rpm -q rpcbind
+      register: rpcbind_package
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.1.12 | Display rpcbind install status"
+      ansible.builtin.debug:
+        msg: "rpcbind status : {{ 'INSTALLED' if rpcbind_package.rc == 0 else 'NOT INSTALLED' }}"
+
+
+- name: "CIS 2.1.12 | Stop and mask rpcbind units"
+  block:
+    - name: "CIS 2.1.12 | Stop and mask rpcbind units"
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+        masked: true
+      loop:
+        - rpcbind.service
+        - rpcbind.socket
+      when: rpcbind_package.rc == 0
+
+    - name: "CIS 2.1.12 | Check rpcbind.service status"
+      ansible.builtin.shell: |
+        systemctl is-active rpcbind.service || true
+      register: rpcbind_service_status
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.1.12 | Check rpcbind.socket status"
+      ansible.builtin.shell: |
+        systemctl is-active rpcbind.socket || true
+      register: rpcbind_socket_status
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.1.12 | Display rpcbind unit status"
+      ansible.builtin.debug:
+        msg:
+          - "rpcbind.service : {{ rpcbind_service_status.stdout | default('unknown') }}"
+          - "rpcbind.socket  : {{ rpcbind_socket_status.stdout | default('unknown') }}"
