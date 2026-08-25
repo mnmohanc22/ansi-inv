@@ -194,3 +194,32 @@
         cmd: mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
       when: not aide_db.stat.exists
   
+- name: "CIS 6.1.2 | Configure AIDE check service"
+  block:
+    - name: "CIS 6.1.2 | Create aidecheck.service unit file"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/aidecheck.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=AIDE filesystem integrity check
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/sbin/aide --check
+
+          [Install]
+          WantedBy=multi-user.target
+      register: aide_service
+
+    - name: "CIS 6.1.2 | Reload systemd to pick up aidecheck.service"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: aide_service.changed
+
+    - name: "CIS 6.1.2 | Ensure aidecheck service is disabled"
+      ansible.builtin.systemd:
+        name: aidecheck.service
+        enabled: false
