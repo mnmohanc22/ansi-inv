@@ -38,3 +38,48 @@
     - name: "CIS Firewall | Display firewall service status"
       ansible.builtin.debug:
         var: firewall_services.stdout_lines
+
+
+- name: "CIS Firewall | Display active firewall configuration"
+  block:
+    - name: "CIS Firewall | Get active firewall configuration"
+      ansible.builtin.shell: |
+        echo "=== Active zones ==="
+        firewall-cmd --get-active-zones
+
+        echo "=== Configuration ==="
+        firewall-cmd --list-all-zones
+      register: firewalld_config
+      changed_when: false
+
+    - name: "CIS Firewall | Display firewall configuration"
+      ansible.builtin.debug:
+        var: firewalld_config.stdout_lines
+
+
+
+
+- name: "CIS 4.2.2 | Check loopback interface and firewall rules"
+  block:
+    - name: "CIS 4.2.2 | Get loopback interface info"
+      ansible.builtin.command:
+        cmd: ip addr show lo
+      register: loopback_interface
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Get firewalld loopback rules"
+      ansible.builtin.shell: |
+        echo "=== Active Zones ==="
+        firewall-cmd --get-active-zones
+        echo "=== Direct Rules ==="
+        firewall-cmd --direct --get-all-rules 2>/dev/null || true
+        echo "=== nftables effective rules ==="
+        nft list ruleset | grep -E '127\.0\.0\.0/8|::1|iifname.*lo' || true
+      register: loopback_firewall
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display loopback configuration"
+      ansible.builtin.debug:
+        msg:
+          - "{{ loopback_interface.stdout_lines }}"
+          - "{{ loopback_firewall.stdout_lines }}"
