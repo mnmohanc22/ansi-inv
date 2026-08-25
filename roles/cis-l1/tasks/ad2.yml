@@ -42,9 +42,12 @@
   block:
     - name: "CIS 6.2.4.1 | Find log files"
       ansible.builtin.find:
-        paths: /var/log
+        paths:
+          - /var/log
+          - /var/log/amazon/amazon-cloudwatch-agent
         file_type: file
         recurse: true
+        follow: true
       register: log_files
 
     - name: "CIS 6.2.4.1 | Remove excessive permissions from log files"
@@ -54,5 +57,6 @@
       loop: "{{ log_files.files }}"
       loop_control:
         label: "{{ item.path }}"
+      failed_when: false
       when:
         - item.path is not search('/var/log/(wtmp|btmp|lastlog)$')

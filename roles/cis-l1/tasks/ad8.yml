@@ -228,7 +228,7 @@
 
 - name: "CIS 6.2.4.1 | Restrict log directories"
   block:
-    - name: "CIS 6.2.4.1 | Set 0750 on log directories"
+    - name: "CIS 6.2.4.1 | Set 0750 on top-level log directories"
       ansible.builtin.file:
         path: "{{ item }}"
         mode: '0750'
@@ -238,6 +238,25 @@
         - /var/log/sa
       loop_control:
         label: "{{ item }}"
+      failed_when: false
+
+    - name: "CIS 6.2.4.1 | Find all subdirectories recursively"
+      ansible.builtin.find:
+        paths:
+          - /var/log/amazon
+          - /var/log/sa
+        file_type: directory
+        recurse: true
+      register: restricted_log_subdirs
+
+    - name: "CIS 6.2.4.1 | Set 0750 on all subdirectories"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: '0750'
+        state: directory
+      loop: "{{ restricted_log_subdirs.files }}"
+      loop_control:
+        label: "{{ item.path }}"
       failed_when: false
 
     - name: "CIS 6.2.4.1 | Find files inside restricted log directories"
