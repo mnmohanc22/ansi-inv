@@ -1,0 +1,40 @@
+- name: "CIS Firewall | Check installed firewall packages"
+  block:
+    - name: "CIS Firewall | Get installed firewall packages"
+      ansible.builtin.shell: |
+        echo "=== firewalld ==="
+        rpm -q firewalld || true
+        echo "=== nftables ==="
+        rpm -q nftables || true
+        echo "=== iptables-services ==="
+        rpm -q iptables-services || true
+      register: firewall_packages
+      changed_when: false
+
+    - name: "CIS Firewall | Display firewall packages"
+      ansible.builtin.debug:
+        var: firewall_packages.stdout_lines
+
+
+- name: "CIS Firewall | Check firewall services"
+  block:
+    - name: "CIS Firewall | Get firewall service status"
+      ansible.builtin.shell: |
+        echo "=== firewalld ==="
+        echo "Enabled: $(systemctl is-enabled firewalld 2>/dev/null || true)"
+        echo "Active:  $(systemctl is-active firewalld 2>/dev/null || true)"
+        echo "=== nftables ==="
+        echo "Enabled: $(systemctl is-enabled nftables 2>/dev/null || true)"
+        echo "Active:  $(systemctl is-active nftables 2>/dev/null || true)"
+        echo "=== iptables ==="
+        echo "Enabled: $(systemctl is-enabled iptables 2>/dev/null || true)"
+        echo "Active:  $(systemctl is-active iptables 2>/dev/null || true)"
+        echo "=== ip6tables ==="
+        echo "Enabled: $(systemctl is-enabled ip6tables 2>/dev/null || true)"
+        echo "Active:  $(systemctl is-active ip6tables 2>/dev/null || true)"
+      register: firewall_services
+      changed_when: false
+
+    - name: "CIS Firewall | Display firewall service status"
+      ansible.builtin.debug:
+        var: firewall_services.stdout_lines
