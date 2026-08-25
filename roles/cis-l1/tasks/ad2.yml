@@ -57,6 +57,16 @@
       loop: "{{ log_files.files }}"
       loop_control:
         label: "{{ item.path }}"
+      register: log_files_chmod
       failed_when: false
       when:
         - item.path is not search('/var/log/(wtmp|btmp|lastlog)$')
+
+    - name: "CIS 6.2.4.1 | Display changed log files"
+      ansible.builtin.debug:
+        msg: "permission updated : {{ item.item.path }}"
+      loop: "{{ log_files_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.path | default('skipped') }}"
+      when: item.changed | default(false)
+        
