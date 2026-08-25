@@ -1,0 +1,74 @@
+- name: "CIS 6.2.3.5 | Check rsyslog service status"
+  block:
+    - name: "CIS 6.2.3.5 | Get rsyslog service status"
+      ansible.builtin.shell: |
+        echo "Enabled: $(systemctl is-enabled rsyslog 2>/dev/null || true)"
+        echo "Active:  $(systemctl is-active rsyslog 2>/dev/null || true)"
+      register: rsyslog_status
+      changed_when: false
+
+    - name: "CIS 6.2.3.5 | Display rsyslog service status"
+      ansible.builtin.debug:
+        var: rsyslog_status.stdout_lines
+
+
+- name: "CIS 6.2.3.5 | Check existing rsyslog logging configuration"
+  block:
+    - name: "CIS 6.2.3.5 | Get existing rsyslog configuration"
+      ansible.builtin.shell: |
+        grep -RHnEv '^[[:space:]]*(#|$)' \
+          /etc/rsyslog.conf \
+          /etc/rsyslog.d/*.conf 2>/dev/null || true
+      register: rsyslog_config
+      changed_when: false
+
+    - name: "CIS 6.2.3.5 | Display existing rsyslog configuration"
+      ansible.builtin.debug:
+        var: rsyslog_config.stdout_lines
+
+
+- name: "CIS 6.2.3.5 | Check standard log destinations"
+  block:
+    - name: "CIS 6.2.3.5 | Get standard log destinations"
+      ansible.builtin.shell: |
+        grep -RHniE \
+          '/var/log/(messages|secure|maillog|cron|warn)|:omusrmsg:' \
+          /etc/rsyslog.conf \
+          /etc/rsyslog.d/*.conf 2>/dev/null || true
+      register: rsyslog_destinations
+      changed_when: false
+
+    - name: "CIS 6.2.3.5 | Display standard log destinations"
+      ansible.builtin.debug:
+        var: rsyslog_destinations.stdout_lines
+
+
+- name: "CIS 6.2.3.5 | Check imjournal configuration"
+  block:
+    - name: "CIS 6.2.3.5 | Get imjournal configuration"
+      ansible.builtin.shell: |
+        grep -RHniE 'imjournal' \
+          /etc/rsyslog.conf \
+          /etc/rsyslog.d/*.conf 2>/dev/null || true
+      register: rsyslog_imjournal
+      changed_when: false
+
+    - name: "CIS 6.2.3.5 | Display imjournal configuration"
+      ansible.builtin.debug:
+        var: rsyslog_imjournal.stdout_lines
+
+
+- name: "CIS 6.2.3.5 | Validate existing rsyslog configuration"
+  block:
+    - name: "CIS 6.2.3.5 | Run rsyslog config validation"
+      ansible.builtin.command:
+        cmd: rsyslogd -N1
+      register: rsyslog_validation
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.2.3.5 | Display rsyslog validation result"
+      ansible.builtin.debug:
+        msg:
+          - "Return code : {{ rsyslog_validation.rc }}"
+          - "{{ rsyslog_validation.stderr_lines }}"
