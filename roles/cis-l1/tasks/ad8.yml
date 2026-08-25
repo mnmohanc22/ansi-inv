@@ -223,3 +223,94 @@
       ansible.builtin.systemd:
         name: aidecheck.service
         enabled: false
+
+
+
+- name: "CIS 6.2.4.1 | Restrict log directories"
+  block:
+    - name: "CIS 6.2.4.1 | Set 0750 on log directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0750'
+        state: directory
+      loop:
+        - /var/log/amazon
+        - /var/log/sa
+      loop_control:
+        label: "{{ item }}"
+      failed_when: false
+
+    - name: "CIS 6.2.4.1 | Find files inside restricted log directories"
+      ansible.builtin.find:
+        paths:
+          - /var/log/amazon
+          - /var/log/sa
+        file_type: file
+        recurse: true
+      register: restricted_log_files
+
+    - name: "CIS 6.2.4.1 | Set 0640 on files inside restricted log directories"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: '0640'
+      loop: "{{ restricted_log_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 6.2.4.1 | Get updated permissions for dirs and files"
+      ansible.builtin.shell: |
+        stat -c "%a %n" "{{ item }}" 2>/dev/null || echo "{{ item }} : not found"
+      loop:
+        - /var/log/amazon
+        - /var/log/sa
+      register: log_dir_perms
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.2.4.1 | Display updated log directory permissions"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ log_dir_perms.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+
+- name: "CIS 6.2.4.1 | Check log directory permissions"
+  block:
+    - name: "CIS 6.2.4.1 | Get log directory permissions"
+      ansible.builtin.shell: |
+        stat -c '%a %U %G %n' "{{ item }}" 2>/dev/null || echo "{{ item }} : not found"
+      loop:
+        - /var/log/amazon
+        - /var/log/sa
+      register: log_dir_status
+      changed_when: false
+      failed_when: false
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "CIS 6.2.4.1 | Display log directory permissions"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ log_dir_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "CIS 6.2.4.1 | Find files recursively in log directories"
+      ansible.builtin.shell: |
+        find "{{ item }}" -type f -printf '%m %u %g %p\n' 2>/dev/null || echo "{{ item }} : not found or empty"
+      loop:
+        - /var/log/amazon
+        - /var/log/sa
+      register: log_dir_files
+      changed_when: false
+      failed_when: false
+      loop_control:
+        label: "{{ item }}"
+
+    - name: "CIS 6.2.4.1 | Display file permissions inside log directories"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ log_dir_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
