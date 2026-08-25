@@ -85,3 +85,28 @@
         msg:
           - "{{ loopback_interface.stdout_lines }}"
           - "{{ loopback_firewall.stdout_lines }}"
+
+
+
+- name: "CIS | Check systemd service states"
+  block:
+    - name: "CIS | Get systemd service states"
+      ansible.builtin.shell: |
+        service="{{ item }}"
+        echo "Service: $service"
+        echo "Active:  $(systemctl is-active "$service" 2>/dev/null || true)"
+        echo "Enabled: $(systemctl is-enabled "$service" 2>/dev/null || true)"
+        echo "Loaded:  $(systemctl show "$service" -p LoadState --value 2>/dev/null || true)"
+        echo "UnitFileState: $(systemctl show "$service" -p UnitFileState --value 2>/dev/null || true)"
+      loop:
+        - bluetooth.service
+      register: systemd_service_status
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS | Display systemd service states"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ systemd_service_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"
