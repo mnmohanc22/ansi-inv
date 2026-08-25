@@ -156,3 +156,41 @@
     - name: "CIS | Display bluetooth package removal status"
       ansible.builtin.debug:
         msg: "bluetooth packages remove status : {{ 'REMOVED' if bt_remove.changed else 'SKIPPED (not installed)' }}"
+
+
+
+- name: "CIS 6.1.1 | Check AIDE package"
+  block:
+    - name: "CIS 6.1.1 | Get AIDE package status"
+      ansible.builtin.command:
+        cmd: rpm -q aide
+      register: aide_package
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.1.1 | Display AIDE package status"
+      ansible.builtin.debug:
+        msg: "{{ aide_package.stdout if aide_package.rc == 0 else 'AIDE is not installed' }}"
+
+- name: "CIS 6.1.1 | Install and initialize AIDE"
+  block:
+    - name: "CIS 6.1.1 | Install AIDE package"
+      ansible.builtin.dnf:
+        name: aide
+        state: present
+       
+    - name: "CIS 6.1.1 | Check AIDE database exists"
+      ansible.builtin.stat:
+        path: /var/lib/aide/aide.db.gz
+      register: aide_db
+
+    - name: "CIS 6.1.1 | Initialize AIDE database"
+      ansible.builtin.command:
+        cmd: /usr/sbin/aide --init
+      when: not aide_db.stat.exists
+
+    - name: "CIS 6.1.1 | Activate initialized AIDE database"
+      ansible.builtin.command:
+        cmd: mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+      when: not aide_db.stat.exists
+  
