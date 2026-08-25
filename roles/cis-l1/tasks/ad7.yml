@@ -72,3 +72,24 @@
         msg:
           - "Return code : {{ rsyslog_validation.rc }}"
           - "{{ rsyslog_validation.stderr_lines }}"
+
+
+
+- name: "CIS 6.2.3.5 | Deploy and validate rsyslog configuration"
+  block:
+    - name: "CIS 6.2.3.5 | Deploy rsyslog CIS config from template"
+      ansible.builtin.template:
+        src: cis-rsyslog.conf.j2
+        dest: /etc/rsyslog.d/60-cis-logging.conf
+        owner: root
+        group: root
+        mode: '0640'
+        backup: true
+        validate: '/usr/sbin/rsyslogd -N1 -f %s'
+      register: rsyslog_deployed
+
+    - name: "CIS 6.2.3.5 | Restart rsyslog to apply new config"
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted
+      when: rsyslog_deployed.changed
