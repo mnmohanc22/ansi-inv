@@ -99,3 +99,51 @@
       loop_control:
         label: "{{ item.item.path }}"
       when: item.changed | default(false)
+
+
+
+- name: "CIS 1.2.1.2 | Remove dnf/yum config backup files with gpgcheck=0"
+  block:
+    - name: "CIS 1.2.1.2 | Find dnf.conf and yum.conf backup files"
+      ansible.builtin.find:
+        paths:
+          - /etc/dnf
+          - /etc
+        patterns:
+          - "dnf.conf.*"
+          - "dnf.conf~"
+          - "yum.conf.*"
+          - "yum.conf~"
+        file_type: file
+        recurse: false
+      register: gpg_config_backups
+
+    - name: "CIS 1.2.1.2 | Check backup files for gpgcheck=0"
+      ansible.builtin.shell: |
+        grep -HnE '^[[:space:]]*gpgcheck[[:space:]]*=[[:space:]]*0([[:space:]]*(#.*)?)?$' \
+          "{{ item.path }}"
+      loop: "{{ gpg_config_backups.files }}"
+      register: gpgcheck_backup_results
+      changed_when: false
+      failed_when: false
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 1.2.1.2 | Display backup files containing gpgcheck=0"
+      ansible.builtin.debug:
+        msg: "{{ item.stdout_lines }}"
+      loop: "{{ gpgcheck_backup_results.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when: item.rc == 0
+
+    - name: "CIS 1.2.1.2 | Remove backup files containing gpgcheck=0"
+      ansible.builtin.file:
+        path: "{{ item.item.path }}"
+        state: absent
+      loop: "{{ gpgcheck_backup_results.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when:
+        - item.rc == 0
+        - item.stdout_lines | length > 0
