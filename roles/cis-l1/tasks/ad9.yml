@@ -1,0 +1,51 @@
+- name: "CIS 1.2.1.2 | Remove pbis.repo backup files"
+  block:
+    - name: "CIS 1.2.1.2 | Find pbis.repo backup files"
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d
+        patterns:
+          - "pbis.repo.*"
+        file_type: file
+        recurse: false
+      register: pbis_repo_backups
+
+    - name: "CIS 1.2.1.2 | Display pbis.repo backup files found"
+      ansible.builtin.debug:
+        msg: "files found : {{ pbis_repo_backups.files | map(attribute='path') | list }}"
+
+    - name: "CIS 1.2.1.2 | Remove pbis.repo backup files"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ pbis_repo_backups.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: pbis_remove
+
+    - name: "CIS 1.2.1.2 | Display pbis.repo backup removal status"
+      ansible.builtin.debug:
+        msg: "removed : {{ item.item.path }}"
+      loop: "{{ pbis_remove.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when: item.changed | default(false)
+
+
+
+- name: "CIS 1.2.1.2 | Check pbis.repo gpgcheck setting"
+  block:
+    - name: "CIS 1.2.1.2 | Get pbis.repo gpgcheck setting"
+      ansible.builtin.shell: |
+        echo "=== File ==="
+        ls -l /etc/yum.repos.d/pbis.repo 2>/dev/null || true
+
+        echo "=== gpgcheck ==="
+        grep -nEi '^[[:space:]]*gpgcheck[[:space:]]*=' \
+          /etc/yum.repos.d/pbis.repo 2>/dev/null || true
+      register: pbis_gpgcheck
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 1.2.1.2 | Display pbis.repo gpgcheck"
+      ansible.builtin.debug:
+        var: pbis_gpgcheck.stdout_lines
