@@ -64,3 +64,38 @@
 
 
 
+
+- name: "CIS 1.2.1.2 | Enable gpgcheck in all repository files"
+  block:
+    - name: "CIS 1.2.1.2 | Find repository files"
+      ansible.builtin.find:
+        paths: /etc/yum.repos.d
+        patterns:
+          - "*.repo"
+          - "*.repo.*"
+        file_type: file
+        recurse: false
+      register: repo_files
+
+    - name: "CIS 1.2.1.2 | Display repository files found"
+      ansible.builtin.debug:
+        msg: "{{ repo_files.files | map(attribute='path') | list }}"
+
+    - name: "CIS 1.2.1.2 | Enable gpgcheck in all repository files"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        regexp: '^([ \t]*gpgcheck[ \t]*=[ \t]*)0([ \t]*(?:#.*)?)$'
+        replace: '\g<1>1\g<2>'
+        backup: false
+      loop: "{{ repo_files.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: gpgcheck_update
+
+    - name: "CIS 1.2.1.2 | Display updated repository files"
+      ansible.builtin.debug:
+        msg: "gpgcheck updated : {{ item.item.path }}"
+      loop: "{{ gpgcheck_update.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when: item.changed | default(false)
