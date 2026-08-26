@@ -371,3 +371,77 @@
       when:
         - permitrootlogin_set.changed
         - sshd_config_test.rc | default(1) == 0
+
+
+
+- name: "CIS 5.1.20 | Disable SSH root login"
+  block:
+    - name: "CIS 5.1.20 | Ensure SSH root login is disabled"
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^([ \t]*#?[ \t]*PermitRootLogin[ \t]+)\S+(.*)'
+        replace: 'PermitRootLogin no\2'
+        backup: true
+      register: permitrootlogin_set
+
+    - name: "CIS 5.1.20 | Validate sshd config before reload"
+      ansible.builtin.command:
+        cmd: sshd -t
+      register: sshd_config_test
+      changed_when: false
+      when: permitrootlogin_set.changed
+
+    - name: "CIS 5.1.20 | Display sshd config validation result"
+      ansible.builtin.debug:
+        msg: "sshd config test : {{ 'PASSED' if sshd_config_test.rc | default(1) == 0 else 'FAILED - ' + (sshd_config_test.stderr | default('unknown error')) }}"
+      when: permitrootlogin_set.changed
+
+    - name: "CIS 5.1.20 | Reload sshd to apply PermitRootLogin change"
+      ansible.builtin.systemd:
+        name: sshd
+        state: reloaded
+      when:
+        - permitrootlogin_set.changed
+        - sshd_config_test.rc | default(1) == 0
+
+
+- name: "CIS 5.1.20 | Remove PermitRootLogin line added by CIS Build Kit"
+  block:
+    - name: "CIS 5.1.20 | Remove PermitRootLogin no line with CIS Build Kit comment"
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^[ \t]*PermitRootLogin[ \t]+no[ \t]+#[ \t]*Added by CIS Build Kit'
+        state: absent
+        backup: true
+      register: permitrootlogin_removed
+
+    - name: "CIS 5.1.20 | Display removal status"
+      ansible.builtin.debug:
+        msg: "PermitRootLogin CIS Build Kit line : {{ 'REMOVED' if permitrootlogin_removed.changed else 'NOT FOUND' }}"
+
+
+- name: "CIS 5.1.20 | Restart sshd with config check"
+  block:
+    - name: "CIS 5.1.20 | Validate sshd config"
+      ansible.builtin.command:
+        cmd: sshd -t
+      register: sshd_config_test
+      changed_when: false
+      failed_when: false
+     
+
+    - name: "CIS 5.1.20 | Display sshd config validation result"
+      ansible.builtin.debug:
+        msg: "sshd config test : {{ 'PASSED' if sshd_config_test.rc | default(1) == 0 else 'FAILED - ' + (sshd_config_test.stderr | default('unknown error')) }}"
+    
+
+    - name: "CIS 5.1.20 | Reload sshd"
+      ansible.builtin.systemd:
+        name: sshd
+        state: reloaded
+      when:
+        - sshd_config_test.rc | default(1) == 0
+
+
+    
+        
