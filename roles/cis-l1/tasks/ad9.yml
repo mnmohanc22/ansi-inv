@@ -49,3 +49,18 @@
     - name: "CIS 1.2.1.2 | Display pbis.repo gpgcheck"
       ansible.builtin.debug:
         var: pbis_gpgcheck.stdout_lines
+
+    - name: "CIS 1.2.1.2 | Get pbis.repo file content"
+      ansible.builtin.command:
+        cmd: cat /etc/yum.repos.d/pbis.repo
+      register: pbis_repo_content
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 1.2.1.2 | Display pbis.repo content"
+      ansible.builtin.debug:
+        msg: "{{ pbis_repo_content.stdout_lines | default(['file not found']) }}"
+
+
+
+
