@@ -311,3 +311,39 @@
     - name: "CIS 2.3.2 | Display Chrony server entries"
       ansible.builtin.debug:
         var: chrony_server_entries.stdout_lines          
+
+
+- name: "CIS 1.4.1 | Determine boot mode"
+  block:
+    - name: "CIS 1.4.1 | Check UEFI or BIOS boot mode"
+      ansible.builtin.shell: |
+        if [ -d /sys/firmware/efi ]; then
+          echo "UEFI"
+        else
+          echo "BIOS"
+        fi
+      register: boot_mode
+      changed_when: false
+
+    - name: "CIS 1.4.1 | Display boot mode"
+      ansible.builtin.debug:
+        msg: "Boot mode: {{ boot_mode.stdout }}"        
+
+- name: "CIS 1.4.1 | Check GRUB2_PASSWORD entry"
+  block:
+    - name: "CIS 1.4.1 | Check GRUB2_PASSWORD PBKDF2 SHA512 entry"
+      ansible.builtin.shell: |
+        if grep -qE '^[[:space:]]*GRUB2_PASSWORD=grub\.pbkdf2\.sha512\.' \
+          /boot/grub2/user.cfg; then
+          echo "GRUB2_PASSWORD PBKDF2 SHA512 entry found"
+        else
+          echo "GRUB2_PASSWORD entry NOT found"
+          exit 1
+        fi
+      register: grub_password_check
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 1.4.1 | Display GRUB2_PASSWORD check result"
+      ansible.builtin.debug:
+        msg: "{{ grub_password_check.stdout }}"        
