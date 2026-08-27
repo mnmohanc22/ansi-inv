@@ -347,3 +347,106 @@
     - name: "CIS 1.4.1 | Display GRUB2_PASSWORD check result"
       ansible.builtin.debug:
         msg: "{{ grub_password_check.stdout }}"        
+
+
+- name: "CIS 4.2.2 | Check effective IPv4 loopback drop rule"
+  block:
+    - name: "CIS 4.2.2 | Get effective IPv4 loopback drop rule"
+      ansible.builtin.shell: |
+        nft list ruleset 2>/dev/null |
+          grep -Ei \
+          '127\.0\.0\.0/8.*drop|127\.0\.0\.1.*drop|drop.*127\.0\.0\.0/8|drop.*127\.0\.0\.1' \
+          || true
+      register: ipv4_loopback_drop
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display IPv4 loopback drop rule"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            ipv4_loopback_drop.stdout_lines
+            if ipv4_loopback_drop.stdout_lines | length > 0
+            else ['No effective IPv4 loopback DROP rule detected']
+          }}
+
+- name: "CIS 4.2.2 | Check firewalld loopback configuration"
+  block:
+    - name: "CIS 4.2.2 | Get firewalld loopback configuration"
+      ansible.builtin.shell: |
+        echo "===== ACTIVE ZONES ====="
+        firewall-cmd --get-active-zones
+
+        echo
+        echo "===== LOOPBACK ZONE ====="
+        firewall-cmd --get-zone-of-interface=lo 2>/dev/null || true
+
+        echo
+        echo "===== TRUSTED ZONE INTERFACES ====="
+        firewall-cmd --zone=trusted --list-interfaces 2>/dev/null || true
+
+        echo
+        echo "===== DEFAULT ZONE RICH RULES ====="
+        firewall-cmd --list-rich-rules 2>/dev/null || true
+
+        echo
+        echo "===== TRUSTED ZONE RICH RULES ====="
+        firewall-cmd --zone=trusted --list-rich-rules 2>/dev/null || true
+
+        echo
+        echo "===== DIRECT RULES ====="
+        firewall-cmd --direct --get-all-rules 2>/dev/null || true
+
+        echo
+        echo "===== EFFECTIVE NFTABLES LOOPBACK RULES ====="
+        nft list ruleset 2>/dev/null |
+          grep -E '127\.0\.0\.0/8|127\.0\.0\.1|::1|iif(name)?[[:space:]].*lo' || true
+      register: tenable_loopback_check
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display loopback configuration seen by firewall"
+      ansible.builtin.debug:
+        var: tenable_loopback_check.stdout_lines          
+
+
+
+
+- name: "CIS 4.2.2 | Configure loopback interface and anti-spoofing rules"
+  block:
+    - name: "CIS 4.2.2 | Add loopback interface to trusted zone"
+      ansible.builtin.command:
+        cmd: firewall-cmd --permanent --zone=trusted --add-interface=lo
+      register: loopback_trusted
+      changed_when: "'ALREADY_ENABLED' not in loopback_trusted.stderr"
+      failed_when:
+        - loopback_trusted.rc != 0
+        - "'ALREADY_ENABLED' not in loopback_trusted.stderr"
+
+    - name: "CIS 4.2.2 | Configure IPv4 loopback anti-spoofing rule"
+      ansible.builtin.command:
+        cmd: >-
+          firewall-cmd --permanent
+          --add-rich-rule=rule\ family=ipv4\ source\ address=\"127.0.0.1\"\ destination\ not\ address=\"127.0.0.1\"\ drop
+      register: loopback_ipv4
+      changed_when: "'ALREADY_ENABLED' not in loopback_ipv4.stderr"
+      failed_when:
+        - loopback_ipv4.rc != 0
+        - "'ALREADY_ENABLED' not in loopback_ipv4.stderr"
+
+    - name: "CIS 4.2.2 | Configure IPv4 loopback anti-spoofing rule in trusted zone"
+      ansible.builtin.command:
+        cmd: >-
+          firewall-cmd --permanent --zone=trusted
+          --add-rich-rule=rule\ family=ipv4\ source\ address=\"127.0.0.1\"\ destination\ not\ address=\"127.0.0.1\"\ drop
+      register: loopback_ipv4_trusted
+      changed_when: "'ALREADY_ENABLED' not in loopback_ipv4_trusted.stderr"
+      failed_when:
+        - loopback_ipv4_trusted.rc != 0
+        - "'ALREADY_ENABLED' not in loopback_ipv4_trusted.stderr"
+
+    - name: "CIS 4.2.2 | Reload firewalld"
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+      when:
+        - loopback_trusted.changed or
+          loopback_ipv4.changed or
+          loopback_ipv4_trusted.changed
