@@ -147,3 +147,76 @@
       when:
         - item.rc == 0
         - item.stdout_lines | length > 0
+
+
+
+- name: "CIS 5.1.2 | Check SSH private host key permissions"
+  block:
+    - name: "CIS 5.1.2 | Find SSH private host key files"
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: "ssh_host_*_key"
+        file_type: file
+        recurse: false
+      register: ssh_private_host_keys
+
+    - name: "CIS 5.1.2 | Display SSH private host key permissions"
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.path }} mode={{ item.mode }}
+          owner={{ item.pw_name }}
+          group={{ item.gr_name }}
+      loop: "{{ ssh_private_host_keys.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 5.1.2 | Verify SSH private host key permissions"
+      ansible.builtin.shell: |
+        find /etc/ssh -maxdepth 1 -type f -name 'ssh_host_*_key' \
+          -printf '%m %u %g %p\n'
+      register: ssh_private_key_verify
+      changed_when: false
+
+    - name: "CIS 5.1.2 | Display verification"
+      ansible.builtin.debug:
+        var: ssh_private_key_verify.stdout_lines
+
+- name: "CIS 5.1.2 | Configure SSH private host key permissions"
+  block:
+    - name: "CIS 5.1.2 | Find SSH private host key files"
+      ansible.builtin.find:
+        paths: /etc/ssh
+        patterns: "ssh_host_*_key"
+        file_type: file
+        recurse: false
+      register: ssh_private_host_keys
+
+    - name: "CIS 5.1.2 | Display SSH private host key permissions"
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.path }} mode={{ item.mode }}
+          owner={{ item.pw_name }}
+          group={{ item.gr_name }}
+      loop: "{{ ssh_private_host_keys.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 5.1.2 | Set SSH private host key permissions"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: '0600'
+      loop: "{{ ssh_private_host_keys.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: ssh_private_key_chmod
+
+    - name: "CIS 5.1.2 | Display changed private host key files"
+      ansible.builtin.debug:
+        msg: "permissions updated : {{ item.item.path }}"
+      loop: "{{ ssh_private_key_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when: item.changed | default(false)
+
