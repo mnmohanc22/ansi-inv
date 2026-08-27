@@ -220,3 +220,94 @@
         label: "{{ item.item.path }}"
       when: item.changed | default(false)
 
+
+- name: "CIS 2.3.2 | Check Chrony sources and configuration"
+  block:
+    - name: "CIS 2.3.2 | Show Chrony runtime sources with DNS"
+      ansible.builtin.command:
+        cmd: chronyc sources -v
+      register: chrony_sources_dns
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.3.2 | Display Chrony runtime sources with DNS"
+      ansible.builtin.debug:
+        var: chrony_sources_dns.stdout_lines
+
+    - name: "CIS 2.3.2 | Show Chrony runtime sources without DNS resolution"
+      ansible.builtin.command:
+        cmd: chronyc sources -n
+      register: chrony_sources_ip
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 2.3.2 | Display Chrony runtime source IPs"
+      ansible.builtin.debug:
+        var: chrony_sources_ip.stdout_lines
+
+    - name: "CIS 2.3.2 | Check configured Chrony sources and source directories"
+      ansible.builtin.shell: |
+        grep -RHnE \
+          '^[[:space:]]*(server|pool|peer|sourcedir|include|confdir)[[:space:]]+' \
+          /etc/chrony.conf \
+          /etc/chrony.d/ 2>/dev/null || true
+      register: chrony_config_sources
+      changed_when: false
+
+    - name: "CIS 2.3.2 | Display Chrony source configuration"
+      ansible.builtin.debug:
+        var: chrony_config_sources.stdout_lines
+
+
+
+- name: "CIS 2.3.2 | Check dynamic Chrony DHCP source directory"
+  block:
+    - name: "CIS 2.3.2 | Stat dynamic Chrony DHCP source directory"
+      ansible.builtin.stat:
+        path: /run/chrony-dhcp
+      register: chrony_dhcp_dir
+
+    - name: "CIS 2.3.2 | Display dynamic Chrony sources"
+      ansible.builtin.shell: |
+        find /run/chrony-dhcp -maxdepth 1 -type f -print -exec cat {} \;
+      register: chrony_dhcp_sources
+      changed_when: false
+      failed_when: false
+      when: chrony_dhcp_dir.stat.exists
+
+    - name: "CIS 2.3.2 | Show dynamic Chrony sources"
+      ansible.builtin.debug:
+        var: chrony_dhcp_sources.stdout_lines
+      when: chrony_dhcp_dir.stat.exists
+
+
+- name: "CIS 2.3.2 | Check for AWS Time Sync Service"
+  block:
+    - name: "CIS 2.3.2 | Get AWS Time Sync Service status"
+      ansible.builtin.shell: |
+        chronyc sources -n | grep -F '169.254.169.123' || true
+      register: aws_time_sync
+      changed_when: false
+
+    - name: "CIS 2.3.2 | Display AWS Time Sync status"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            'AWS Time Sync Service detected: ' ~ aws_time_sync.stdout
+            if aws_time_sync.stdout | length > 0
+            else 'AWS Time Sync Service 169.254.169.123 not detected'
+          }}
+
+- name: "CIS 2.3.2 | Check Chrony server entries in configuration"
+  block:
+    - name: "CIS 2.3.2 | Get server entries from Chrony configuration"
+      ansible.builtin.shell: |
+        grep -RHnE '^[[:space:]]*server[[:space:]]+' \
+          /etc/chrony.conf \
+          /etc/chrony.d/*.conf 2>/dev/null || true
+      register: chrony_server_entries
+      changed_when: false
+
+    - name: "CIS 2.3.2 | Display Chrony server entries"
+      ansible.builtin.debug:
+        var: chrony_server_entries.stdout_lines          
