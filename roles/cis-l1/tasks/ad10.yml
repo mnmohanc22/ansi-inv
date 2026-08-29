@@ -49,3 +49,26 @@
           - "Owner: {{ cron_d_stat.stat.pw_name }}"
           - "Group: {{ cron_d_stat.stat.gr_name }}"
           - "Mode: {{ cron_d_stat.stat.mode }}"
+
+
+
+- name: "CIS 2.4.1.8 | Check cron.allow and cron.deny"
+  block:
+    - name: "CIS 2.4.1.8 | Stat cron.allow"
+      ansible.builtin.stat:
+        path: /etc/cron.allow
+      register: cron_allow
+
+    - name: "CIS 2.4.1.8 | Stat cron.deny"
+      ansible.builtin.stat:
+        path: /etc/cron.deny
+      register: cron_deny
+
+    - name: "CIS 2.4.1.8 | Report audit result"
+      ansible.builtin.debug:
+        msg:
+          - "cron.allow exists: {{ cron_allow.stat.exists }}"
+          - "cron.allow owner: {{ cron_allow.stat.pw_name | default('N/A') }}"
+          - "cron.allow group: {{ cron_allow.stat.gr_name | default('N/A') }}"
+          - "cron.allow mode: {{ cron_allow.stat.mode | default('N/A') }}"
+          - "cron.deny exists: {{ cron_deny.stat.exists }}"
