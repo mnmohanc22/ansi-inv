@@ -33,3 +33,19 @@
         reboot_timeout: 600
       when: patch_result.changed
   when: dnf_updates.rc == 100
+
+
+- name: "CIS 2.4.1.7 | Verify /etc/cron.d permissions"
+  block:
+    - name: "CIS 2.4.1.7 | Stat /etc/cron.d"
+      ansible.builtin.stat:
+        path: /etc/cron.d
+      register: cron_d_stat
+
+    - name: "CIS 2.4.1.7 | Display /etc/cron.d permissions"
+      ansible.builtin.debug:
+        msg:
+          - "Path: /etc/cron.d"
+          - "Owner: {{ cron_d_stat.stat.pw_name }}"
+          - "Group: {{ cron_d_stat.stat.gr_name }}"
+          - "Mode: {{ cron_d_stat.stat.mode }}"
