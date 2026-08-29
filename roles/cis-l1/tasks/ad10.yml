@@ -26,4 +26,10 @@
     - name: "CIS 1.2.2.1 | Display patch result"
       ansible.builtin.debug:
         msg: "patch status : {{ 'UPDATED' if patch_result.changed else 'ALREADY UP TO DATE' }}"
+
+    - name: "CIS 1.2.2.1 | Reboot server to apply patches"
+      ansible.builtin.reboot:
+        msg: "Rebooting to apply package updates"
+        reboot_timeout: 600
+      when: patch_result.changed
   when: dnf_updates.rc == 100
