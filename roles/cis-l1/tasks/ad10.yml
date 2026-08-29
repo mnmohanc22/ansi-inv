@@ -1,0 +1,29 @@
+- name: "CIS 1.2.2.1 | Check for available package updates"
+  block:
+    - name: "CIS 1.2.2.1 | Get available package updates"
+      ansible.builtin.command:
+        cmd: dnf -q check-update
+      register: dnf_updates
+      changed_when: false
+      failed_when: false 
+
+    - name: "CIS 1.2.2.1 | Display available updates"
+      ansible.builtin.debug:
+        msg: "{{ dnf_updates.stdout_lines }}"
+      when: dnf_updates.rc == 100
+
+
+
+- name: "CIS 1.2.2.1 | Install all available package updates"
+  block:
+    - name: "CIS 1.2.2.1 | Apply all available package updates"
+      ansible.builtin.dnf:
+        name: "*"
+        state: latest
+        update_only: true
+      register: patch_result
+
+    - name: "CIS 1.2.2.1 | Display patch result"
+      ansible.builtin.debug:
+        msg: "patch status : {{ 'UPDATED' if patch_result.changed else 'ALREADY UP TO DATE' }}"
+  when: dnf_updates.rc == 100
