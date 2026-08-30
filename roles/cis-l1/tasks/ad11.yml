@@ -244,3 +244,75 @@
     - name: "CIS 5.4.2.5 | Display root PATH audit"
       ansible.builtin.debug:
         var: root_path_audit.stdout_lines
+
+
+
+- name: "CIS 5.4.3.2 | Audit default user shell timeout"
+  block:
+    - name: "CIS 5.4.3.2 | Get shell timeout configuration"
+      ansible.builtin.shell: |
+        grep -PHns \
+          '^[\s]*(?:readonly[\s]+)?TMOUT=(?:[1-9]|[1-8][0-9]{1,2}|900)\b|^[\s]*readonly[\s]+TMOUT\b|^[\s]*export[\s]+TMOUT\b' \
+          /etc/profile /etc/bashrc /etc/profile.d/*.sh 2>/dev/null || true
+      register: tmout_audit
+      changed_when: false
+
+    - name: "CIS 5.4.3.2 | Display shell timeout configuration"
+      ansible.builtin.debug:
+        var: tmout_audit.stdout_lines
+
+- name: "CIS 5.4.3.2 | Find all TMOUT configurations"
+  block:
+    - name: "CIS 5.4.3.2 | Get all TMOUT settings"
+      ansible.builtin.shell: |
+        grep -PHns '^[\s]*(readonly[\s]+|export[\s]+)?TMOUT\b' \
+          /etc/profile /etc/bashrc /etc/profile.d/*.sh 2>/dev/null || true
+      register: tmout_all
+      changed_when: false
+
+    - name: "CIS 5.4.3.2 | Display all TMOUT settings"
+      ansible.builtin.debug:
+        var: tmout_all.stdout_lines
+
+
+- name: "CIS 5.4.3.2 | Check effective TMOUT"
+  block:
+    - name: "CIS 5.4.3.2 | Get effective TMOUT value"
+      ansible.builtin.shell: |
+        bash -lc 'printf "TMOUT=%s\n" "${TMOUT:-NOT_SET}"'
+      register: tmout_effective
+      changed_when: false
+
+    - name: "CIS 5.4.3.2 | Display effective TMOUT"
+      ansible.builtin.debug:
+        var: tmout_effective.stdout
+
+
+- name: "CIS 5.4.3.2 | Configure default shell timeout"
+  block:
+    - name: "CIS 5.4.3.2 | Deploy TMOUT configuration file"
+      ansible.builtin.copy:
+        dest: /etc/profile.d/99-cis-tmout.sh
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          TMOUT=900
+          readonly TMOUT
+          export TMOUT
+      register: tmout_deployed
+
+    - name: "CIS 5.4.3.2 | Display TMOUT deploy status"
+      ansible.builtin.debug:
+        msg: "TMOUT config : {{ 'DEPLOYED' if tmout_deployed.changed else 'ALREADY SET' }}"
+
+    - name: "CIS 5.4.3.2 | Verify TMOUT configuration"
+      ansible.builtin.shell: |
+        grep -nE '^[[:space:]]*(TMOUT=|readonly[[:space:]]+TMOUT|export[[:space:]]+TMOUT)' \
+          /etc/profile.d/99-cis-tmout.sh
+      register: tmout_check
+      changed_when: false
+
+    - name: "CIS 5.4.3.2 | Display TMOUT configuration"
+      ansible.builtin.debug:
+        var: tmout_check.stdout_lines      
