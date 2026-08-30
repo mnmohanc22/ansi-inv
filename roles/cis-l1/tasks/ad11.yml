@@ -77,3 +77,49 @@
       loop_control:
         label: "{{ item.item.path }}"
       when: item.changed | default(false)
+
+
+
+
+- name: "CIS 5.2.7 | Audit su command restriction"
+  block:
+    - name: "CIS 5.2.7 | Get su restriction configuration"
+      ansible.builtin.shell: |
+        echo "===== PAM su configuration ====="
+        grep -nE '^[[:space:]]*auth[[:space:]]+(required|requisite)[[:space:]]+pam_wheel\.so' \
+          /etc/pam.d/su || true
+
+        echo
+        echo "===== su restriction groups ====="
+        grep -E '^(wheel|sugroup):' /etc/group || true
+
+        echo
+        echo "===== sugroup members ====="
+        getent group sugroup || true
+      register: su_audit
+      changed_when: false
+
+    - name: "CIS 5.2.7 | Display su restriction audit"
+      ansible.builtin.debug:
+        var: su_audit.stdout_lines
+
+
+- name: "CIS 5.2.7 | Restrict access to su command"
+  block:
+    - name: "CIS 5.2.7 | Ensure su restriction group exists"
+      ansible.builtin.group:
+        name: sugroup
+        state: present
+
+    - name: "CIS 5.2.7 | Restrict access to su command via PAM"
+      ansible.builtin.lineinfile:
+        path: /etc/pam.d/su
+        regexp: '^[ \t]*#?[ \t]*auth[ \t]+required[ \t]+pam_wheel\.so.*$'
+        line: 'auth required pam_wheel.so use_uid group=sugroup'
+        state: present
+        backup: false
+      register: su_pam_set
+
+    - name: "CIS 5.2.7 | Display su PAM restriction status"
+      ansible.builtin.debug:
+        msg: "su PAM restriction : {{ 'CONFIGURED' if su_pam_set.changed else 'ALREADY SET' }}"    
