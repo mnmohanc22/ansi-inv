@@ -316,3 +316,20 @@
     - name: "CIS 5.4.3.2 | Display TMOUT configuration"
       ansible.builtin.debug:
         var: tmout_check.stdout_lines      
+
+
+- name: "CIS 5.4.3.3 | Find all configured umask values"
+  block:
+    - name: "CIS 5.4.3.3 | Get all configured umask values"
+      ansible.builtin.shell: |
+        grep -RHnE '^[[:space:]]*(umask[[:space:]]+[0-7]+|UMASK[[:space:]]+[0-7]+)' \
+          /etc/profile \
+          /etc/bashrc \
+          /etc/profile.d/*.sh \
+          /etc/login.defs 2>/dev/null || true
+      register: umask_all
+      changed_when: false
+
+    - name: "CIS 5.4.3.3 | Display all umask configurations"
+      ansible.builtin.debug:
+        var: umask_all.stdout_lines        
