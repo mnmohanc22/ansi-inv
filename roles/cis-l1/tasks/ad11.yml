@@ -16,3 +16,65 @@
     - name: "CIS 3.3.7 | Display reverse path filtering configuration"
       ansible.builtin.debug:
         var: rp_filter_audit.stdout_lines
+
+
+- name: "CIS 5.1.1 | Audit permissions on /etc/ssh/sshd_config"
+  block:
+    - name: "CIS 5.1.1 | Stat /etc/ssh/sshd_config"
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config
+      register: sshd_config_stat
+
+    - name: "CIS 5.1.1 | Display sshd_config permissions"
+      ansible.builtin.debug:
+        msg:
+          - "Owner: {{ sshd_config_stat.stat.pw_name }}"
+          - "Group: {{ sshd_config_stat.stat.gr_name }}"
+          - "Mode: {{ sshd_config_stat.stat.mode }}" 
+
+    - name: "CIS 5.1.1 | Configure permissions on /etc/ssh/sshd_config"
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0600'
+
+
+- name: "CIS 5.1.1 | Configure SSH drop-in file permissions"
+  block:
+    - name: "CIS 5.1.1 | Find sshd configuration drop-ins"
+      ansible.builtin.find:
+        paths: /etc/ssh/sshd_config.d
+        patterns: "*.conf"
+        file_type: file
+      register: sshd_dropins
+
+    - name: "CIS 5.1.1 | Display sshd drop-in permissions"
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.path }}
+          owner={{ item.pw_name }}
+          group={{ item.gr_name }}
+          mode={{ item.mode }}
+      loop: "{{ sshd_dropins.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: "CIS 5.1.1 | Configure SSH drop-in permissions"
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        owner: root
+        group: root
+        mode: '0600'
+      loop: "{{ sshd_dropins.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: sshd_dropin_chmod
+
+    - name: "CIS 5.1.1 | Display changed drop-in files"
+      ansible.builtin.debug:
+        msg: "permissions updated : {{ item.item.path }}"
+      loop: "{{ sshd_dropin_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when: item.changed | default(false)
