@@ -357,3 +357,79 @@
     - name: "CIS 6.2.2.1.1 | Display install status"
       ansible.builtin.debug:
         msg: "systemd-journal-remote : {{ 'INSTALLED' if journal_remote_install.changed else 'ALREADY INSTALLED' }}"
+
+
+
+- name: "CIS 6.2.2.2 | Disable journald ForwardToSyslog"
+  block:
+    - name: "CIS 6.2.2.2 | Audit journald ForwardToSyslog"
+      ansible.builtin.shell: |
+        echo "===== Configured values ====="
+        grep -RHnE '^[[:space:]]*ForwardToSyslog[[:space:]]*=' \
+          /etc/systemd/journald.conf \
+          /etc/systemd/journald.conf.d/*.conf 2>/dev/null || true
+
+        echo
+        echo "===== Effective configuration ====="
+        systemd-analyze cat-config systemd/journald.conf 2>/dev/null |
+          grep -E '^[[:space:]]*ForwardToSyslog[[:space:]]*=' || true
+      register: journald_forward_audit
+      changed_when: false
+
+    - name: "CIS 6.2.2.2 | Display audit result"
+      ansible.builtin.debug:
+        var: journald_forward_audit.stdout_lines
+
+    - name: "CIS 6.2.2.2 | Ensure journald drop-in directory exists"
+      ansible.builtin.file:
+        path: /etc/systemd/journald.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "CIS 6.2.2.2 | Disable ForwardToSyslog"
+      ansible.builtin.copy:
+        dest: /etc/systemd/journald.conf.d/60-cis-forwardtosyslog.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Journal]
+          ForwardToSyslog=no
+      register: journald_forward_set
+
+    - name: "CIS 6.2.2.2 | Restart systemd-journald to apply config"
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+      when: journald_forward_set.changed    
+
+
+- name: "CIS 6.2.2.2 | Find all ForwardToSyslog settings"
+  block:
+    - name: "CIS 6.2.2.2 | Get all ForwardToSyslog settings"
+      ansible.builtin.shell: |
+        grep -RHnE '^[[:space:]]*ForwardToSyslog[[:space:]]*=' \
+          /etc/systemd/journald.conf \
+          /etc/systemd/journald.conf.d/*.conf \
+          /usr/lib/systemd/journald.conf.d/*.conf 2>/dev/null || true
+      register: forwardtosyslog_all
+      changed_when: false
+
+    - name: "CIS 6.2.2.2 | Display all ForwardToSyslog settings"
+      ansible.builtin.debug:
+        var: forwardtosyslog_all.stdout_lines
+
+- name: "CIS 6.2.2.2 | Check effective ForwardToSyslog configuration"
+  block:
+    - name: "CIS 6.2.2.2 | Get effective ForwardToSyslog value"
+      ansible.builtin.shell: |
+        systemd-analyze cat-config systemd/journald.conf 2>/dev/null \
+          | grep -E '^[[:space:]]*ForwardToSyslog[[:space:]]*=' || true
+      register: journald_forward_all
+      changed_when: false
+
+    - name: "CIS 6.2.2.2 | Display effective ForwardToSyslog value"
+      ansible.builtin.debug:
+        var: journald_forward_all.stdout_lines        
