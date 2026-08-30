@@ -539,3 +539,31 @@
       loop: "{{ home_directories.files }}"
       loop_control:
         label: "{{ item.path }}"
+
+
+
+
+
+
+- name: "CIS 7.2.8 | Fix home directory permissions"
+  block:
+    - name: "CIS 7.2.8 | Display home directories to fix"
+      ansible.builtin.debug:
+        msg: "home_dirs_to_fix : {{ home_dirs_to_fix }}"
+
+    - name: "CIS 7.2.8 | Set permissions on home directories"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        mode: '0700'
+      loop: "{{ home_dirs_to_fix }}"
+      loop_control:
+        label: "{{ item }}"
+      register: home_dir_perms
+
+    - name: "CIS 7.2.8 | Display changed home directories"
+      ansible.builtin.debug:
+        msg: "permissions updated : {{ item.item }}"
+      loop: "{{ home_dir_perms.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed | default(false)
