@@ -333,3 +333,27 @@
     - name: "CIS 5.4.3.3 | Display all umask configurations"
       ansible.builtin.debug:
         var: umask_all.stdout_lines        
+
+
+- name: "CIS 6.2.2.1.1 | Check systemd-journal-remote package"
+  block:
+    - name: "CIS 6.2.2.1.1 | Get systemd-journal-remote package status"
+      ansible.builtin.command:
+        cmd: rpm -q systemd-journal-remote
+      register: journal_remote_check
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.2.2.1.1 | Display package status"
+      ansible.builtin.debug:
+        msg: "systemd-journal-remote : {{ 'INSTALLED' if journal_remote_check.rc == 0 else 'NOT INSTALLED' }}"
+    
+    - name: "CIS 6.2.2.1.1 | Ensure systemd-journal-remote is installed"
+      ansible.builtin.dnf:
+        name: systemd-journal-remote
+        state: present
+      register: journal_remote_install
+
+    - name: "CIS 6.2.2.1.1 | Display install status"
+      ansible.builtin.debug:
+        msg: "systemd-journal-remote : {{ 'INSTALLED' if journal_remote_install.changed else 'ALREADY INSTALLED' }}"
