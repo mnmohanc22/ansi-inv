@@ -45,7 +45,6 @@
     - name: "CIS 5.1.1 | Find sshd configuration drop-ins"
       ansible.builtin.find:
         paths: /etc/ssh/sshd_config.d
-        patterns: "*.conf"
         file_type: file
       register: sshd_dropins
 
