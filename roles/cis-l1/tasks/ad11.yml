@@ -123,3 +123,53 @@
     - name: "CIS 5.2.7 | Display su PAM restriction status"
       ansible.builtin.debug:
         msg: "su PAM restriction : {{ 'CONFIGURED' if su_pam_set.changed else 'ALREADY SET' }}"    
+
+
+- name: "CIS 5.4.2.5 | Audit root PATH directories"
+  block:
+    - name: "CIS 5.4.2.5 | Get root PATH"
+      ansible.builtin.shell: |
+        sudo -Hiu root env | awk -F= '$1=="PATH" {print $2}'
+      register: root_path
+      changed_when: false
+
+    - name: "CIS 5.4.2.5 | Display root PATH"
+      ansible.builtin.debug:
+        msg: "Root PATH={{ root_path.stdout }}"
+
+    - name: "CIS 5.4.2.5 | Audit each root PATH directory"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ root_path.stdout.split(':') }}"
+      loop_control:
+        label: "{{ item }}"
+      register: root_path_stats
+      changed_when: false
+
+    - name: "CIS 5.4.2.5 | Display root PATH directory audit"
+      ansible.builtin.debug:
+        msg:
+          - "Path={{ item.item }}"
+          - "Exists={{ item.stat.exists | default(false) }}"
+          - "Owner={{ item.stat.pw_name | default('N/A') }}"
+          - "Group={{ item.stat.gr_name | default('N/A') }}"
+          - "Mode={{ item.stat.mode | default('N/A') }}"
+      loop: "{{ root_path_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: "CIS 5.4.2.5 | Check root PATH directory compliance"
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'PASS' if
+             item.stat.exists | default(false) and
+             item.stat.pw_name | default('') == 'root' and
+             (item.stat.mode | default('0777') | int(base=8)) is not none
+             else 'CHECK' }}
+          - {{ item.item }}
+          owner={{ item.stat.pw_name | default('N/A') }}
+          group={{ item.stat.gr_name | default('N/A') }}
+          mode={{ item.stat.mode | default('N/A') }}
+      loop: "{{ root_path_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
