@@ -470,21 +470,7 @@
           - "Mode={{ item.stat.mode | default('N/A') }}"
       loop: "{{ user_home_stats.results }}"
       loop_control:
-        label: "{{ item.item.split(':')[0] }}"  
-
-    - name: "CIS 7.2.8 | Display home directory configuration"
-      ansible.builtin.debug:
-        msg: >-
-          User={{ item.item.split(':')[0] }} |
-          Home={{ item.item.split(':')[1] }} |
-          Exists={{ item.stat.exists | default(false) }} |
-          Directory={{ item.stat.isdir | default(false) }} |
-          Owner={{ item.stat.pw_name | default('N/A') }} |
-          Group={{ item.stat.gr_name | default('N/A') }} |
-          Mode={{ item.stat.mode | default('N/A') }}
-      loop: "{{ user_home_stats.results }}"
-      loop_control:
-        label: "{{ item.item.split(':')[0] }}"     
+        label: "{{ item.item.split(':')[0] }}"
 
 
 
@@ -531,3 +517,25 @@
       loop_control:
         label: "{{ item.item.item.split(':')[0] }}"
       when: item.changed | default(false)
+
+
+
+- name: "CIS 7.2.8 | List home directories"
+  block:
+    - name: "CIS 7.2.8 | Find all directories under /home"
+      ansible.builtin.find:
+        paths: /home
+        file_type: directory
+        recurse: false
+      register: home_directories
+
+    - name: "CIS 7.2.8 | Display home directory configuration"
+      ansible.builtin.debug:
+        msg: >-
+          Directory={{ item.path }} |
+          Owner={{ item.pw_name | default('N/A') }} |
+          Group={{ item.gr_name | default('N/A') }} |
+          Mode={{ item.mode | default('N/A') }}
+      loop: "{{ home_directories.files }}"
+      loop_control:
+        label: "{{ item.path }}"
