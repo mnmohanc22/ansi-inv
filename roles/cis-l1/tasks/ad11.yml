@@ -173,3 +173,74 @@
       loop: "{{ root_path_stats.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+
+- name: "CIS 5.4.2.5 | Audit root PATH integrity"
+  block:
+    - name: "CIS 5.4.2.5 | Check root PATH integrity"
+      ansible.builtin.shell: |
+        root_path="$(sudo -Hiu root env | grep '^PATH=' | cut -d= -f2-)"
+
+        echo "Root PATH: ${root_path}"
+        echo
+
+        errors=0
+
+        if echo "${root_path}" | grep -q "::"; then
+          echo "FAIL: PATH contains an empty directory (::)"
+          errors=1
+        fi
+
+        if echo "${root_path}" | grep -q ":$"; then
+          echo "FAIL: PATH contains trailing colon"
+          errors=1
+        fi
+
+        oldIFS="$IFS"
+        IFS=":"
+
+        for dir in ${root_path}; do
+
+          if [ "${dir}" = "." ]; then
+            echo "FAIL: PATH contains current directory (.)"
+            errors=1
+            continue
+          fi
+
+          if [ ! -d "${dir}" ]; then
+            echo "FAIL: ${dir} does not exist"
+            errors=1
+            continue
+          fi
+
+          owner=$(stat -Lc '%U' "${dir}")
+          mode=$(stat -Lc '%a' "${dir}")
+
+          if [ "${owner}" != "root" ]; then
+            echo "FAIL: ${dir} owner=${owner}, expected=root"
+            errors=1
+          fi
+
+          if find "${dir}" -maxdepth 0 -perm /0022 | grep -q .; then
+            echo "FAIL: ${dir} is group or world writable (mode=${mode})"
+            errors=1
+          else
+            echo "PASS: ${dir} owner=${owner} mode=${mode}"
+          fi
+
+        done
+
+        IFS="$oldIFS"
+
+        echo
+        if [ "${errors}" -eq 0 ]; then
+          echo "PASS: Root PATH integrity is compliant"
+        else
+          echo "FAIL: Root PATH integrity issues detected"
+        fi
+      register: root_path_audit
+      changed_when: false
+
+    - name: "CIS 5.4.2.5 | Display root PATH audit"
+      ansible.builtin.debug:
+        var: root_path_audit.stdout_lines
