@@ -433,3 +433,101 @@
     - name: "CIS 6.2.2.2 | Display effective ForwardToSyslog value"
       ansible.builtin.debug:
         var: journald_forward_all.stdout_lines        
+
+
+
+- name: "CIS 7.2.8 | Check local interactive user home directories"
+  block:
+    - name: "CIS 7.2.8 | Get local interactive users"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($3 >= 1000 &&
+           $1 != "nobody" &&
+           $7 !~ /(nologin|false)$/) {
+             print $1 ":" $6
+          }' /etc/passwd
+      register: local_interactive_users
+      changed_when: false
+
+    - name: "CIS 7.2.8 | Stat local interactive user home directories"
+      ansible.builtin.stat:
+        path: "{{ item.split(':')[1] }}"
+      loop: "{{ local_interactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+      register: user_home_stats
+      changed_when: false
+
+    - name: "CIS 7.2.8 | Display home directory configuration"
+      ansible.builtin.debug:
+        msg:
+          - "User={{ item.item.split(':')[0] }}"
+          - "Home={{ item.item.split(':')[1] }}"
+          - "Exists={{ item.stat.exists | default(false) }}"
+          - "Directory={{ item.stat.isdir | default(false) }}"
+          - "Owner={{ item.stat.pw_name | default('N/A') }}"
+          - "Group={{ item.stat.gr_name | default('N/A') }}"
+          - "Mode={{ item.stat.mode | default('N/A') }}"
+      loop: "{{ user_home_stats.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"  
+
+    - name: "CIS 7.2.8 | Display home directory configuration"
+      ansible.builtin.debug:
+        msg: >-
+          User={{ item.item.split(':')[0] }} |
+          Home={{ item.item.split(':')[1] }} |
+          Exists={{ item.stat.exists | default(false) }} |
+          Directory={{ item.stat.isdir | default(false) }} |
+          Owner={{ item.stat.pw_name | default('N/A') }} |
+          Group={{ item.stat.gr_name | default('N/A') }} |
+          Mode={{ item.stat.mode | default('N/A') }}
+      loop: "{{ user_home_stats.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"     
+
+
+
+
+
+- name: "CIS 7.2.8 | Remediate local interactive user home directories"
+  block:
+    - name: "CIS 7.2.8 | Get local interactive users"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($3 >= 1000 &&
+           $1 != "nobody" &&
+           $7 !~ /(nologin|false)$/) {
+             print $1 ":" $6
+          }' /etc/passwd
+      register: local_interactive_users
+      changed_when: false
+
+    - name: "CIS 7.2.8 | Get primary group for local interactive users"
+      ansible.builtin.command:
+        cmd: "id -gn {{ item.split(':')[0] }}"
+      loop: "{{ local_interactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+      register: user_primary_groups
+      changed_when: false
+
+    - name: "CIS 7.2.8 | Configure home directory ownership and permissions"
+      ansible.builtin.file:
+        path: "{{ item.item.split(':')[1] }}"
+        state: directory
+        owner: "{{ item.item.split(':')[0] }}"
+        group: "{{ item.stdout }}"
+        mode: '0700'
+      loop: "{{ user_primary_groups.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"
+      register: home_dir_chmod
+
+    - name: "CIS 7.2.8 | Display changed home directories"
+      ansible.builtin.debug:
+        msg: "ownership/permissions updated : {{ item.item.item.split(':')[0] }} {{ item.item.item.split(':')[1] }}"
+      loop: "{{ home_dir_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.item.split(':')[0] }}"
+      when: item.changed | default(false)
