@@ -1,0 +1,18 @@
+- name: "CIS 3.3.7 | Audit reverse path filtering"
+  block:
+    - name: "CIS 3.3.7 | Get reverse path filtering configuration"
+      ansible.builtin.shell: |
+        echo "===== Runtime values ====="
+        echo "net.ipv4.conf.all.rp_filter=$(sysctl -n net.ipv4.conf.all.rp_filter)"
+        echo "net.ipv4.conf.default.rp_filter=$(sysctl -n net.ipv4.conf.default.rp_filter)"
+
+        echo
+        echo "===== Persistent configuration ====="
+        grep -RHnE '^[[:space:]]*net\.ipv4\.conf\.(all|default)\.rp_filter[[:space:]]*=' \
+          /etc/sysctl.conf /etc/sysctl.d/*.conf 2>/dev/null || true
+      register: rp_filter_audit
+      changed_when: false
+
+    - name: "CIS 3.3.7 | Display reverse path filtering configuration"
+      ansible.builtin.debug:
+        var: rp_filter_audit.stdout_lines
