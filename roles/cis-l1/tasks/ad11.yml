@@ -603,3 +603,32 @@
     - name: "CIS 6.2.3 | Print rsyslog configuration"
       ansible.builtin.debug:
         var: rsyslog_config.stdout_lines
+
+
+- name: "CIS 6.2.3.5 | Remove logging rules from /etc/rsyslog.conf"
+  block:
+    - name: "CIS 6.2.3.5 | Remove logging rules from /etc/rsyslog.conf"
+      ansible.builtin.lineinfile:
+        path: /etc/rsyslog.conf
+        regexp: "{{ item }}"
+        state: absent
+        backup: false
+      loop:
+        - '^[ \t]*\*\.emerg[ \t]+.*$'
+        - '^[ \t]*auth,authpriv\.\*[ \t]+.*$'
+        - '^[ \t]*mail\.\*[ \t]+.*$'
+        - '^[ \t]*cron\.\*[ \t]+.*$'
+        - '^[ \t]*\*\.=warning;\*\.=err[ \t]+.*$'
+        - '^[ \t]*\*\.crit[ \t]+.*$'
+        - '^[ \t]*\*\.\*;auth,authpriv\.none;mail\.none;cron\.none[ \t]+.*$'
+      loop_control:
+        label: "{{ item }}"
+      register: rsyslog_rules_removed
+
+    - name: "CIS 6.2.3.5 | Display removal status"
+      ansible.builtin.debug:
+        msg: "rsyslog rule removed : {{ item.item }}"
+      loop: "{{ rsyslog_rules_removed.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed | default(false)
