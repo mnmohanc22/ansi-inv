@@ -579,3 +579,27 @@
       loop_control:
         label: "{{ item.item.item }}"
       when: item.changed | default(false)
+
+
+
+- name: "CIS 6.2.3 | Display all rsyslog configuration"
+  block:
+    - name: "CIS 6.2.3 | Get rsyslog configuration"
+      ansible.builtin.shell: |
+        echo "===== /etc/rsyslog.conf ====="
+        cat /etc/rsyslog.conf
+
+        echo
+        echo "===== /etc/rsyslog.d/*.conf ====="
+        for file in /etc/rsyslog.d/*.conf; do
+          [ -f "$file" ] || continue
+          echo
+          echo "===== $file ====="
+          cat "$file"
+        done
+      register: rsyslog_config
+      changed_when: false
+
+    - name: "CIS 6.2.3 | Print rsyslog configuration"
+      ansible.builtin.debug:
+        var: rsyslog_config.stdout_lines
