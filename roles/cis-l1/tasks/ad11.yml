@@ -963,3 +963,76 @@
         name: keyfactor-orchestrator-default.service
         state: restarted
       when: keyfactor_umask_change.changed
+
+
+- name: "CIS 5.4.1.5 | Configure default inactive password lock"
+  block:
+    - name: "CIS 5.4.1.5 | Get default inactive password lock"
+      ansible.builtin.shell: |
+        useradd -D | awk -F= '$1 == "INACTIVE" {print $2}'
+      register: inactive_default
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display current inactive lock value"
+      ansible.builtin.debug:
+        msg: "default INACTIVE : {{ inactive_default.stdout | default('NOT SET') }}"
+
+    - name: "CIS 5.4.1.5 | Set inactive password lock to 30 days"
+      ansible.builtin.command:
+        cmd: useradd -D -f 30
+      register: inactive_set
+      when: inactive_default.stdout | int != 30
+
+    - name: "CIS 5.4.1.5 | Display inactive lock status"
+      ansible.builtin.debug:
+        msg: "default INACTIVE : {{ 'SET TO 30' if inactive_set.changed | default(false) else 'ALREADY 30' }}"
+
+- name: "CIS 5.4.1.5 | Find users with non-compliant inactive password lock"
+  block:
+    - name: "CIS 5.4.1.5 | Get users with non-compliant inactive password lock"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($2 ~ /^\$.+\$/ && ($7 < 0 || $7 > 30)) {
+            print $1 ": INACTIVE=" $7
+          }
+        ' /etc/shadow
+      register: inactive_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display non-compliant users"
+      ansible.builtin.debug:
+        var: inactive_users.stdout_lines
+
+- name: "CIS 5.4.1.5 | Set inactive password lock to 30 days"
+  block:
+    - name: "CIS 5.4.1.5 | Get users requiring inactive password lock update"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($2 ~ /^\$.+\$/ && ($7 < 0 || $7 > 30)) {
+            print $1
+          }
+        ' /etc/shadow
+      register: inactive_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display users to update"
+      ansible.builtin.debug:
+        msg: "users requiring INACTIVE update : {{ inactive_users.stdout_lines }}"
+      when: inactive_users.stdout_lines | length > 0
+
+    - name: "CIS 5.4.1.5 | Set inactive password lock to 30 days"
+      ansible.builtin.command:
+        cmd: "chage --inactive 30 {{ item }}"
+      loop: "{{ inactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      register: chage_inactive_result
+      when: inactive_users.stdout_lines | length > 0
+
+    - name: "CIS 5.4.1.5 | Display updated users"
+      ansible.builtin.debug:
+        msg: "INACTIVE set to 30 : {{ item.item }}"
+      loop: "{{ chage_inactive_result.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed | default(false)
