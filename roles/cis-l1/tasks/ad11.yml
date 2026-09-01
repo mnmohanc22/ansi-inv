@@ -632,3 +632,24 @@
       loop_control:
         label: "{{ item.item }}"
       when: item.changed | default(false)
+
+
+- name: "CIS 6.1.2 | Verify AIDE service and timer"
+  block:
+    - name: "CIS 6.1.2 | Get AIDE service and timer status"
+      ansible.builtin.shell: |
+        echo "aidecheck.service=$(systemctl is-enabled aidecheck.service 2>/dev/null || true)"
+        echo "aidecheck.timer=$(systemctl is-enabled aidecheck.timer 2>/dev/null || true)"
+        echo "aidecheck.timer_active=$(systemctl is-active aidecheck.timer 2>/dev/null || true)"
+      register: aide_status
+      changed_when: false
+
+    - name: "CIS 6.1.2 | Display AIDE status"
+      ansible.builtin.debug:
+        var: aide_status.stdout_lines
+
+- name: "CIS 6.1.2 | Enable AIDE check service"
+  ansible.builtin.systemd:
+    name: aidecheck.service
+    enabled: true
+    daemon_reload: true        
