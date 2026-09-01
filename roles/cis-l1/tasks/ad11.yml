@@ -1036,3 +1036,31 @@
       loop_control:
         label: "{{ item.item }}"
       when: item.changed | default(false)
+
+
+- name: "CIS 5.4.1.5 | Configure inactive password lock in /etc/default/useradd"
+  block:
+    - name: "CIS 5.4.1.5 | Set INACTIVE=30 in /etc/default/useradd"
+      ansible.builtin.lineinfile:
+        path: /etc/default/useradd
+        regexp: '^[ \t]*INACTIVE[ \t]*='
+        line: 'INACTIVE=30'
+        state: present
+        backup: false
+      register: useradd_inactive_set
+
+    - name: "CIS 5.4.1.5 | Display /etc/default/useradd INACTIVE status"
+      ansible.builtin.debug:
+        msg: "INACTIVE in /etc/default/useradd : {{ 'CONFIGURED' if useradd_inactive_set.changed else 'ALREADY SET' }}"
+
+- name: "CIS 5.4.1.5 | Verify current inactive password lock"
+  block:
+    - name: "CIS 5.4.1.5 | Get current inactive password lock"
+      ansible.builtin.shell: |
+        useradd -D | awk -F= '$1=="INACTIVE" {print $2}'
+      register: inactive_days
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display current inactive password lock"
+      ansible.builtin.debug:
+        msg: "INACTIVE : {{ inactive_days.stdout | default('NOT SET') }}"
