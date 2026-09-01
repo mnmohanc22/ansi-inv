@@ -85,3 +85,65 @@
     - name: "CIS 7.1.11 | Display private tmp files"
       ansible.builtin.debug:
         var: private_tmp_files.stdout_lines
+
+
+
+- name: "CIS 4.2.2 | Configure loopback anti-spoofing rules"
+  block:
+    - name: "CIS 4.2.2 | Add loopback interface to trusted zone"
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --zone=trusted
+          - --add-interface=lo
+      register: lo_trusted
+      changed_when: "'ALREADY_ENABLED' not in lo_trusted.stderr"
+
+    - name: "CIS 4.2.2 | Add IPv4 loopback anti-spoofing rule"
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - '--add-rich-rule=rule family="ipv4" source address="127.0.0.1" destination not address="127.0.0.1" drop'
+      register: ipv4_loopback
+      changed_when: "'ALREADY_ENABLED' not in ipv4_loopback.stderr"
+
+    - name: "CIS 4.2.2 | Add IPv4 loopback anti-spoofing rule to trusted zone"
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --zone=trusted
+          - '--add-rich-rule=rule family="ipv4" source address="127.0.0.1" destination not address="127.0.0.1" drop'
+      register: ipv4_loopback_trusted
+      changed_when: "'ALREADY_ENABLED' not in ipv4_loopback_trusted.stderr"
+
+    - name: "CIS 4.2.2 | Add IPv6 loopback anti-spoofing rule"
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - '--add-rich-rule=rule family="ipv6" source address="::1" destination not address="::1" drop'
+      register: ipv6_loopback
+      changed_when: "'ALREADY_ENABLED' not in ipv6_loopback.stderr"
+
+    - name: "CIS 4.2.2 | Add IPv6 loopback anti-spoofing rule to trusted zone"
+      ansible.builtin.command:
+        argv:
+          - firewall-cmd
+          - --permanent
+          - --zone=trusted
+          - '--add-rich-rule=rule family="ipv6" source address="::1" destination not address="::1" drop'
+      register: ipv6_loopback_trusted
+      changed_when: "'ALREADY_ENABLED' not in ipv6_loopback_trusted.stderr"
+
+    - name: "CIS 4.2.2 | Reload firewalld"
+      ansible.builtin.command:
+        cmd: firewall-cmd --reload
+      when: >
+        lo_trusted.changed or
+        ipv4_loopback.changed or
+        ipv4_loopback_trusted.changed or
+        ipv6_loopback.changed or
+        ipv6_loopback_trusted.changed
