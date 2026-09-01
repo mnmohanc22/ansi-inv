@@ -51,3 +51,21 @@
     - name: "CIS 7.1.11 | Display world writable directories without sticky bit"
       ansible.builtin.debug:
         var: world_writable_dirs.stdout_lines
+
+
+- name: "CIS 7.1.11 | Audit world writable files under systemd private tmp"
+  block:
+    - name: "CIS 7.1.11 | Find world writable files under systemd private tmp"
+      ansible.builtin.shell: |
+        find /tmp/systemd-private-* \
+          -type f \
+          -perm -0002 \
+          -exec stat -Lc '%a %U %G %n' {} \; \
+          2>/dev/null || true
+      register: systemd_private_world_writable
+      changed_when: false
+      become: true
+
+    - name: "CIS 7.1.11 | Display systemd private tmp findings"
+      ansible.builtin.debug:
+        var: systemd_private_world_writable.stdout_lines
