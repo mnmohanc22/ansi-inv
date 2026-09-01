@@ -914,3 +914,52 @@
         name: amazon-ssm-agent.service
         state: restarted
       when: ssm_umask_config.changed
+
+- name: "CIS 7.1.11 | Check installed Keyfactor systemd services"
+  block:
+    - name: "CIS 7.1.11 | Get installed Keyfactor systemd services"
+      ansible.builtin.shell: |
+        systemctl list-unit-files --type=service --no-pager \
+          | grep -i keyfactor || true
+      register: keyfactor_services
+      changed_when: false
+
+    - name: "CIS 7.1.11 | Display installed Keyfactor services"
+      ansible.builtin.debug:
+        var: keyfactor_services.stdout_lines      
+
+- name: "CIS 7.1.11 | Configure Keyfactor Orchestrator UMask"
+  block:
+    - name: "CIS 7.1.11 | Create Keyfactor Orchestrator override directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/keyfactor-orchestrator-default.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "CIS 7.1.11 | Deploy Keyfactor Orchestrator UMask override"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/keyfactor-orchestrator-default.service.d/60-cis-umask.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Service]
+          UMask=0027
+      register: keyfactor_umask_change
+
+    - name: "CIS 7.1.11 | Display Keyfactor Orchestrator UMask config status"
+      ansible.builtin.debug:
+        msg: "Keyfactor Orchestrator UMask override : {{ 'CONFIGURED' if keyfactor_umask_change.changed else 'ALREADY SET' }}"
+
+    - name: "CIS 7.1.11 | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: keyfactor_umask_change.changed
+
+    - name: "CIS 7.1.11 | Restart Keyfactor Orchestrator"
+      ansible.builtin.systemd:
+        name: keyfactor-orchestrator-default.service
+        state: restarted
+      when: keyfactor_umask_change.changed
