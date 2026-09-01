@@ -1,0 +1,22 @@
+- name: "CIS 4.2.2 | Verify effective loopback rules"
+  block:
+    - name: "CIS 4.2.2 | Get effective loopback rules"
+      ansible.builtin.shell: |
+        echo "===== Loopback interface ====="
+        firewall-cmd --get-zone-of-interface=lo
+
+        echo
+        echo "===== IPv4 ====="
+        nft list ruleset |
+          grep -Ei '127\.0\.0\.0/8|127\.0\.0\.1'
+
+        echo
+        echo "===== IPv6 ====="
+        nft list ruleset |
+          grep -Ei '::1' || true
+      register: loopback_verify
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display loopback verification"
+      ansible.builtin.debug:
+        var: loopback_verify.stdout_lines
