@@ -810,3 +810,107 @@
       loop_control:
         label: "{{ item.item }}"
       when: item.changed | default(false)
+
+
+- name: "CIS 7.1.11 | Check Keyfactor service UMask"
+  block:
+    - name: "CIS 7.1.11 | Get Keyfactor service UMask"
+      ansible.builtin.shell: |
+        systemctl show keyfactor.service \
+          -p UMask \
+          -p User \
+          -p Group
+      register: keyfactor_umask
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 7.1.11 | Display Keyfactor UMask"
+      ansible.builtin.debug:
+        var: keyfactor_umask.stdout_lines
+
+- name: "CIS 7.1.11 | Configure Keyfactor service UMask"
+  block:
+    - name: "CIS 7.1.11 | Create Keyfactor systemd override directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/keyfactor.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "CIS 7.1.11 | Deploy Keyfactor UMask override"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/keyfactor.service.d/60-cis-umask.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Service]
+          UMask=0027
+      register: keyfactor_umask_config
+
+    - name: "CIS 7.1.11 | Display Keyfactor UMask config status"
+      ansible.builtin.debug:
+        msg: "Keyfactor UMask override : {{ 'CONFIGURED' if keyfactor_umask_config.changed else 'ALREADY SET' }}"
+
+    - name: "CIS 7.1.11 | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: keyfactor_umask_config.changed
+
+    - name: "CIS 7.1.11 | Restart Keyfactor service"
+      ansible.builtin.systemd:
+        name: keyfactor.service
+        state: restarted
+      when: keyfactor_umask_config.changed
+
+
+- name: "CIS 7.1.11 | Verify SSM Agent UMask"
+  block:
+    - name: "CIS 7.1.11 | Get SSM Agent UMask"
+      ansible.builtin.command:
+        cmd: systemctl show amazon-ssm-agent.service -p UMask
+      register: ssm_umask
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 7.1.11 | Display SSM Agent UMask"
+      ansible.builtin.debug:
+        msg: "SSM Agent UMask : {{ ssm_umask.stdout | default('N/A') }}"
+
+
+- name: "CIS 7.1.11 | Configure SSM Agent UMask"
+  block:
+    - name: "CIS 7.1.11 | Create SSM Agent override directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/amazon-ssm-agent.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "CIS 7.1.11 | Deploy SSM Agent UMask override"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/amazon-ssm-agent.service.d/60-cis-umask.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Service]
+          UMask=0027
+      register: ssm_umask_config
+
+    - name: "CIS 7.1.11 | Display SSM Agent UMask config status"
+      ansible.builtin.debug:
+        msg: "SSM Agent UMask override : {{ 'CONFIGURED' if ssm_umask_config.changed else 'ALREADY SET' }}"
+
+    - name: "CIS 7.1.11 | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: ssm_umask_config.changed
+
+    - name: "CIS 7.1.11 | Restart SSM Agent"
+      ansible.builtin.systemd:
+        name: amazon-ssm-agent.service
+        state: restarted
+      when: ssm_umask_config.changed
