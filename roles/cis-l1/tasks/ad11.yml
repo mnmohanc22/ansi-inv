@@ -648,8 +648,85 @@
       ansible.builtin.debug:
         var: aide_status.stdout_lines
 
-- name: "CIS 6.1.2 | Enable AIDE check service"
-  ansible.builtin.systemd:
-    name: aidecheck.service
-    enabled: true
-    daemon_reload: true        
+
+
+- name: "CIS 6.2.4.1 | Audit sysstat umask"
+  block:
+    - name: "CIS 6.2.4.1 | Check sysstat UMASK value"
+      ansible.builtin.shell: |
+        grep -E '^[[:space:]]*UMASK[[:space:]]*=' /etc/sysconfig/sysstat || true
+      register: sysstat_umask
+      changed_when: false
+
+    - name: "CIS 6.2.4.1 | Display sysstat UMASK"
+      ansible.builtin.debug:
+        msg: "sysstat UMASK : {{ sysstat_umask.stdout | default('NOT CONFIGURED', true) }}"
+
+
+
+
+- name: "CIS 6.2.4.1 | Configure sysstat umask"
+  block:
+    - name: "CIS 6.2.4.1 | Set sysstat UMASK to 0027"
+      ansible.builtin.lineinfile:
+        path: /etc/sysconfig/sysstat
+        regexp: '^[ \t]*UMASK='
+        line: 'UMASK="0027"'
+        state: present
+        backup: false
+      register: sysstat_umask_set
+
+    - name: "CIS 6.2.4.1 | Display sysstat umask status"
+      ansible.builtin.debug:
+        msg: "sysstat UMASK : {{ 'CONFIGURED' if sysstat_umask_set.changed else 'ALREADY SET' }}"
+
+
+- name: "CIS 6.2.4.1 | Verify CloudWatch Agent UMask"
+  block:
+    - name: "CIS 6.2.4.1 | Get CloudWatch Agent UMask"
+      ansible.builtin.command:
+        cmd: systemctl show amazon-cloudwatch-agent.service -p UMask
+      register: cloudwatch_umask
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 6.2.4.1 | Display CloudWatch Agent UMask"
+      ansible.builtin.debug:
+        msg: "CloudWatch Agent UMask : {{ cloudwatch_umask.stdout | default('N/A') }}"
+
+
+- name: "CIS 6.2.4.1 | Configure CloudWatch Agent UMask"
+  block:
+    - name: "CIS 6.2.4.1 | Create CloudWatch Agent systemd override directory"
+      ansible.builtin.file:
+        path: /etc/systemd/system/amazon-cloudwatch-agent.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: "CIS 6.2.4.1 | Deploy CloudWatch Agent UMask override"
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/amazon-cloudwatch-agent.service.d/60-cis-umask.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Service]
+          UMask=0027
+      register: cloudwatch_umask_config
+
+    - name: "CIS 6.2.4.1 | Display CloudWatch Agent UMask config status"
+      ansible.builtin.debug:
+        msg: "CloudWatch Agent UMask override : {{ 'CONFIGURED' if cloudwatch_umask_config.changed else 'ALREADY SET' }}"
+
+    - name: "CIS 6.2.4.1 | Reload systemd daemon"
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: cloudwatch_umask_config.changed
+
+    - name: "CIS 6.2.4.1 | Restart CloudWatch Agent"
+      ansible.builtin.systemd:
+        name: amazon-cloudwatch-agent.service
+        state: restarted
+      when: cloudwatch_umask_config.changed
