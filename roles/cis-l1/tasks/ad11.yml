@@ -746,3 +746,67 @@
     - name: "CIS 5.4.1.1 | Display non-compliant users"
       ansible.builtin.debug:
         var: password_expiration_users.stdout_lines
+
+- name: "CIS 5.4.1.1 | Set maximum password age to 365 days"
+  block:
+    - name: "CIS 5.4.1.1 | Get users requiring password expiration update"
+      ansible.builtin.shell: |
+        awk -F: '($2 ~ /^\$.+\$/ && ($5 > 365 || $5 < 1)) {
+          print $1
+        }' /etc/shadow
+      register: password_expiration_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.1 | Display users to update"
+      ansible.builtin.debug:
+        msg: "users requiring PASS_MAX_DAYS update : {{ password_expiration_users.stdout_lines }}"
+      when: password_expiration_users.stdout_lines | length > 0
+
+    - name: "CIS 5.4.1.1 | Set maximum password age to 365 days"
+      ansible.builtin.command:
+        cmd: "chage --maxdays 365 {{ item }}"
+      loop: "{{ password_expiration_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      register: chage_result
+      when: password_expiration_users.stdout_lines | length > 0
+
+    - name: "CIS 5.4.1.1 | Display updated users"
+      ansible.builtin.debug:
+        msg: "PASS_MAX_DAYS set to 365 : {{ item.item }}"
+      loop: "{{ chage_result.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed | default(false)
+
+
+
+- name: "CIS 5.4.1.3 | Set password warning to 14 days"
+  block:
+    - name: "CIS 5.4.1.3 | Find users with password warning less than 14 days"
+      ansible.builtin.shell: |
+        awk -F: '($2 ~ /^\$.+\$/ && ($6 < 14)) { print $1 }' /etc/shadow
+      register: cis_password_warn_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.3 | Display users to update"
+      ansible.builtin.debug:
+        msg: "users requiring PASS_WARN_AGE update : {{ cis_password_warn_users.stdout_lines }}"
+      when: cis_password_warn_users.stdout_lines | length > 0
+
+    - name: "CIS 5.4.1.3 | Set password warning to 14 days for existing users"
+      ansible.builtin.command:
+        cmd: "chage --warndays 14 {{ item }}"
+      loop: "{{ cis_password_warn_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      register: chage_warn_result
+      when: cis_password_warn_users.stdout_lines | length > 0
+
+    - name: "CIS 5.4.1.3 | Display updated users"
+      ansible.builtin.debug:
+        msg: "PASS_WARN_AGE set to 14 : {{ item.item }}"
+      loop: "{{ chage_warn_result.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed | default(false)
