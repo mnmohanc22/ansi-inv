@@ -20,3 +20,34 @@
     - name: "CIS 4.2.2 | Display loopback verification"
       ansible.builtin.debug:
         var: loopback_verify.stdout_lines
+
+- name: "CIS 7.1.11 | Audit world writable files and directories"
+  block:
+    - name: "CIS 7.1.11 | Find world writable files"
+      ansible.builtin.shell: |
+        findmnt -rn -o TARGET,FSTYPE |
+        awk '$2 ~ /^(ext2|ext3|ext4|xfs)$/ {print $1}' |
+        while read -r mount; do
+          find "$mount" -xdev -type f -perm -0002 -print 2>/dev/null
+        done | sort -u
+      register: world_writable_files
+      changed_when: false
+
+    - name: "CIS 7.1.11 | Find world writable directories without sticky bit"
+      ansible.builtin.shell: |
+        findmnt -rn -o TARGET,FSTYPE |
+        awk '$2 ~ /^(ext2|ext3|ext4|xfs)$/ {print $1}' |
+        while read -r mount; do
+          find "$mount" -xdev -type d -perm -0002 ! -perm -1000 \
+            -print 2>/dev/null
+        done | sort -u
+      register: world_writable_dirs
+      changed_when: false
+
+    - name: "CIS 7.1.11 | Display world writable files"
+      ansible.builtin.debug:
+        var: world_writable_files.stdout_lines
+
+    - name: "CIS 7.1.11 | Display world writable directories without sticky bit"
+      ansible.builtin.debug:
+        var: world_writable_dirs.stdout_lines
