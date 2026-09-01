@@ -69,3 +69,19 @@
     - name: "CIS 7.1.11 | Display systemd private tmp findings"
       ansible.builtin.debug:
         var: systemd_private_world_writable.stdout_lines
+
+- name: "CIS 7.1.11 | Search systemd private tmp recursively"
+  block:
+    - name: "CIS 7.1.11 | Get all files under systemd private tmp"
+      ansible.builtin.shell: |
+        find /tmp/systemd-private-* \
+          -type f \
+          -printf '%m %u %g %p\n' \
+          2>/dev/null || true
+      register: private_tmp_files
+      changed_when: false
+      become: true
+
+    - name: "CIS 7.1.11 | Display private tmp files"
+      ansible.builtin.debug:
+        var: private_tmp_files.stdout_lines
