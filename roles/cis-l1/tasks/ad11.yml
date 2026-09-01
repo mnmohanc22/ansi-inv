@@ -730,3 +730,19 @@
         name: amazon-cloudwatch-agent.service
         state: restarted
       when: cloudwatch_umask_config.changed
+
+
+
+- name: "CIS 5.4.1.1 | Find users with non-compliant password expiration"
+  block:
+    - name: "CIS 5.4.1.1 | Get users with non-compliant password expiration"
+      ansible.builtin.shell: |
+        awk -F: '($2 ~ /^\$.+\$/ && ($5 > 365 || $5 < 1)) {
+          print $1 ":PASS_MAX_DAYS=" $5
+        }' /etc/shadow
+      register: password_expiration_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.1 | Display non-compliant users"
+      ansible.builtin.debug:
+        var: password_expiration_users.stdout_lines
