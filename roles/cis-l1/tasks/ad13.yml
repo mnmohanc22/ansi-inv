@@ -427,3 +427,37 @@
         msg:
           - "Tenable regex rc = {{ cis_ipv4_tenable_match.rc }}"
           - "Tenable regex match = {{ cis_ipv4_tenable_match.rc == 0 }}"
+
+
+- name: "CIS 5.4.1.1 | Set password maximum age to 90 days"
+  block:
+    - name: "CIS 5.4.1.1 | Find users with non-compliant password maximum age"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($2 ~ /^\$.+\$/ && ($5 > 90 || $5 < 1)) {
+            print $1
+          }
+        ' /etc/shadow
+      register: cis_pass_max_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.1 | Display non-compliant users"
+      ansible.builtin.debug:
+        var: cis_pass_max_users.stdout_lines
+
+    - name: "CIS 5.4.1.1 | Set password maximum age to 90 days"
+      ansible.builtin.command:
+        cmd: "chage --maxdays 90 {{ item }}"
+      loop: "{{ cis_pass_max_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item }}"
+      when: cis_pass_max_users.stdout_lines | length > 0
+      register: cis_pass_max_set
+
+    - name: "CIS 5.4.1.1 | Display updated users"
+      ansible.builtin.debug:
+        msg: "maxdays set : {{ item.item }}"
+      loop: "{{ cis_pass_max_set.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.changed | default(false)          
