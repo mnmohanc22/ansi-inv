@@ -148,3 +148,41 @@
         label: "{{ item.item.split(':')[0] }}"
       when: item.stdout_lines | length > 0
 
+
+
+
+- name: "CIS 5.4.1.5 | Check useradd inactive setting"
+  block:
+    - name: "CIS 5.4.1.5 | Check useradd inactive setting"
+      ansible.builtin.shell: |
+        echo "===== useradd -D ====="
+        useradd -D
+
+        echo
+        echo "===== Exact INACTIVE line ====="
+        useradd -D | grep '^INACTIVE=' | cat -A
+
+        echo
+        echo "===== /etc/default/useradd ====="
+        grep -nE '^[[:space:]]*INACTIVE[[:space:]]*=' \
+          /etc/default/useradd | cat -A || true
+      register: inactive_audit
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display inactive audit"
+      ansible.builtin.debug:
+        var: inactive_audit.stdout_lines
+
+
+
+- name: "CIS 5.4.1.5 | Check exact useradd INACTIVE output"
+  block:
+    - name: "CIS 5.4.1.5 | Check exact useradd INACTIVE output"
+      ansible.builtin.shell: |
+        /sbin/useradd -D | /bin/grep 'INACTIVE' | cat -A
+      register: inactive_check
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display exact INACTIVE output"
+      ansible.builtin.debug:
+        var: inactive_check.stdout_lines
