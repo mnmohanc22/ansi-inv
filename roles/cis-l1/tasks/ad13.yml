@@ -405,3 +405,25 @@
     - name: "CIS 4.2.2 | Display IPv6 loopback nft rules"
       ansible.builtin.debug:
         var: cis_ipv6_nft_rules.stdout_lines        
+
+
+- name: "CIS 4.2.2 | Test Tenable IPv4 regex against nft rule"
+  block:
+    - name: "CIS 4.2.2 | Test Tenable IPv4 regex against nft rule"
+      ansible.builtin.shell: |
+        nft list ruleset |
+        awk '/filter_IN_public_deny|hook\s+input\s+/,/\}\s*(#.*)?$/' |
+        grep -P -- 'ip\h+saddr' |
+        grep -Pq -- \
+        'ip\h+saddr\h+127\.0\.0\.0\/8\h+(counter\h+packets\h+\d+\h+bytes\h+\d+\h+)?drop'
+      args:
+        executable: /bin/bash
+      register: cis_ipv4_tenable_match
+      changed_when: false
+      failed_when: false
+
+    - name: "CIS 4.2.2 | Display Tenable regex result"
+      ansible.builtin.debug:
+        msg:
+          - "Tenable regex rc = {{ cis_ipv4_tenable_match.rc }}"
+          - "Tenable regex match = {{ cis_ipv4_tenable_match.rc == 0 }}"
