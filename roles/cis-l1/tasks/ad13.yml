@@ -487,3 +487,39 @@
           - "Kernel: {{ ansible_kernel }}"
           - "Architecture: {{ ansible_architecture }}"  
   when: ansible_distribution == "RedHat" or ansible_distribution == "CentOS" or ansible_distribution == "Rocky" or ansible_distribution == "AlmaLinux"          
+
+
+
+- name: "CIS 1.7.3 | Check local and remote banners"
+  block:
+    - name: "CIS 1.7.3 | Check local and remote banners"
+      ansible.builtin.shell: |
+        echo "===== /etc/issue ====="
+        cat /etc/issue 2>/dev/null || true
+
+        echo
+        echo "===== /etc/issue.net ====="
+        cat /etc/issue.net 2>/dev/null || true
+      register: cis_banners
+      changed_when: false
+
+    - name: "CIS 1.7.3 | Display banners"
+      ansible.builtin.debug:
+        var: cis_banners.stdout_lines
+
+
+- name: "CIS 1.7.3 | Configure remote login warning banner"
+  block:
+    - name: "CIS 1.7.3 | Configure remote login warning banner"
+      ansible.builtin.copy:
+        dest: /etc/issue.net
+        content: |
+          Authorized users only. All activity may be monitored and reported.
+        owner: root
+        group: root
+        mode: '0644'
+      register: cis_issue_net
+
+    - name: "CIS 1.7.3 | Display remote login banner status"
+      ansible.builtin.debug:
+        msg: "remote login banner : {{ 'UPDATED' if cis_issue_net.changed else 'already configured - no change' }}"
