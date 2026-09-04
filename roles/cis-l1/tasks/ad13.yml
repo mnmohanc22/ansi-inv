@@ -358,3 +358,50 @@
     - name: "CIS 4.2.2 | Display loopback configuration result"
       ansible.builtin.debug:
         var: cis_4_2_2.stdout_lines
+
+
+
+
+- name: "CIS 4.2.2 | Verify loopback nft rules"
+  block:
+    - name: "CIS 4.2.2 | Check loopback interface accept rule"
+      ansible.builtin.shell: |
+        nft list ruleset |
+        awk '/hook\s+input\s+/,/\}\s*(#.*)?$/' |
+        grep -P -- '\H+\h+"lo"\h+accept' || true
+      args:
+        executable: /bin/bash
+      register: cis_lo_accept_rule
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display loopback accept rule"
+      ansible.builtin.debug:
+        var: cis_lo_accept_rule.stdout_lines
+
+    - name: "CIS 4.2.2 | Check IPv4 loopback nft rules using Tenable logic"
+      ansible.builtin.shell: |
+        nft list ruleset |
+        awk '/filter_IN_public_deny|hook\s+input\s+/,/\}\s*(#.*)?$/' |
+        grep -P -- 'ip\h+saddr' || true
+      args:
+        executable: /bin/bash
+      register: cis_ipv4_nft_rules
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display IPv4 loopback nft rules"
+      ansible.builtin.debug:
+        var: cis_ipv4_nft_rules.stdout_lines
+
+    - name: "CIS 4.2.2 | Check IPv6 loopback nft rules using Tenable logic"
+      ansible.builtin.shell: |
+        nft list ruleset |
+        awk '/filter_IN_public_deny|hook input/,/}/' |
+        grep 'ip6 saddr' || true
+      args:
+        executable: /bin/bash
+      register: cis_ipv6_nft_rules
+      changed_when: false
+
+    - name: "CIS 4.2.2 | Display IPv6 loopback nft rules"
+      ansible.builtin.debug:
+        var: cis_ipv6_nft_rules.stdout_lines        
