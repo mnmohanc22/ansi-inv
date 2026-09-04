@@ -186,3 +186,37 @@
     - name: "CIS 5.4.1.5 | Display exact INACTIVE output"
       ansible.builtin.debug:
         var: inactive_check.stdout_lines
+
+
+- name: "CIS 5.4.1.5 | Check existing users inactive days"
+  block:
+    - name: "CIS 5.4.1.5 | Check existing users inactive days"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($2 ~ /^\$.+\$/) {
+            print $1 ": INACTIVE=" $7
+          }
+        ' /etc/shadow
+      register: inactive_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display inactive user settings"
+      ansible.builtin.debug:
+        var: inactive_users.stdout_lines          
+
+
+- name: "CIS 5.4.1.5 | Find existing users with non-compliant inactive days"
+  block:
+    - name: "CIS 5.4.1.5 | Find existing users with non-compliant inactive days"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($2 ~ /^\$.+\$/ && ($7 < 0 || $7 > 30)) {
+            print $1 ":" $7
+          }
+        ' /etc/shadow
+      register: inactive_noncompliant
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display non-compliant users"
+      ansible.builtin.debug:
+        var: inactive_noncompliant.stdout_lines        
