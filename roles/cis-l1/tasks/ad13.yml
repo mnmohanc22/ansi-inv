@@ -461,3 +461,28 @@
       loop_control:
         label: "{{ item.item }}"
       when: item.changed | default(false)          
+
+
+
+
+- name: "Display RHEL system information"
+  block:
+    - name: "Get RHEL release"
+      ansible.builtin.command:
+        cmd: cat /etc/redhat-release
+      register: rhel_release
+      changed_when: false
+
+    - name: "Display RHEL release"
+      ansible.builtin.debug:
+        msg: "{{ rhel_release.stdout }}"
+
+    - name: "Display RHEL OS details"
+      ansible.builtin.debug:
+        msg:
+          - "Distribution: {{ ansible_distribution }}"
+          - "Version: {{ ansible_distribution_version }}"
+          - "Major Version: {{ ansible_distribution_major_version }}"
+          - "OS Family: {{ ansible_os_family }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Architecture: {{ ansible_architecture }}"    
