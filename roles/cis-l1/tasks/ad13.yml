@@ -1,0 +1,150 @@
+- name: "CIS 7.2.9 | Audit insecure dot files"
+  block:
+    - name: "CIS 7.2.9 | Get local interactive users"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($3 >= 1000 &&
+           $1 != "nobody" &&
+           $7 !~ /(nologin|false)$/) {
+            print $1 ":" $6
+          }' /etc/passwd
+      register: local_interactive_users
+      changed_when: false
+
+    - name: "CIS 7.2.9 | Find insecure dot files"
+      ansible.builtin.shell: |
+        user="{{ item.split(':')[0] }}"
+        home="{{ item.split(':')[1] }}"
+
+        if [ -d "$home" ]; then
+          find "$home" -xdev -maxdepth 1 \
+            -type f \
+            -name '.*' \
+            -perm /0022 \
+            -printf '%m %u %g %p\n' 2>/dev/null
+        fi
+      loop: "{{ local_interactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+      register: insecure_dotfiles
+      changed_when: false
+
+    - name: "CIS 7.2.9 | Display insecure dot files"
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ insecure_dotfiles.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"
+      when: item.stdout_lines | length > 0
+
+
+
+- name: "CIS 7.2.9 | Remediate insecure dot files"
+  block:
+    - name: "CIS 7.2.9 | Find dot files requiring remediation"
+      ansible.builtin.shell: |
+        home="{{ item.split(':')[1] }}"
+
+        if [ -d "$home" ]; then
+          find "$home" -xdev -maxdepth 1 \
+            -type f \
+            -name '.*' \
+            -perm /0022 \
+            -print 2>/dev/null
+        fi
+      loop: "{{ local_interactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+      register: dotfiles_to_fix
+      changed_when: false
+
+    - name: "CIS 7.2.9 | Remove group and world write from dot files"
+      ansible.builtin.file:
+        path: "{{ item.1 }}"
+        mode: 'go-w'
+      loop: "{{ dotfiles_to_fix.results | subelements('stdout_lines', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.1 }}"
+      register: dotfiles_chmod
+
+    - name: "CIS 7.2.9 | Display remediated dot files"
+      ansible.builtin.debug:
+        msg: "permissions updated : {{ item.item.1 }}"
+      loop: "{{ dotfiles_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.1 }}"
+      when: item.changed | default(false)
+
+
+
+- name: "CIS 7.2.9 | Secure bash history files"
+  block:
+    - name: "CIS 7.2.9 | Check bash history files"
+      ansible.builtin.stat:
+        path: "{{ item.split(':')[1] }}/.bash_history"
+      loop: "{{ local_interactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+      register: bash_history_files
+      changed_when: false
+
+    - name: "CIS 7.2.9 | Display bash history file stats"
+      ansible.builtin.debug:
+        msg:
+          - "user : {{ item.item.split(':')[0] }}"
+          - "path : {{ item.stat.path | default('N/A') }}"
+          - "exists : {{ item.stat.exists }}"
+          - "mode : {{ item.stat.mode | default('N/A') }}"
+      loop: "{{ bash_history_files.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"
+
+    - name: "CIS 7.2.9 | Secure bash history files"
+      ansible.builtin.file:
+        path: "{{ item.stat.path }}"
+        owner: "{{ item.item.split(':')[0] }}"
+        mode: '0600'
+      loop: "{{ bash_history_files.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"
+      when:
+        - item.stat.exists | default(false)
+        - item.stat.isreg | default(false)
+      register: bash_history_chmod
+
+    - name: "CIS 7.2.9 | Display secured bash history files"
+      ansible.builtin.debug:
+        msg: "permissions updated : {{ item.item.stat.path }}"
+      loop: "{{ bash_history_chmod.results }}"
+      loop_control:
+        label: "{{ item.item.item.split(':')[0] }}"
+      when: item.changed | default(false)
+
+
+
+
+- name: "CIS 7.2.9 | Audit sensitive user dot files"
+  block:
+    - name: "CIS 7.2.9 | Check sensitive user dot files"
+      ansible.builtin.shell: |
+        home="{{ item.split(':')[1] }}"
+
+        for f in .forward .rhosts .netrc; do
+          if [ -e "$home/$f" ]; then
+            stat -Lc '%a %U %G %n' "$home/$f"
+          fi
+        done
+      loop: "{{ local_interactive_users.stdout_lines }}"
+      loop_control:
+        label: "{{ item.split(':')[0] }}"
+      register: sensitive_dotfiles
+      changed_when: false
+
+    - name: "CIS 7.2.9 | Display sensitive dot files"
+      ansible.builtin.debug:
+        var: item.stdout_lines
+      loop: "{{ sensitive_dotfiles.results }}"
+      loop_control:
+        label: "{{ item.item.split(':')[0] }}"
+      when: item.stdout_lines | length > 0
+
