@@ -220,3 +220,21 @@
     - name: "CIS 5.4.1.5 | Display non-compliant users"
       ansible.builtin.debug:
         var: inactive_noncompliant.stdout_lines        
+
+
+
+- name: "CIS 5.4.1.5 | Check inactive days for password-enabled users"
+  block:
+    - name: "CIS 5.4.1.5 | Check inactive days for password-enabled users"
+      ansible.builtin.shell: |
+        awk -F: '
+          ($2 ~ /^\$.+\$/) {
+            printf "%-25s INACTIVE=%s\n", $1, ($7 == "" ? "EMPTY" : $7)
+          }
+        ' /etc/shadow
+      register: cis_inactive_users
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Display inactive days"
+      ansible.builtin.debug:
+        var: cis_inactive_users.stdout_lines        
