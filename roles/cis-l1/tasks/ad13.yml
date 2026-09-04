@@ -485,4 +485,5 @@
           - "Major Version: {{ ansible_distribution_major_version }}"
           - "OS Family: {{ ansible_os_family }}"
           - "Kernel: {{ ansible_kernel }}"
-          - "Architecture: {{ ansible_architecture }}"    
+          - "Architecture: {{ ansible_architecture }}"  
+  when: ansible_distribution == "RedHat" or ansible_distribution == "CentOS" or ansible_distribution == "Rocky" or ansible_distribution == "AlmaLinux"          
