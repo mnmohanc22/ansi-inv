@@ -238,3 +238,23 @@
     - name: "CIS 5.4.1.5 | Display inactive days"
       ansible.builtin.debug:
         var: cis_inactive_users.stdout_lines        
+
+
+
+- name: "CIS 5.4.1.5 | Set default inactive password lock to 30 days"
+  block:
+    - name: "CIS 5.4.1.5 | Get useradd defaults"
+      ansible.builtin.command:
+        cmd: /sbin/useradd -D
+      register: useradd_defaults
+      changed_when: false
+
+    - name: "CIS 5.4.1.5 | Set default inactive password lock to 30 days"
+      ansible.builtin.command:
+        cmd: /sbin/useradd -D -f 30
+      when: "'INACTIVE=30' not in useradd_defaults.stdout"
+      register: useradd_inactive_set
+
+    - name: "CIS 5.4.1.5 | Display inactive lock status"
+      ansible.builtin.debug:
+        msg: "inactive lock : {{ 'SET to 30 days' if useradd_inactive_set.changed else 'already 30 days - no change' }}"
