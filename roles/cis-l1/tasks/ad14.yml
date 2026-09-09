@@ -1,0 +1,55 @@
+- name: "Verify SSH connectivity"
+  block:
+    - name: "Check SSH port 22 from Ansible controller"
+      ansible.builtin.wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
+        timeout: 5
+        state: started
+      delegate_to: localhost
+      register: ssh_port_check
+      ignore_errors: true
+
+    - name: "Display SSH port check"
+      ansible.builtin.debug:
+        msg: >-
+          SSH port 22:
+          {{ 'REACHABLE' if ssh_port_check is succeeded else 'NOT REACHABLE' }}
+
+    - name: "Test basic SSH command execution"
+      ansible.builtin.raw: "echo SSH_CONNECTION_OK"
+      register: ssh_test
+      changed_when: false
+      ignore_errors: true
+
+    - name: "Display SSH connection result"
+      ansible.builtin.debug:
+        var: ssh_test
+
+#remote_tmp = /var/tmp/.ansible-${USER}/tmp        
+
+
+- name: "Check Ansible remote tmp configuration"
+  block:
+
+    - name: "Check Ansible remote tmp configuration"
+      ansible.builtin.shell: |
+        ansible-config dump 
+      delegate_to: localhost
+      register: ansible_config_dump
+      changed_when: false
+
+    - name: "Display Ansible configuration"
+      ansible.builtin.debug:
+        var: ansible_config_dump.stdout_lines
+
+    - name: "Check Ansible remote tmp configuration"
+      ansible.builtin.shell: |
+        ansible-config dump | grep -i REMOTE_TMP
+      delegate_to: localhost
+      register: ansible_config
+      changed_when: false
+
+    - name: "Display Ansible remote tmp configuration"
+      ansible.builtin.debug:
+        var: ansible_config.stdout_lines
