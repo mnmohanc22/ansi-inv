@@ -54,6 +54,7 @@
 
 
 - name: "Install Elastic Agent"
+  become: true
   when: not elastic_agent_installed.stat.exists
   block:
     - name: "Create temporary installation directory"
@@ -109,6 +110,20 @@
 
 
 
+
+
+- name: "Remove Elastic Agent temporary work directory"
+  become: true
+  block:
+    - name: "Remove Elastic Agent work directory"
+      ansible.builtin.file:
+        path: "{{ elastic_agent_work_dir }}"
+        state: absent
+      register: elastic_workdir_removed
+
+    - name: "Display work directory removal status"
+      ansible.builtin.debug:
+        msg: "work dir {{ elastic_agent_work_dir }} : {{ 'REMOVED' if elastic_workdir_removed.changed else 'already absent - no change' }}"
 
 
 - name: "Install and enroll Elastic Agent"
@@ -322,3 +337,5 @@
       no_log: true
   tags:
     - always
+
+
