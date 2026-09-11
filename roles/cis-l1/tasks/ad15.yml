@@ -73,15 +73,40 @@
         mode: "0640"
         timeout: 120
         validate_certs: true
+        
+
+    - name: "Check if Elastic Agent install directory exists"
+      ansible.builtin.stat:
+        path: /opt/Elastic/Agent
+      register: elastic_agent_dir
+
+    - name: "Display Elastic Agent install directory status"
+      ansible.builtin.debug:
+        msg: "install dir /opt/Elastic/Agent : {{ 'EXISTS - skipping extract' if elastic_agent_dir.stat.exists else 'NOT FOUND - will extract' }}"
+
+    - name: "Create Elastic Agent install directory"
+      ansible.builtin.file:
+        path: /opt/Elastic/Agent
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+      when: not elastic_agent_dir.stat.exists
 
     - name: "Extract Elastic Agent tar file"
       ansible.builtin.unarchive:
         src: "{{ elastic_agent_work_dir }}/{{ elastic_agent_archive }}"
-        dest: "{{ elastic_agent_work_dir }}"
+        dest: /opt/Elastic/Agent
         remote_src: true
         extra_opts:
           - "--strip-components=1"
-        creates: "{{ elastic_agent_work_dir }}/elastic-agent"
+      when: not elastic_agent_dir.stat.exists
+      register: elastic_extract
+
+    - name: "Display Elastic Agent extract status"
+      ansible.builtin.debug:
+        msg: "tar file extract : {{ 'EXTRACTED' if elastic_extract.changed else 'already present - no change' }}"
+      when: not elastic_agent_dir.stat.exists
 
 
 - name: "Install and enroll Elastic Agent"
@@ -89,7 +114,7 @@
     - name: "Install and enroll Elastic Agent"
       ansible.builtin.command:
         argv:
-          - "{{ elastic_agent_extract_dir }}/elastic-agent"
+          - /opt/Elastic/Agent/elastic-agent
           - install
           - "--url={{ fleet_server_url }}"
           - "--enrollment-token={{ fleet_enrollment_token }}"
