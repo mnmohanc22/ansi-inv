@@ -91,7 +91,6 @@
         owner: root
         group: root
         mode: "0750"
-      when: not elastic_agent_dir.stat.exists
 
     - name: "Extract Elastic Agent tar file"
       ansible.builtin.unarchive:
@@ -107,6 +106,9 @@
       ansible.builtin.debug:
         msg: "tar file extract : {{ 'EXTRACTED' if elastic_extract.changed else 'already present - no change' }}"
       when: not elastic_agent_dir.stat.exists
+
+
+
 
 
 - name: "Install and enroll Elastic Agent"
@@ -138,6 +140,69 @@
     - name: "Display Elastic Agent status"
       ansible.builtin.debug:
         var: elastic_agent_status.stdout_lines
+
+
+
+- name: "Collect Elastic Agent installation failure logs"
+  block:
+    - name: "Collect Elastic Agent service logs"
+      ansible.builtin.command:
+        argv:
+          - journalctl
+          - "--unit=elastic-agent.service"
+          - "--no-pager"
+          - "--lines=200"
+      register: elastic_install_failure_logs
+      changed_when: false
+      failed_when: false
+
+    - name: "Display installation failure logs"
+      ansible.builtin.debug:
+        var: elastic_install_failure_logs.stdout_lines
+
+    - name: "Fail after collecting logs"
+      ansible.builtin.fail:
+        msg: "Elastic Agent installation failed. Review the logs above."
+
+
+- name: "Display latest Elastic Agent log file"
+  block:
+    - name: "Find Elastic Agent log files"
+      ansible.builtin.find:
+        paths: /opt/Elastic/Agent/data
+        patterns:
+          - "elastic-agent*.ndjson"
+        file_type: file
+        recurse: true
+      register: elastic_agent_log_files
+
+    - name: "Select latest Elastic Agent log"
+      ansible.builtin.set_fact:
+        latest_elastic_agent_log: >-
+          {{
+            (elastic_agent_log_files.files
+             | sort(attribute='mtime', reverse=true)
+             | map(attribute='path')
+             | first)
+            | default('')
+          }}
+
+    - name: "Read latest Elastic Agent log"
+      ansible.builtin.command:
+        argv:
+          - tail
+          - "-n"
+          - "100"
+          - "{{ latest_elastic_agent_log }}"
+      register: elastic_agent_file_log
+      changed_when: false
+      when: latest_elastic_agent_log | length > 0
+
+    - name: "Display latest Elastic Agent log"
+      ansible.builtin.debug:
+        var: elastic_agent_file_log.stdout_lines
+      when: latest_elastic_agent_log | length > 0
+
 
 
 - name: "Start Elastic Agent service"
