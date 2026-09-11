@@ -287,3 +287,38 @@
         var: elastic_systemctl_status.stdout_lines
 
         
+
+- name: "Check files in role vars directory"
+  block:
+    - name: "Find files in role vars directory"
+      ansible.builtin.find:
+        paths: "{{ role_path }}/vars"
+        file_type: file
+      register: vars_dir_files
+      delegate_to: localhost
+
+    - name: "Display files in role vars directory"
+      ansible.builtin.debug:
+        msg:
+          - "path : {{ item.path }}"
+          - "size : {{ item.size }} bytes"
+          - "mode : {{ item.mode }}"
+      loop: "{{ vars_dir_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+
+- name: "Load Elastic Agent secrets"
+  block:
+    - name: "Show role location"
+      ansible.builtin.debug:
+        msg: "Elastic Agent role path: {{ role_path }}"
+
+
+
+    - name: "Load encrypted Elastic Agent secrets"
+      ansible.builtin.include_vars:
+        file: "{{ role_path }}/vars/secrets.yml"
+      no_log: true
+  tags:
+    - always
