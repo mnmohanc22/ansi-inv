@@ -1,0 +1,199 @@
+
+
+
+- name: "Download Elastic Agent tar file from URL"
+  block:
+    - name: "Create temporary installation directory"
+      ansible.builtin.file:
+        path: "{{ elastic_agent_work_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Download Elastic Agent tar file"
+      ansible.builtin.get_url:
+        url: "{{ elastic_agent_download_url }}"
+        dest: "{{ elastic_agent_work_dir }}/{{ elastic_agent_archive }}"
+        owner: root
+        group: root
+        mode: "0640"
+        timeout: 120
+        validate_certs: true
+      register: elastic_download
+
+    - name: "Display Elastic Agent download status"
+      ansible.builtin.debug:
+        msg: "tar file download : {{ 'DOWNLOADED' if elastic_download.changed else 'already present - no change' }}"
+
+
+- name: "Copy Elastic Agent tar file to managed servers"
+  block:
+    - name: "Create temporary installation directory"
+      ansible.builtin.file:
+        path: "{{ elastic_agent_work_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Copy Elastic Agent tar file from role files directory"
+      ansible.builtin.copy:
+        src: "{{ elastic_agent_archive }}"
+        dest: "{{ elastic_agent_work_dir }}/{{ elastic_agent_archive }}"
+        owner: root
+        group: root
+        mode: "0640"
+      register: elastic_copy
+
+    - name: "Display Elastic Agent copy status"
+      ansible.builtin.debug:
+        msg: "tar file copy : {{ 'COPIED' if elastic_copy.changed else 'already present - no change' }}"
+
+
+
+
+- name: "Install Elastic Agent"
+  when: not elastic_agent_installed.stat.exists
+  block:
+    - name: "Create temporary installation directory"
+      ansible.builtin.file:
+        path: "{{ elastic_agent_work_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Download Elastic Agent tar file"
+      ansible.builtin.get_url:
+        url: "{{ elastic_agent_download_url }}"
+        dest: "{{ elastic_agent_work_dir }}/{{ elastic_agent_archive }}"
+        owner: root
+        group: root
+        mode: "0640"
+        timeout: 120
+        validate_certs: true
+
+    - name: "Extract Elastic Agent tar file"
+      ansible.builtin.unarchive:
+        src: "{{ elastic_agent_work_dir }}/{{ elastic_agent_archive }}"
+        dest: "{{ elastic_agent_work_dir }}"
+        remote_src: true
+        extra_opts:
+          - "--strip-components=1"
+        creates: "{{ elastic_agent_work_dir }}/elastic-agent"
+
+
+- name: "Install and enroll Elastic Agent"
+  block:
+    - name: "Install and enroll Elastic Agent"
+      ansible.builtin.command:
+        argv:
+          - "{{ elastic_agent_extract_dir }}/elastic-agent"
+          - install
+          - "--url={{ fleet_server_url }}"
+          - "--enrollment-token={{ fleet_enrollment_token }}"
+          - "--non-interactive"
+      no_log: true
+      register: elastic_enroll
+
+    - name: "Display Elastic Agent enrollment status"
+      ansible.builtin.debug:
+        msg: "enrollment : {{ 'COMPLETED' if elastic_enroll.changed else 'already enrolled - no change' }}"
+
+    - name: "Check Elastic Agent service status"
+      ansible.builtin.command:
+        argv:
+          - /opt/Elastic/Agent/elastic-agent
+          - status
+      register: elastic_agent_status
+      changed_when: false
+      failed_when: elastic_agent_status.rc != 0
+
+    - name: "Display Elastic Agent status"
+      ansible.builtin.debug:
+        var: elastic_agent_status.stdout_lines
+
+
+- name: "Start Elastic Agent service"
+  block:
+    - name: "Start Elastic Agent service"
+      ansible.builtin.systemd:
+        name: elastic-agent
+        state: started
+        enabled: true
+      register: elastic_start
+
+    - name: "Display Elastic Agent start status"
+      ansible.builtin.debug:
+        msg: "elastic-agent start : {{ 'STARTED' if elastic_start.changed else 'already running - no change' }}"
+
+
+- name: "Stop Elastic Agent service"
+  block:
+    - name: "Stop Elastic Agent service"
+      ansible.builtin.systemd:
+        name: elastic-agent
+        state: stopped
+      register: elastic_stop
+
+    - name: "Display Elastic Agent stop status"
+      ansible.builtin.debug:
+        msg: "elastic-agent stop : {{ 'STOPPED' if elastic_stop.changed else 'already stopped - no change' }}"
+
+
+- name: "Restart Elastic Agent service"
+  block:
+    - name: "Restart Elastic Agent service"
+      ansible.builtin.systemd:
+        name: elastic-agent
+        state: restarted
+      register: elastic_restart
+
+    - name: "Display Elastic Agent restart status"
+      ansible.builtin.debug:
+        msg: "elastic-agent restart : {{ 'RESTARTED' if elastic_restart.changed else 'no change' }}"
+
+
+- name: "Check Elastic Agent service status"
+  block:
+    - name: "Get Elastic Agent systemd service status"
+      ansible.builtin.systemd:
+        name: elastic-agent
+      register: elastic_svc_status
+
+    - name: "Display Elastic Agent systemd status"
+      ansible.builtin.debug:
+        msg:
+          - "state   : {{ elastic_svc_status.status.ActiveState }}"
+          - "sub     : {{ elastic_svc_status.status.SubState }}"
+          - "enabled : {{ elastic_svc_status.status.UnitFileState }}"
+
+    - name: "Get Elastic Agent process status"
+      ansible.builtin.command:
+        argv:
+          - /opt/Elastic/Agent/elastic-agent
+          - status
+      register: elastic_proc_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display Elastic Agent process status"
+      ansible.builtin.debug:
+        var: elastic_proc_status.stdout_lines
+
+
+- name: "Check Elastic Agent status via systemctl"
+  block:
+    - name: "Get Elastic Agent systemctl status"
+      ansible.builtin.command:
+        cmd: systemctl status elastic-agent
+      register: elastic_systemctl_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display Elastic Agent systemctl status"
+      ansible.builtin.debug:
+        var: elastic_systemctl_status.stdout_lines
+
+        

@@ -30,6 +30,7 @@
 
 
 - name: "Check Ansible remote tmp configuration"
+  tags: ansible_config
   block:
 
     - name: "Check Ansible remote tmp configuration"
