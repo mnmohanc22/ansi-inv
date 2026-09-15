@@ -386,6 +386,12 @@
           Archive: "{{ elastic_agent_stage_dir }}\\{{ elastic_agent_archive }}"
           Destination: "{{ elastic_agent_stage_dir }}"
       when: not elastic_agent_extracted.stat.exists
+      register: elastic_agent_extract
+
+    - name: "Display Elastic Agent extract status"  
+      ansible.builtin.debug:
+        msg: "zip file extract : {{ 'EXTRACTED' if elastic_agent_extract.changed else 'already present - no change' }}"
+          
 
       
 
