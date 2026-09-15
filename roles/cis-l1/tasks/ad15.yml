@@ -357,6 +357,11 @@
         dest: "{{ elastic_agent_stage_dir }}\\{{ elastic_agent_archive }}"
         validate_certs: true
         force: false
+      register: elastic_agent_download
+
+    - name: "Display Elastic Agent download status"
+      ansible.builtin.debug:
+        msg: "zip file download : {{ 'DOWNLOADED' if elastic_agent_download.changed else 'already present - no change' }}"     
 
     - name: "Check whether archive is extracted"
       ansible.windows.win_stat:
