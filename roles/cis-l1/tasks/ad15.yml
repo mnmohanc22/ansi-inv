@@ -339,3 +339,140 @@
     - always
 
 
+#elastic_agent_installed_exe: 'C:\Program Files\Elastic\Agent\elastic-agent.exe'
+#elastic_agent_stage_dir: 'C:\ProgramData\Elastic\Installer'
+
+
+
+- name: "Install Elastic Agent on Windows"
+  block:
+    - name: "Create Elastic Agent staging directory"
+      ansible.windows.win_file:
+        path: "{{ elastic_agent_stage_dir }}"
+        state: directory
+
+    - name: "Download Elastic Agent ZIP"
+      ansible.windows.win_get_url:
+        url: "{{ elastic_agent_download_url }}"
+        dest: "{{ elastic_agent_stage_dir }}\\{{ elastic_agent_archive }}"
+        validate_certs: true
+        force: false
+
+    - name: "Check whether archive is extracted"
+      ansible.windows.win_stat:
+        path: "{{ elastic_agent_extract_dir }}\\elastic-agent.exe"
+      register: elastic_agent_extracted
+
+    - name: "Extract Elastic Agent ZIP"
+      ansible.windows.win_powershell:
+        script: |
+          param (
+              [string] $Archive,
+              [string] $Destination
+          )
+
+          $Ansible.Changed = $true
+
+          Expand-Archive `
+            -LiteralPath $Archive `
+            -DestinationPath $Destination `
+            -Force
+        parameters:
+          Archive: "{{ elastic_agent_stage_dir }}\\{{ elastic_agent_archive }}"
+          Destination: "{{ elastic_agent_stage_dir }}"
+      when: not elastic_agent_extracted.stat.exists
+
+      
+
+- name: "Install and enroll Elastic Agent on Windows"
+  block:
+    - name: "Install and enroll Elastic Agent"
+      ansible.windows.win_command: >-
+        "{{ elastic_agent_extract_dir }}\elastic-agent.exe"
+        install
+        --url="{{ fleet_server_url }}"
+        --enrollment-token="{{ vault_fleet_enrollment_token }}"
+        --non-interactive
+      register: elastic_agent_install
+      no_log: true
+
+    - name: "Display Elastic Agent enrollment status"
+      ansible.builtin.debug:
+        msg: "enrollment : {{ 'COMPLETED' if elastic_agent_install.changed else 'already enrolled - no change' }}"
+
+
+- name: "Verify Elastic Agent service on Windows"
+  block:
+    - name: "Ensure Elastic Agent service is automatic and running"
+      ansible.windows.win_service:
+        name: "Elastic Agent"
+        start_mode: auto
+        state: started
+      register: elastic_svc_windows
+
+    - name: "Display Elastic Agent service status"
+      ansible.builtin.debug:
+        msg: "elastic-agent service : {{ 'STARTED' if elastic_svc_windows.changed else 'already running - no change' }}"
+
+    - name: "Get Elastic Agent version"
+      ansible.windows.win_command: >-
+        "{{ elastic_agent_installed_exe }}" version
+      register: elastic_agent_version_result
+      changed_when: false
+
+    - name: "Display installed version"
+      ansible.builtin.debug:
+        var: elastic_agent_version_result.stdout_lines
+
+
+- name: "Check Elastic Agent status on Windows"
+  block:
+    - name: "Check Elastic Agent status"
+      ansible.windows.win_command: >-
+        "{{ elastic_agent_installed_exe }}" status
+      register: elastic_agent_win_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display Elastic Agent status"
+      ansible.builtin.debug:
+        var: elastic_agent_win_status.stdout_lines
+
+
+- name: "Start Elastic Agent service on Windows"
+  block:
+    - name: "Start Elastic Agent service"
+      ansible.windows.win_service:
+        name: "Elastic Agent"
+        state: started
+      register: elastic_win_start
+
+    - name: "Display Elastic Agent start status"
+      ansible.builtin.debug:
+        msg: "elastic-agent start : {{ 'STARTED' if elastic_win_start.changed else 'already running - no change' }}"
+
+
+- name: "Stop Elastic Agent service on Windows"
+  block:
+    - name: "Stop Elastic Agent service"
+      ansible.windows.win_service:
+        name: "Elastic Agent"
+        state: stopped
+      register: elastic_win_stop
+
+    - name: "Display Elastic Agent stop status"
+      ansible.builtin.debug:
+        msg: "elastic-agent stop : {{ 'STOPPED' if elastic_win_stop.changed else 'already stopped - no change' }}"
+
+
+- name: "Restart Elastic Agent service on Windows"
+  block:
+    - name: "Restart Elastic Agent service"
+      ansible.windows.win_service:
+        name: "Elastic Agent"
+        state: restarted
+      register: elastic_win_restart
+
+    - name: "Display Elastic Agent restart status"
+      ansible.builtin.debug:
+        msg: "elastic-agent restart : {{ 'RESTARTED' if elastic_win_restart.changed else 'no change' }}"
