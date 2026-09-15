@@ -108,6 +108,33 @@
         msg: "tar file extract : {{ 'EXTRACTED' if elastic_extract.changed else 'already present - no change' }}"
       when: not elastic_agent_dir.stat.exists
 
+    - name: "List contents of extracted Elastic Agent directory"
+      ansible.builtin.command:
+        cmd: ls -lh /opt/Elastic/Agent
+      register: elastic_extract_dir_list
+      changed_when: false
+
+    - name: "Display extracted Elastic Agent directory contents"
+      ansible.builtin.debug:
+        var: elastic_extract_dir_list.stdout_lines
+
+    - name: "Find files in extracted Elastic Agent directory"
+      ansible.builtin.find:
+        paths: /opt/Elastic/Agent
+        file_type: file
+        recurse: false
+      register: elastic_extract_files
+
+    - name: "Display files in extracted Elastic Agent directory"
+      ansible.builtin.debug:
+        msg:
+          - "name : {{ item.path | basename }}"
+          - "size : {{ item.size }} bytes"
+          - "mode : {{ item.mode }}"
+      loop: "{{ elastic_extract_files.files | sort(attribute='path') }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
 
 
 
@@ -388,12 +415,25 @@
       when: not elastic_agent_extracted.stat.exists
       register: elastic_agent_extract
 
-    - name: "Display Elastic Agent extract status"  
+    - name: "Display Elastic Agent extract status"
       ansible.builtin.debug:
         msg: "zip file extract : {{ 'EXTRACTED' if elastic_agent_extract.changed else 'already present - no change' }}"
-          
 
-      
+    - name: "List files in extracted Elastic Agent directory"
+      ansible.windows.win_find:
+        paths: "{{ elastic_agent_extract_dir }}"
+        recurse: false
+      register: elastic_win_extract_files
+
+    - name: "Display files in extracted Elastic Agent directory"
+      ansible.builtin.debug:
+        msg:
+          - "name : {{ item.filename }}"
+          - "size : {{ item.size }} bytes"
+      loop: "{{ elastic_win_extract_files.files | sort(attribute='filename') }}"
+      loop_control:
+        label: "{{ item.filename }}"
+
 
 - name: "Install and enroll Elastic Agent on Windows"
   block:
