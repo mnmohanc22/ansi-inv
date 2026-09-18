@@ -16,6 +16,7 @@
         argv:
           - "{{ agentcore_status_script }}"
           - getstatus
+        chdir: "{{ agentcore_status_script | dirname }}"
       become_user: "{{ informatica_user }}"
       environment:
         INFA_HOME: "{{ infa_agent_home }}"
