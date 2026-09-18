@@ -37,13 +37,14 @@
       ansible.builtin.set_fact:
         agentcore_running: >-
           {{
-            agentcore_script.stat.exists
-            and (agentcore_status.rc | default(1) == 0)
+            (agentcore_status.rc | default(1)) == 0
             and (
-              agentcore_status.stdout | default('')
+              (agentcore_status.stdout | default('') +
+               agentcore_status.stderr | default(''))
               | regex_search('(?i)READY|RUNNING')
             ) is not none
-          }}   
+          }}
+      when: agentcore_script.stat.exists
 
     - name: "Display Informatica agentcore status summary"
       ansible.builtin.debug:
