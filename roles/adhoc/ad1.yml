@@ -47,7 +47,7 @@
 
     - name: "Display Informatica agentcore status summary"
       ansible.builtin.debug:
-        msg: "IICS agentcore : {{ 'RUNNING' if agentcore_running else 'NOT RUNNING' }}"   
+        msg: "IICS agentcore : {{ 'RUNNING' if agentcore_running | default(false) else 'NOT RUNNING' }}"   
 
 
 - name: "Check PowerExchange process status"
@@ -93,7 +93,7 @@
     - name: "Display Informatica component status facts"
       ansible.builtin.debug:
         msg:
-          - "agentcore_running : {{ agentcore_running }}"
+          - "agentcore_running : {{ agentcore_running | default(false) }}"
           - "dtllst_running    : {{ dtllst_running }}"
           - "pwxccl_running    : {{ pwxccl_running }}"
 
