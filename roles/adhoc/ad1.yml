@@ -105,3 +105,68 @@
 #     # Adjust when your executable or process name is customized.
 #     dtllst_process_pattern: '(^|/)dtllst([[:space:]]|$)'
 #     pwxccl_process_pattern: '(^|/)pwxccl([[:space:]]|$)'          
+
+
+
+- name: "Check PowerExchange processes using ps and grep"
+  block:
+    - name: "Get dtllst process list using ps"
+      ansible.builtin.shell: |
+        set -o pipefail
+        ps -efww | grep '[d]tllst'
+      args:
+        executable: /bin/bash
+      register: dtllst_process
+      changed_when: false
+      failed_when: dtllst_process.rc not in [0, 1]
+
+    - name: "Display dtllst process list"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            dtllst_process.stdout_lines
+            if dtllst_process.rc == 0
+            else ['dtllst process is not running']
+          }}
+
+    - name: "Get pwxccl process list using ps"
+      ansible.builtin.shell: |
+        set -o pipefail
+        ps -efww | grep '[p]wxccl'
+      args:
+        executable: /bin/bash
+      register: pwxccl_process
+      changed_when: false
+      failed_when: pwxccl_process.rc not in [0, 1]
+
+    - name: "Display pwxccl process list"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            pwxccl_process.stdout_lines
+            if pwxccl_process.rc == 0
+            else ['pwxccl process is not running']
+          }}
+
+
+
+- name: "Get all dtllst process variations using pgrep"
+  block:
+    - name: "Get all dtllst process variations"
+      ansible.builtin.command:
+        argv:
+          - pgrep
+          - "-afi"
+          - "dtllst"
+      register: dtllst_pgrep
+      changed_when: false
+      failed_when: false
+
+    - name: "Display dtllst process variations"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            dtllst_pgrep.stdout_lines
+            if dtllst_pgrep.rc == 0
+            else ['dtllst process is not running']
+          }}
