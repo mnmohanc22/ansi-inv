@@ -170,3 +170,85 @@
             if dtllst_pgrep.rc == 0
             else ['dtllst process is not running']
           }}
+
+
+
+- name: "Get all dtllst processes using pgrep"
+  block:
+    - name: "Get all dtllst processes"
+      ansible.builtin.command:
+        argv:
+          - pgrep
+          - "-af"
+          - '(^|/)dtllst([[:space:]]|$)'
+      register: dtllst_processes
+      changed_when: false
+      failed_when: false
+
+    - name: "Display all dtllst processes"
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            dtllst_processes.stdout_lines
+            if dtllst_processes.rc == 0
+            else ['No dtllst processes are running']
+          }}
+
+
+#pwx_listener_services:
+  # - "PWX_LISTENER_01"
+  # - "PWX_LISTENER_02"
+
+- name: "Stop PowerExchange Listener gracefully"
+  block:
+    - name: "Shutdown PowerExchange Listener service"
+      ansible.builtin.command:
+        argv:
+          - "{{ pwx_home }}/bin/pwxcmd"
+          - shutdown
+          - "-service"
+          - "{{ pwx_listener_service }}"
+      environment:
+        PWX_HOME: "{{ pwx_home }}"
+        LD_LIBRARY_PATH: "{{ pwx_home }}/lib"
+        PATH: "{{ pwx_home }}/bin:/usr/bin:/bin"
+      become: true
+      become_user: "{{ informatica_user }}"
+      register: pwx_listener_stop
+      changed_when: true
+      failed_when: pwx_listener_stop.rc != 0
+
+    - name: "Display PowerExchange Listener stop status"
+      ansible.builtin.debug:
+        msg: "{{ pwx_listener_service }} : {{ 'STOPPED' if pwx_listener_stop.rc == 0 else 'FAILED rc=' + (pwx_listener_stop.rc | string) }}"
+
+
+
+
+- name: "Get PowerExchange Listener status"
+  block:
+    - name: "Get PowerExchange Listener status"
+      ansible.builtin.command:
+        argv:
+          - "{{ pwx_home }}/bin/pwxcmd"
+          - displaystatus
+          - "-service"
+          - "{{ pwx_listener_service }}"
+      environment:
+        PWX_HOME: "{{ pwx_home }}"
+        LD_LIBRARY_PATH: "{{ pwx_home }}/lib"
+        PATH: "{{ pwx_home }}/bin:/usr/bin:/bin"
+      become: true
+      become_user: "{{ informatica_user }}"
+      register: pwx_listener_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display PowerExchange Listener status"
+      ansible.builtin.debug:
+        msg:
+          - "service : {{ pwx_listener_service }}"
+          - "rc      : {{ pwx_listener_status.rc }}"
+          - "status  : {{ 'RESPONDING' if pwx_listener_status.rc == 0 else 'NOT RESPONDING' }}"
+          - "stdout  : {{ pwx_listener_status.stdout_lines | default([]) }}"
+          - "stderr  : {{ pwx_listener_status.stderr_lines | default([]) }}"
