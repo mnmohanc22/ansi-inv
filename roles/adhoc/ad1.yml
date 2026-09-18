@@ -1,0 +1,93 @@
+- name: "Check IICS agentcore status"
+  block:
+    - name: "Check whether agentcore status script exists"
+      ansible.builtin.stat:
+        path: "{{ agentcore_status_script }}"
+      register: agentcore_script
+
+    - name: "Get IICS agentcore status"
+      ansible.builtin.command:
+        argv:
+          - "{{ agentcore_status_script }}"
+          - getstatus
+      become_user: "{{ informatica_user }}"
+      register: agentcore_status
+      changed_when: false
+      failed_when: false
+      when: agentcore_script.stat.exists
+
+    - name: "Display IICS agentcore status"
+      ansible.builtin.debug:
+        var: agentcore_status.stdout_lines
+      when: agentcore_script.stat.exists
+
+    - name: Display Informatica status summary
+      ansible.builtin.debug:
+        msg:
+          - "IICS agentcore: {{ 'RUNNING' if agentcore_running else 'NOT RUNNING' }}"   
+
+
+- name: "Check PowerExchange process status"
+  block:
+    - name: "Check PowerExchange Listener process"
+      ansible.builtin.command:
+        argv:
+          - pgrep
+          - "-af"
+          - "--"
+          - "{{ dtllst_process_pattern }}"
+      register: dtllst_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Check PowerExchange Logger process"
+      ansible.builtin.command:
+        argv:
+          - pgrep
+          - "-af"
+          - "--"
+          - "{{ pwxccl_process_pattern }}"
+      register: pwxccl_status
+      changed_when: false
+      failed_when: false
+
+    - name: "Display PowerExchange Listener status"
+      ansible.builtin.debug:
+        msg: "dtllst : {{ 'RUNNING' if dtllst_status.rc == 0 else 'NOT RUNNING' }}"
+
+    - name: "Display PowerExchange Logger status"
+      ansible.builtin.debug:
+        msg: "pwxccl : {{ 'RUNNING' if pwxccl_status.rc == 0 else 'NOT RUNNING' }}"
+
+
+- name: "Set Informatica component status facts"
+  block:
+    - name: "Set Informatica component status"
+      ansible.builtin.set_fact:
+        agentcore_running: >-
+          {{
+            agentcore_script.stat.exists
+            and (agentcore_status.rc | default(1) == 0)
+            and (
+              agentcore_status.stdout | default('')
+              | regex_search('(?i)READY|RUNNING')
+            ) is not none
+          }}
+        dtllst_running: "{{ dtllst_status.rc == 0 }}"
+        pwxccl_running: "{{ pwxccl_status.rc == 0 }}"
+
+    - name: "Display Informatica component status facts"
+      ansible.builtin.debug:
+        msg:
+          - "agentcore_running : {{ agentcore_running }}"
+          - "dtllst_running    : {{ dtllst_running }}"
+          - "pwxccl_running    : {{ pwxccl_running }}"
+
+# infa_agent_home: "/opt/informatica/infaagent"
+
+#     agentcore_status_script: >-
+#       {{ infa_agent_home }}/apps/agentcore/consoleAgentManager.sh
+
+#     # Adjust when your executable or process name is customized.
+#     dtllst_process_pattern: '(^|/)dtllst([[:space:]]|$)'
+#     pwxccl_process_pattern: '(^|/)pwxccl([[:space:]]|$)'          
