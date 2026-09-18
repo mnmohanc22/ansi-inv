@@ -5,12 +5,20 @@
         path: "{{ agentcore_status_script }}"
       register: agentcore_script
 
+    - name: "Display agentcore script existence"
+      ansible.builtin.debug:
+        msg:
+          - "path   : {{ agentcore_status_script }}"
+          - "exists : {{ agentcore_script.stat.exists }}"
+
     - name: "Get IICS agentcore status"
       ansible.builtin.command:
         argv:
           - "{{ agentcore_status_script }}"
           - getstatus
       become_user: "{{ informatica_user }}"
+      environment:
+        INFA_HOME: "{{ infa_agent_home }}"
       register: agentcore_status
       changed_when: false
       failed_when: false
@@ -18,13 +26,27 @@
 
     - name: "Display IICS agentcore status"
       ansible.builtin.debug:
-        var: agentcore_status.stdout_lines
+        msg:
+          - "rc     : {{ agentcore_status.rc | default('N/A') }}"
+          - "stdout : {{ agentcore_status.stdout_lines | default([]) }}"
+          - "stderr : {{ agentcore_status.stderr_lines | default([]) }}"
       when: agentcore_script.stat.exists
 
-    - name: Display Informatica status summary
+    - name: "Set Informatica component status"
+      ansible.builtin.set_fact:
+        agentcore_running: >-
+          {{
+            agentcore_script.stat.exists
+            and (agentcore_status.rc | default(1) == 0)
+            and (
+              agentcore_status.stdout | default('')
+              | regex_search('(?i)READY|RUNNING')
+            ) is not none
+          }}   
+
+    - name: "Display Informatica agentcore status summary"
       ansible.builtin.debug:
-        msg:
-          - "IICS agentcore: {{ 'RUNNING' if agentcore_running else 'NOT RUNNING' }}"   
+        msg: "IICS agentcore : {{ 'RUNNING' if agentcore_running else 'NOT RUNNING' }}"   
 
 
 - name: "Check PowerExchange process status"
@@ -64,15 +86,6 @@
   block:
     - name: "Set Informatica component status"
       ansible.builtin.set_fact:
-        agentcore_running: >-
-          {{
-            agentcore_script.stat.exists
-            and (agentcore_status.rc | default(1) == 0)
-            and (
-              agentcore_status.stdout | default('')
-              | regex_search('(?i)READY|RUNNING')
-            ) is not none
-          }}
         dtllst_running: "{{ dtllst_status.rc == 0 }}"
         pwxccl_running: "{{ pwxccl_status.rc == 0 }}"
 
