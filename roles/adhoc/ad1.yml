@@ -33,18 +33,17 @@
           - "stderr : {{ agentcore_status.stderr_lines | default([]) }}"
       when: agentcore_script.stat.exists
 
-    - name: "Set Informatica component status"
+    - name: "Set agentcore_running default to false"
       ansible.builtin.set_fact:
-        agentcore_running: >-
-          {{
-            (agentcore_status.rc | default(1)) == 0
-            and (
-              (agentcore_status.stdout | default('') +
-               agentcore_status.stderr | default(''))
-              | regex_search('(?i)READY|RUNNING')
-            ) is not none
-          }}
-      when: agentcore_script.stat.exists
+        agentcore_running: false
+
+    - name: "Set agentcore_running to true if READY or RUNNING"
+      ansible.builtin.set_fact:
+        agentcore_running: true
+      when:
+        - agentcore_script.stat.exists
+        - (agentcore_status.rc | default(1)) == 0
+        - agentcore_status.stdout | default('') | regex_search('(?i)READY|RUNNING') is not none
 
     - name: "Display Informatica agentcore status summary"
       ansible.builtin.debug:
