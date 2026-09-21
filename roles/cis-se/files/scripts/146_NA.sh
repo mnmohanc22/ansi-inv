@@ -1,0 +1,1 @@
+/bin/systemctl is-enabled aidecheck.service | /bin/awk '{print} END {if(NR==0) print "disabled" }'

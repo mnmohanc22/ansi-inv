@@ -1,0 +1,1 @@
+/bin/sudo -V | /bin/grep 'Authentication timestamp timeout:'

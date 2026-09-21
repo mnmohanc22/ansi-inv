@@ -1,0 +1,43 @@
+#!/bin/bash
+
+{
+   l_output2=""
+   l_pmask="0022"
+   l_maxperm="$( printf '%o' $(( 0777 & ~$l_pmask )) )"
+   l_root_path="$(sudo -Hiu root env | grep '^PATH' | cut -d= -f2)"
+   unset a_path_loc && IFS=":" read -ra a_path_loc <<< "$l_root_path"
+   grep -q "::" <<< "$l_root_path" && l_output2="$l_output2
+ - root's path contains a empty directory (::)"
+   grep -Pq ":\h*$" <<< "$l_root_path" && l_output2="$l_output2
+ - root's path contains a trailing (:)"
+   grep -Pq '(\h+|:)\.(:|\h*$)' <<< "$l_root_path" && l_output2="$l_output2
+ - root's path contains current working directory (.)"
+   while read -r l_path; do
+      if [ -d "$l_path" ]; then
+         while read -r l_fmode l_fown; do
+            [ "$l_fown" != "root" ] && l_output2="$l_output2
+ - Directory: \"$l_path\" is owned by: \"$l_fown\" should be owned by \"root\""
+            [ $(( $l_fmode & $l_pmask )) -gt 0 ] && l_output2="$l_output2
+ - Directory: \"$l_path\" is mode: \"$l_fmode\" and should be mode: \"$l_maxperm\" or more restrictive"
+         done <<< "$(stat -Lc '%#a %U' "$l_path")"
+      else
+         l_output2="$l_output2
+ - \"$l_path\" is not a directory"
+      fi
+   done <<< "$(printf "%s
+" "${a_path_loc[@]}")"
+   if [ -z "$l_output2" ]; then
+      echo -e "
+- Audit Result:
+  *** PASS ***
+ - Root's path is correctly configured
+"
+   else
+      echo -e "
+- Audit Result:
+  ** FAIL **
+ - * Reasons for audit failure * :
+$l_output2
+"
+   fi
+}

@@ -1,0 +1,1 @@
+/sbin/useradd -D | /bin/grep 'INACTIVE'

@@ -1,0 +1,1 @@
+/bin/systemctl is-active systemd-journald.service

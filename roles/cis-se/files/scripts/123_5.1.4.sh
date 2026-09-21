@@ -1,0 +1,4 @@
+#!/bin/bash
+  {
+  ports=$(/bin/grep -s -P "^(Port|Match)" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf | /bin/grep -P -o "(Port|LocalPort)[\s]+[\d]+" | /bin/awk '{print $2}; END {if (NR == 0) print "22"}' | /bin/uniq); for port in ${ports[@]}; do /sbin/sshd -T -C user=root -C host="$(hostname)" -C addr="$(/bin/grep $(hostname) /etc/hosts | /bin/awk '{print $1}')" -C lport=$port | echo "port $port: $(/bin/grep -i ^ciphers)"; done | /bin/awk 'BEGIN {f=0} /ciphers/i { if ($NF ~ "((3des|blowfish|cast128|aes(128|192|256))-cbc|arcfour(128|256)?|rijndael-cbc@lysator\\.liu\\.se|chacha20-poly1305@openssh\\.com)") f++; print $0} END {if (NR == 0) print "Fail: no results returned"; else if (f > 0) print "Fail"; else print "Pass" }'
+  }

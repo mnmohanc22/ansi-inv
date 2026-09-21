@@ -1,0 +1,1 @@
+rpm -q gpg-pubkey --queryformat '%{name}-%{version}-%{release} --> %{summary}\n'

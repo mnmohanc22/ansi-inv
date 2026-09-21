@@ -1,0 +1,1 @@
+/bin/systemctl is-active httpd.socket httpd.service nginx.service 2>/dev/null | /bin/grep '^active' | /bin/awk '{print} END {if (NR == 0) print "pass" ; else print "fail"}'

@@ -1,0 +1,1 @@
+/bin/systemctl list-unit-files | /bin/awk '$1~/^crond?\.service/{print $2}'

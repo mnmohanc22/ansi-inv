@@ -1,0 +1,1 @@
+/sbin/nft list ruleset | /bin/grep 'hook input'

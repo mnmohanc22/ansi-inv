@@ -1,0 +1,1 @@
+/bin/systemctl is-active systemd-journal-remote.socket systemd-journal-remote.service | /bin/grep -P -- '^active' | /bin/awk '{print} END {if(NR==0) print "pass"}'

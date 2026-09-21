@@ -1,0 +1,1 @@
+/bin/awk -F: '($2~/^\$.+\$/) {if($6 < @PASSWORD_WARN_AGE@)print "User: " $1 " PASS_WARN_AGE: " $6}' /etc/shadow | /bin/awk '{print} END {if (NR == 0) print "pass"; else print "fail"}'

@@ -1,0 +1,1 @@
+/bin/awk -F: '($2~/^\$.+\$/) {if($5 > @PASSWORD_MAX_DAYS@ || $5 < 1)print "User: " $1 " PASS_MAX_DAYS: " $5}' /etc/shadow | /bin/awk '{print} END {if (NR == 0) print "pass"; else print "fail"}'

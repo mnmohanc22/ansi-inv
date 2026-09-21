@@ -1,0 +1,85 @@
+- name: "Run CIS RHEL 9 audit checks"
+  become: true
+  block:
+    - name: "Create audit scripts directory on managed host"
+      ansible.builtin.file:
+        path: "{{ audit_work_dir }}/scripts"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Copy pre-extracted check scripts to managed host"
+      ansible.builtin.copy:
+        src: scripts/
+        dest: "{{ audit_work_dir }}/scripts/"
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Run all CIS audit check scripts"
+      ansible.builtin.shell:
+        cmd: "bash {{ audit_work_dir }}/scripts/{{ item.script }}"
+      loop: "{{ cis_audit_checks }}"
+      loop_control:
+        label: "{{ item.cis_id }} {{ item.description }}"
+      register: all_check_results
+      changed_when: false
+      failed_when: false
+
+    - name: "Compute audit pass and fail counts"
+      ansible.builtin.set_fact:
+        audit_pass_count: >-
+          {{ all_check_results.results
+             | map(attribute='stdout')
+             | map('regex_search', '(?i)\*+\s*pass')
+             | select
+             | list | length }}
+        audit_fail_count: >-
+          {{ all_check_results.results
+             | map(attribute='stdout')
+             | map('regex_search', '(?i)\*+\s*pass')
+             | reject
+             | list | length }}
+
+    - name: "Display audit summary"
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  CIS RHEL 9 Audit Summary"
+          - "============================================"
+          - "  Host  : {{ inventory_hostname }}"
+          - "  Total : {{ all_check_results.results | length }}"
+          - "  PASS  : {{ audit_pass_count }}"
+          - "  FAIL  : {{ audit_fail_count }}"
+          - "============================================"
+
+    - name: "Display failed checks"
+      ansible.builtin.debug:
+        msg: "[FAIL] {{ cis_audit_checks[ansible_loop.index0].cis_id }} | {{ cis_audit_checks[ansible_loop.index0].description }}"
+      loop: "{{ all_check_results.results }}"
+      loop_control:
+        label: "{{ cis_audit_checks[ansible_loop.index0].cis_id }}"
+        extended: true
+      when: not (item.stdout | default('') | regex_search('(?i)\*+\s*pass'))
+
+    - name: "Create reports directory"
+      ansible.builtin.file:
+        path: "{{ audit_reports_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: "Generate audit results CSV"
+      ansible.builtin.template:
+        src: cis_audit_results.csv.j2
+        dest: "{{ audit_reports_dir }}/{{ inventory_hostname }}_cis_audit.csv"
+        mode: "0640"
+
+    - name: "Display CSV report location"
+      ansible.builtin.debug:
+        msg: "CSV saved to : {{ audit_reports_dir }}/{{ inventory_hostname }}_cis_audit.csv"
+
+    - name: "Remove audit work directory from managed host"
+      ansible.builtin.file:
+        path: "{{ audit_work_dir }}"
+        state: absent

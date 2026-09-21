@@ -1,0 +1,1 @@
+/bin/systemctl list-units | /bin/awk '$1~/^crond?\.service/{print $3}'

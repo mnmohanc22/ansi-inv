@@ -1,0 +1,6 @@
+---
+- name: "Load CIS audit check definitions"
+  ansible.builtin.include_vars: cis_audit_checks.yml
+
+- name: "Include CIS audit tasks"
+  ansible.builtin.include_tasks: ad2.yml

@@ -1,0 +1,1 @@
+/sbin/ss -plntu | /bin/grep -P -- ':25\b' | /bin/grep -Pv -- '\h*(127\.0\.0\.1|\[?::1\]?):25\b' | /bin/awk -F: '{ print $NF } END {if (NR == 0) print "none"}'

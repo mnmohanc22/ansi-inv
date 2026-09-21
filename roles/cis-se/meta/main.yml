@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: cis_se
+  author: mnmohanc22
+  description: >
+    Run CIS RHEL 9 v2.0.0 L1 audit checks derived from the Tenable audit file.
+    Extracts pre-built check scripts, executes each on the managed host,
+    and writes a CSV compliance report to the Ansible controller.
+  license: MIT
+  min_ansible_version: "2.12"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+  galaxy_tags:
+    - cis
+    - compliance
+    - rhel9
+    - security
+    - audit
+
+dependencies: []

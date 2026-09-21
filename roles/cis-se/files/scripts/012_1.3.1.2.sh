@@ -1,0 +1,1 @@
+/sbin/grubby --info=ALL | /bin/grep -Po '(selinux|enforcing)=0' | /bin/awk '{print} END {if (NR == 0) print "pass" ; else print "fail"}'

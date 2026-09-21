@@ -1,0 +1,4 @@
+#!/bin/bash
+  {
+  ports=$(/bin/grep -s -P "^(Port|Match)" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf | /bin/grep -P -o "(Port|LocalPort)[\s]+[\d]+" | /bin/awk '{print $2}; END {if (NR == 0) print "22"}' | /bin/uniq); for port in ${ports[@]}; do /sbin/sshd -T -C user=root -C host="$(hostname)" -C addr="$(/bin/grep $(hostname) /etc/hosts | /bin/awk '{print $1}')" -C lport=$port | echo "port $port: $(/bin/grep -Pi '^\h*(allow|deny)(users|groups)\h+\H+(\h+.*)?$')"; done | /bin/awk 'BEGIN {f=0} /(allow|deny)(users|groups)/i { if ($NF ~ ":") f++; print $0} END {if (NR == 0) print "Fail: no results returned"; else if (f > 0) print "Fail"; else print "Pass"}'
+  }

@@ -1,0 +1,1 @@
+/bin/dnf needs-restarting -r

@@ -1,0 +1,7 @@
+hostname,cis_id,description,result,output
+{% for item in all_check_results.results %}
+{% set check = cis_audit_checks[loop.index0] %}
+{% set passed = item.stdout | default('') | regex_search(check.expect) is not none %}
+{% set output_flat = item.stdout | default('') | truncate(800, True, '') | replace('"', '""') | replace('\n', ' | ') | replace('\r', '') %}
+"{{ inventory_hostname }}","{{ check.cis_id }}","{{ check.description | replace('"', '""') }}","{{ 'PASS' if passed else 'FAIL' }}","{{ output_flat }}"
+{% endfor %}

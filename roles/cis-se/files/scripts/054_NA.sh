@@ -1,0 +1,1 @@
+/bin/systemctl is-enabled xinetd.service 2>/dev/null | /bin/grep 'enabled' | /bin/awk '{print} END {if (NR == 0) print "pass" ; else print "fail"}'

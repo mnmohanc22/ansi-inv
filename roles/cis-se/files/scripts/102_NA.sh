@@ -1,0 +1,1 @@
+/sbin/nft list ruleset | /bin/awk '/hook input/,/}/' | /bin/grep 'ct state'

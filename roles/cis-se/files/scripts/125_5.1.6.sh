@@ -1,0 +1,4 @@
+#!/bin/bash
+{
+ports=$(/bin/grep -s -P "^(Port|Match)" /etc/ssh/sshd_config /etc/sshd_config.d/*.conf | /bin/grep -P -o "(Port|LocalPort)[\s]+[\d]+" | /bin/awk '{print $2}; END {if (NR == 0) print "22"}' | /bin/uniq); for port in ${ports[@]}; do /sbin/sshd -T -C user=root -C host="$(hostname)" -C addr="$(/bin/grep $(hostname) /etc/hosts | /bin/awk '{print $1}')" -C lport=$port | echo "port $port: $(/bin/grep -Ei '^macs\s')"; done | /bin/awk 'BEGIN {f=0} /\smacs\s/i { if ($NF ~ "(hmac-md5|hmac-md5-96|hmac-ripemd160|hmac-sha1-96|umac-64@openssh.com|hmac-md5-etm@openssh.com|hmac-md5-96-etm@openssh.com|hmac-ripemd160-etm@openssh.com|hmac-sha1-96-etm@openssh.com|umac-64-etm@openssh.com|umac-128-etm@openssh.com)") f++; print $0} END {if (NR == 0) print "Fail: no results returned"; else if (f > 0) print "Fail"; else print "Pass" }'
+}

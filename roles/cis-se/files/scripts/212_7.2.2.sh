@@ -1,0 +1,1 @@
+/bin/awk -F : \'($2 == "") { print $1 " does not have a password."}\' /etc/shadow | /bin/awk '{print} END {if (NR == 0) print "none"}'

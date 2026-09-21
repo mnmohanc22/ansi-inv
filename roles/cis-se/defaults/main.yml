@@ -1,0 +1,6 @@
+---
+# Overridable defaults — set in inventory or playbook vars to override
+
+audit_work_dir: /tmp/cis_audit
+audit_csv_file: "/tmp/cis_audit/{{ inventory_hostname }}_cis_audit.csv"
+audit_reports_dir: "{{ playbook_dir }}/reports"

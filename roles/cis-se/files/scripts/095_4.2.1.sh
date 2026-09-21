@@ -1,0 +1,1 @@
+/bin/firewall-cmd --list-all --zone="$(/bin/firewall-cmd --list-all | /bin/awk '/\(active\)/ { print $1 }')" | /bin/grep -P -- '^\h*(services:|ports:)'

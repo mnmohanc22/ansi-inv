@@ -1,0 +1,1 @@
+/bin/systemctl is-enabled systemd-journal-upload.service

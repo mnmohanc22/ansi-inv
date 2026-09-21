@@ -1,0 +1,63 @@
+- name: "Run CIS RHEL 9 audit checks and write results to CSV"
+  become: true
+  block:
+    - name: "Create audit work directory on managed host"
+      ansible.builtin.file:
+        path: /tmp/cis_audit
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Copy CIS audit file to managed host"
+      ansible.builtin.copy:
+        src: "{{ role_path }}/../cis-se/rhel9.audit"
+        dest: /tmp/cis_audit/rhel9.audit
+        owner: root
+        group: root
+        mode: "0640"
+
+    - name: "Copy audit runner script to managed host"
+      ansible.builtin.copy:
+        src: cis_audit_runner.py
+        dest: /tmp/cis_audit/cis_audit_runner.py
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: "Run CIS audit checks"
+      ansible.builtin.command:
+        argv:
+          - python3
+          - /tmp/cis_audit/cis_audit_runner.py
+          - /tmp/cis_audit/rhel9.audit
+          - "/tmp/cis_audit/{{ inventory_hostname }}_cis_audit.csv"
+      register: audit_run
+      changed_when: false
+
+    - name: "Display audit run summary"
+      ansible.builtin.debug:
+        var: audit_run.stdout_lines
+
+    - name: "Create local reports directory on controller"
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/reports"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: "Fetch audit results CSV to controller"
+      ansible.builtin.fetch:
+        src: "/tmp/cis_audit/{{ inventory_hostname }}_cis_audit.csv"
+        dest: "{{ playbook_dir }}/reports/{{ inventory_hostname }}_cis_audit.csv"
+        flat: true
+
+    - name: "Display CSV report location"
+      ansible.builtin.debug:
+        msg: "CSV report saved to : {{ playbook_dir }}/reports/{{ inventory_hostname }}_cis_audit.csv"
+
+    - name: "Remove audit work directory from managed host"
+      ansible.builtin.file:
+        path: /tmp/cis_audit
+        state: absent

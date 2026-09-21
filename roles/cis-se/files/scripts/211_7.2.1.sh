@@ -1,0 +1,1 @@
+/bin/awk -F: '($2 != "x" ) { print $1 " is not set to shadowed passwords "}' /etc/passwd | /bin/awk '{print} END {if (NR == 0) print "none"}'

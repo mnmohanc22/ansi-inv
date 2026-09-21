@@ -1,0 +1,1 @@
+/bin/dnf check-update | /bin/awk '{print} END {if (NR == 1) print "pass"; else print}'

@@ -1,0 +1,1 @@
+/bin/systemd-analyze cat-config systemd/journald.conf systemd/journald.conf.d/* | /bin/grep -E "^ForwardToSyslog=yes"

@@ -1,0 +1,1 @@
+/sbin/nft -n list ruleset | /bin/grep 'hook output'

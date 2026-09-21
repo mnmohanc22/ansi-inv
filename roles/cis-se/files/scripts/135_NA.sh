@@ -1,0 +1,1 @@
+/bin/awk -F: '($2~/^\$.+\$/) {if($7 > @INACTIVE_PASSWORD_LOCK@ || $7 < 0)print "User: " $1 " INACTIVE: " $7}' /etc/shadow | /bin/awk '{print} END {if (NR == 0) print "pass"; else print "fail"}'
