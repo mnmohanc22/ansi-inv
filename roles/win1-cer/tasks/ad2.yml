@@ -1,4 +1,5 @@
 - name: "Check whether Wireshark is installed"
+  when: package_name | lower == 'wireshark'
   block:
     - name: "Query Wireshark installation from registry"
       ansible.windows.win_powershell:
@@ -24,6 +25,16 @@
     - name: "Display Wireshark installation information"
       ansible.builtin.debug:
         var: wireshark_check.output
+
+    - name: "Check Wireshark executable exists"
+      ansible.windows.win_stat:
+        path: 'C:\Program Files\Wireshark\Wireshark.exe'
+      register: wireshark_exe
+
+    - name: "Display Wireshark executable status"
+      ansible.builtin.debug:
+        msg: "Wireshark executable exists : {{ wireshark_exe.stat.exists }}"
+      
 
 
 

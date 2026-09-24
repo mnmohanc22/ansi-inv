@@ -1,3 +1,7 @@
 ---
 # Internal role vars — loaded via include_vars in tasks/main.yml
 # cis_audit_checks list is in vars/cis_audit_checks.yml (generated — do not edit)
+
+audit_work_dir: /opt/cis-audit
+audit_reports_dir: "{{ audit_work_dir }}/reports"
+audit_reports_controller_dir: "/tmp/cis-audit-reports"

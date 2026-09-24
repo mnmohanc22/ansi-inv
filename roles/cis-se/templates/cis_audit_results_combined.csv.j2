@@ -1,0 +1,6 @@
+Hostname,Audit Item Number,Description,Status,Output
+{% for host in ansible_play_hosts %}
+{% for item in hostvars[host].audit_results | default([]) %}
+"{{ host }}","{{ item.cis_id }}","{{ item.description | replace('"', '""') }}","{{ item.result }}","{{ item.output | replace('"', '""') }}"
+{% endfor %}
+{% endfor %}
