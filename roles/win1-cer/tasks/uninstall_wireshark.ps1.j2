@@ -1,0 +1,140 @@
+$ErrorActionPreference = "Stop"
+
+Write-Output "Checking for Wireshark installation..."
+
+$RegistryPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+)
+
+try {
+
+    # Find Wireshark installation
+    $Wireshark = Get-ItemProperty $RegistryPaths -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.DisplayName -like "Wireshark*"
+        } |
+        Select-Object -First 1
+
+    if (-not $Wireshark) {
+        Write-Output "Wireshark is not installed."
+        exit 0
+    }
+
+    Write-Output "Wireshark installation found."
+    Write-Output "Name    : $($Wireshark.DisplayName)"
+    Write-Output "Version : $($Wireshark.DisplayVersion)"
+
+    $UninstallString = $Wireshark.UninstallString
+
+    if ([string]::IsNullOrWhiteSpace($UninstallString)) {
+        throw "UninstallString is missing from the Wireshark registry entry."
+    }
+
+    Write-Output "UninstallString found: $UninstallString"
+
+    # ----------------------------------------------------------
+    # MSI installation
+    # ----------------------------------------------------------
+
+    if ($UninstallString -match "(?i)msiexec") {
+
+        Write-Output "MSI-based installation detected."
+
+        if ($UninstallString -match "\{[0-9A-Fa-f\-]+\}") {
+
+            $ProductCode = $Matches[0]
+
+            Write-Output "Product Code: $ProductCode"
+            Write-Output "Starting silent uninstall..."
+
+            $Process = Start-Process `
+                -FilePath "msiexec.exe" `
+                -ArgumentList "/x $ProductCode /qn /norestart" `
+                -Wait `
+                -PassThru
+
+        }
+        else {
+            throw "Unable to extract MSI Product Code."
+        }
+
+    }
+
+    # ----------------------------------------------------------
+    # EXE / NSIS installation
+    # ----------------------------------------------------------
+
+    else {
+
+        Write-Output "EXE-based installation detected."
+
+        # Typical value:
+        # "C:\Program Files\Wireshark\uninstall.exe"
+
+        if ($UninstallString -match '^"([^"]+)"') {
+            $UninstallExe = $Matches[1]
+        }
+        else {
+            $UninstallExe = $UninstallString.Trim()
+        }
+
+        Write-Output "Uninstaller: $UninstallExe"
+
+        if (-not (Test-Path $UninstallExe)) {
+            throw "Uninstaller does not exist: $UninstallExe"
+        }
+
+        Write-Output "Starting silent uninstall..."
+
+        $Process = Start-Process `
+            -FilePath $UninstallExe `
+            -ArgumentList "/S" `
+            -Wait `
+            -PassThru
+    }
+
+    # ----------------------------------------------------------
+    # Validate exit code
+    # ----------------------------------------------------------
+
+    $ExitCode = $Process.ExitCode
+
+    Write-Output "Uninstall exit code: $ExitCode"
+
+    if ($ExitCode -notin @(0, 3010)) {
+        throw "Wireshark uninstall failed with exit code: $ExitCode"
+    }
+
+    if ($ExitCode -eq 3010) {
+        Write-Output "Wireshark uninstall completed. Reboot required."
+    }
+    else {
+        Write-Output "Wireshark uninstall command completed successfully."
+    }
+
+    # ----------------------------------------------------------
+    # Verify removal
+    # ----------------------------------------------------------
+
+    Start-Sleep -Seconds 3
+
+    $Remaining = Get-ItemProperty $RegistryPaths -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.DisplayName -like "Wireshark*"
+        }
+
+    if ($Remaining) {
+        throw "Wireshark registry entry still exists after uninstall."
+    }
+
+    Write-Output "SUCCESS: Wireshark has been removed."
+
+    exit 0
+
+}
+catch {
+
+    Write-Error "ERROR: $($_.Exception.Message)"
+    exit 1
+}

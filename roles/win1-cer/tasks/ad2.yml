@@ -1,0 +1,78 @@
+- name: "Check whether Wireshark is installed"
+  block:
+    - name: "Query Wireshark installation from registry"
+      ansible.windows.win_powershell:
+        script: |
+          $paths = @(
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+          )
+
+          $wireshark = Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Wireshark*' } |
+            Select-Object DisplayName, DisplayVersion, Publisher, InstallLocation
+
+          if ($wireshark) {
+              $wireshark | ConvertTo-Json -Compress
+          }
+          else {
+              Write-Output "Wireshark is NOT installed"
+          }
+      register: wireshark_check
+      changed_when: false
+
+    - name: "Display Wireshark installation information"
+      ansible.builtin.debug:
+        var: wireshark_check.output
+
+
+
+- name: "Check Wireshark installation status"
+  block:
+    - name: "Check Wireshark installation status"
+      ansible.windows.win_powershell:
+        script: |
+          $wireshark = Get-ItemProperty `
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' `
+            -ErrorAction SilentlyContinue |
+            Where-Object { $_.DisplayName -like 'Wireshark*' }
+
+          if ($wireshark) {
+              Write-Output "INSTALLED"
+          }
+          else {
+              Write-Output "NOT_INSTALLED"
+          }
+      register: wireshark_status
+      changed_when: false
+
+    - name: "Display Wireshark installation status"
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }} : {{ wireshark_status.output | join('') }}"
+
+
+- name: "Check Wireshark executable"
+  block:
+    - name: "Check Wireshark executable exists"
+      ansible.windows.win_stat:
+        path: 'C:\Program Files\Wireshark\Wireshark.exe'
+      register: wireshark_exe
+
+    - name: "Display Wireshark executable status"
+      ansible.builtin.debug:
+        msg: "Wireshark executable exists : {{ wireshark_exe.stat.exists }}"
+
+
+
+- name: "Uninstall Wireshark silently"
+  when: wireshark_info.Installed | bool
+  block:
+    - name: "Run Wireshark silent uninstall"
+      ansible.windows.win_powershell:
+        script: "{{ lookup('ansible.builtin.template', 'uninstall_wireshark.ps1.j2') }}"
+      register: wireshark_uninstall
+
+    - name: "Display Wireshark uninstall output"
+      ansible.builtin.debug:
+        var: wireshark_uninstall.output
