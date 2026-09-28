@@ -114,6 +114,32 @@
           - "Reports dir CSV : {{ audit_reports_dir }}/{{ inventory_hostname }}_cis_audit.csv"
 
 
+- name: "Copy audit results CSV to reports server"
+  when: audit_reports_server | length > 0
+  block:
+    - name: "Create reports directory on reports server"
+      ansible.builtin.file:
+        path: "{{ audit_reports_server_dir }}"
+        state: directory
+        mode: "0750"
+      delegate_to: "{{ audit_reports_server }}"
+      become: true
+
+    - name: "Copy CSV to reports server"
+      ansible.builtin.copy:
+        src: "{{ audit_csv_file }}"
+        dest: "{{ audit_reports_server_dir }}/{{ inventory_hostname }}_cis_audit.csv"
+        mode: "0640"
+      delegate_to: "{{ audit_reports_server }}"
+      become: true
+
+    - name: "Display reports server CSV location"
+      ansible.builtin.debug:
+        msg: "Reports server CSV : {{ audit_reports_server }}:{{ audit_reports_server_dir }}/{{ inventory_hostname }}_cis_audit.csv"
 
 
+#audit_reports_server: ""               # set to hostname/IP to enable
+#audit_reports_server_dir: /opt/cis-audit-reports
+#audit_reports_server: "{{ groups['reports_servers'][0] }}"
+#audit_reports_server: "{{ groups['reports_servers'] | first }}"
 
