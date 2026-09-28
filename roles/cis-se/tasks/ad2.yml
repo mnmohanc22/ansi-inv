@@ -117,6 +117,18 @@
 - name: "Copy audit results CSV to reports server"
   when: audit_reports_server | length > 0
   block:
+    - name: "Stat audit CSV file on managed host"
+      ansible.builtin.stat:
+        path: "{{ audit_csv_file }}"
+      register: audit_csv_stat
+
+    - name: "Fetch CSV from managed host to controller"
+      ansible.builtin.fetch:
+        src: "{{ audit_csv_file }}"
+        dest: "/tmp/{{ inventory_hostname }}_cis_audit.csv"
+        flat: true
+      when: audit_csv_stat.stat.exists
+
     - name: "Create reports directory on reports server"
       ansible.builtin.file:
         path: "{{ audit_reports_server_dir }}"
@@ -124,18 +136,26 @@
         mode: "0750"
       delegate_to: "{{ audit_reports_server }}"
       become: true
+      when: audit_csv_stat.stat.exists
 
-    - name: "Copy CSV to reports server"
+    - name: "Copy CSV from controller to reports server"
       ansible.builtin.copy:
-        src: "{{ audit_csv_file }}"
+        src: "/tmp/{{ inventory_hostname }}_cis_audit.csv"
         dest: "{{ audit_reports_server_dir }}/{{ inventory_hostname }}_cis_audit.csv"
         mode: "0640"
       delegate_to: "{{ audit_reports_server }}"
       become: true
+      when: audit_csv_stat.stat.exists
 
     - name: "Display reports server CSV location"
       ansible.builtin.debug:
         msg: "Reports server CSV : {{ audit_reports_server }}:{{ audit_reports_server_dir }}/{{ inventory_hostname }}_cis_audit.csv"
+      when: audit_csv_stat.stat.exists
+
+    - name: "Display CSV not found warning"
+      ansible.builtin.debug:
+        msg: "WARNING: CSV file not found on {{ inventory_hostname }} : {{ audit_csv_file }}"
+      when: not audit_csv_stat.stat.exists
 
 
 #audit_reports_server: ""               # set to hostname/IP to enable
