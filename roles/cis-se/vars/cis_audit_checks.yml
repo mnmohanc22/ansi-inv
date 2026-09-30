@@ -1,20 +1,1178 @@
-# Generated from rhel9.audit — do not edit manually
-# Run files/generate_artifacts.py to regenerate
+# Generated from items.txt — do not edit manually
 
 cis_audit_checks:
   - index: 0
     cis_id: '1.1.1.1'
     description: '1.1.1.1 Ensure cramfs kernel module is not available'
-    script: '000_1.1.1.1.sh'
-    expect: '(?i)^[\\s]*\\**[\\s]*pass:?[\\s]*\\**$'
+    script: '1.1.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
   - index: 1
     cis_id: '1.1.1.2'
     description: '1.1.1.2 Ensure freevxfs kernel module is not available'
-    script: '001_1.1.1.2.sh'
-    expect: '(?i)^[\\s]*\\**[\\s]*pass:?[\\s]*\\**$'
+    script: '1.1.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
   - index: 2
     cis_id: '1.1.1.3'
     description: '1.1.1.3 Ensure hfs kernel module is not available'
-    script: '002_1.1.1.3.sh'
-    expect: '(?i)^[\\s]*\\**[\\s]*pass:?[\\s]*\\**$'   
- 
+    script: '1.1.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 3
+    cis_id: '1.1.1.4'
+    description: '1.1.1.4 Ensure hfsplus kernel module is not available'
+    script: '1.1.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 4
+    cis_id: '1.1.1.5'
+    description: '1.1.1.5 Ensure jffs2 kernel module is not available'
+    script: '1.1.1.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 5
+    cis_id: '1.1.1.8'
+    description: '1.1.1.8 Ensure udf kernel module is not available'
+    script: '1.1.1.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 6
+    cis_id: '1.1.1.9'
+    description: '1.1.1.9 Ensure squashfs kernel module is not available'
+    script: '1.1.1.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 7
+    cis_id: '1.1.2.1.1'
+    description: '1.1.2.1.1 Ensure /tmp is a separate partition'
+    script: '1.1.2.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 8
+    cis_id: '1.1.2.1.2'
+    description: '1.1.2.1.2 Ensure noexec option set on /tmp partition'
+    script: '1.1.2.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 9
+    cis_id: '1.1.2.1.3'
+    description: '1.1.2.1.3 Ensure nosuid option set on /tmp partition'
+    script: '1.1.2.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 10
+    cis_id: '1.1.2.1.4'
+    description: '1.1.2.1.4 Ensure nodev option set on /tmp partition'
+    script: '1.1.2.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 11
+    cis_id: '1.1.2.2.1'
+    description: '1.1.2.2.1 Ensure /dev/shm is a separate partition'
+    script: '1.1.2.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 12
+    cis_id: '1.1.2.2.2'
+    description: '1.1.2.2.2 Ensure noexec option set on /dev/shm partition'
+    script: '1.1.2.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 13
+    cis_id: '1.1.2.2.3'
+    description: '1.1.2.2.3 Ensure nosuid option set on /dev/shm partition'
+    script: '1.1.2.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 14
+    cis_id: '1.1.2.2.4'
+    description: '1.1.2.2.4 Ensure nodev option set on /dev/shm partition'
+    script: '1.1.2.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 15
+    cis_id: '1.1.2.3.2'
+    description: '1.1.2.3.2 Ensure noexec option set on /var/tmp partition'
+    script: '1.1.2.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 16
+    cis_id: '1.1.2.3.3'
+    description: '1.1.2.3.3 Ensure nosuid option set on /var/tmp partition'
+    script: '1.1.2.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 17
+    cis_id: '1.1.2.4.2'
+    description: '1.1.2.4.2 Ensure noexec option set on /var/log partition'
+    script: '1.1.2.4.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 18
+    cis_id: '1.1.2.4.3'
+    description: '1.1.2.4.3 Ensure nosuid option set on /var/log partition'
+    script: '1.1.2.4.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 19
+    cis_id: '1.1.2.5.2'
+    description: '1.1.2.5.2 Ensure noexec option set on /var/log/audit partition'
+    script: '1.1.2.5.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 20
+    cis_id: '1.1.2.5.3'
+    description: '1.1.2.5.3 Ensure nosuid option set on /var/log/audit partition'
+    script: '1.1.2.5.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 21
+    cis_id: '1.1.2.5.4'
+    description: '1.1.2.5.4 Ensure nodev option set on /var/log/audit partition'
+    script: '1.1.2.5.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 22
+    cis_id: '1.1.2.6.2'
+    description: '1.1.2.6.2 Ensure noexec option set on /home partition'
+    script: '1.1.2.6.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 23
+    cis_id: '1.1.2.6.3'
+    description: '1.1.2.6.3 Ensure nosuid option set on /home partition'
+    script: '1.1.2.6.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 24
+    cis_id: '1.1.2.6.4'
+    description: '1.1.2.6.4 Ensure nodev option set on /home partition'
+    script: '1.1.2.6.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 25
+    cis_id: '1.1.2.7.2'
+    description: '1.1.2.7.2 Ensure noexec option set on /var partition'
+    script: '1.1.2.7.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 26
+    cis_id: '1.1.2.7.3'
+    description: '1.1.2.7.3 Ensure nosuid option set on /var partition'
+    script: '1.1.2.7.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 27
+    cis_id: '1.1.2.7.4'
+    description: '1.1.2.7.4 Ensure nodev option set on /var partition'
+    script: '1.1.2.7.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 28
+    cis_id: '1.2.1.1'
+    description: '1.2.1.1 Ensure GPG keys are configured'
+    script: '1.2.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 29
+    cis_id: '1.2.1.2'
+    description: '1.2.1.2 Ensure gpgcheck is globally activated'
+    script: '1.2.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 30
+    cis_id: '1.2.1.4'
+    description: '1.2.1.4 Ensure repo_gpgcheck is globally activated'
+    script: '1.2.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 31
+    cis_id: '1.2.2.1'
+    description: '1.2.2.1 Ensure system is configured to check packages for valid signatures'
+    script: '1.2.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 32
+    cis_id: '1.3.1.1'
+    description: '1.3.1.1 Ensure AIDE is installed'
+    script: '1.3.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 33
+    cis_id: '1.3.1.2'
+    description: '1.3.1.2 Ensure filesystem integrity is regularly checked'
+    script: '1.3.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 34
+    cis_id: '1.3.1.3'
+    description: '1.3.1.3 Ensure cryptographic mechanisms are used to protect the integrity of audit tools'
+    script: '1.3.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 35
+    cis_id: '1.3.1.4'
+    description: '1.3.1.4 Ensure AIDE is scheduled to run'
+    script: '1.3.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 36
+    cis_id: '1.3.1.7'
+    description: '1.3.1.7 Ensure AIDE is configured to use sha512'
+    script: '1.3.1.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 37
+    cis_id: '1.3.1.8'
+    description: '1.3.1.8 Ensure AIDE is configured with ACL support'
+    script: '1.3.1.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 38
+    cis_id: '1.4.1'
+    description: '1.4.1 Ensure bootloader password is set'
+    script: '1.4.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 39
+    cis_id: '1.4.2'
+    description: '1.4.2 Ensure permissions on bootloader config are configured'
+    script: '1.4.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 40
+    cis_id: '1.5.1'
+    description: '1.5.1 Ensure address space layout randomization is enabled'
+    script: '1.5.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 41
+    cis_id: '1.5.2'
+    description: '1.5.2 Ensure ptrace_scope is restricted'
+    script: '1.5.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 42
+    cis_id: '1.5.3'
+    description: '1.5.3 Ensure kexec is disabled'
+    script: '1.5.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 43
+    cis_id: '1.5.4'
+    description: '1.5.4 Ensure user namespaces are disabled'
+    script: '1.5.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 44
+    cis_id: '1.6.1'
+    description: '1.6.1 Ensure system wide crypto policy is not set to legacy'
+    script: '1.6.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 45
+    cis_id: '1.6.2'
+    description: '1.6.2 Ensure SELinux is enabled'
+    script: '1.6.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 46
+    cis_id: '1.6.3'
+    description: '1.6.3 Ensure SELinux policy is configured'
+    script: '1.6.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 47
+    cis_id: '1.6.4'
+    description: '1.6.4 Ensure SETroubleshoot is not installed'
+    script: '1.6.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 48
+    cis_id: '1.6.5'
+    description: '1.6.5 Ensure system wide crypto policy disables CBC for SSH'
+    script: '1.6.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 49
+    cis_id: '1.6.6'
+    description: '1.6.6 Ensure system wide crypto policy disables SHA1 hash and signature support'
+    script: '1.6.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 50
+    cis_id: '1.6.7'
+    description: '1.6.7 Ensure system wide crypto policy disables MACs less than 128 bits'
+    script: '1.6.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 51
+    cis_id: '1.7.1'
+    description: '1.7.1 Ensure message of the day is configured properly'
+    script: '1.7.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 52
+    cis_id: '1.7.2'
+    description: '1.7.2 Ensure local login warning banner is configured properly'
+    script: '1.7.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 53
+    cis_id: '1.7.3'
+    description: '1.7.3 Ensure remote login warning banner is configured properly'
+    script: '1.7.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 54
+    cis_id: '1.7.4'
+    description: '1.7.4 Ensure permissions on /etc/motd are configured'
+    script: '1.7.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 55
+    cis_id: '1.7.5'
+    description: '1.7.5 Ensure permissions on /etc/issue are configured'
+    script: '1.7.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 56
+    cis_id: '1.7.6'
+    description: '1.7.6 Ensure permissions on /etc/issue.net are configured'
+    script: '1.7.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 57
+    cis_id: '1.8.2'
+    description: '1.8.2 Ensure GDM login banner is configured'
+    script: '1.8.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 58
+    cis_id: '1.8.3'
+    description: '1.8.3 Ensure GDM disable-user-list option is enabled'
+    script: '1.8.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 59
+    cis_id: '1.8.4'
+    description: '1.8.4 Ensure GDM screen locks when the user is idle'
+    script: '1.8.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 60
+    cis_id: '1.8.5'
+    description: '1.8.5 Ensure GDM screen locks cannot be overridden'
+    script: '1.8.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 61
+    cis_id: '1.8.6'
+    description: '1.8.6 Ensure GDM automatic mounting of removable media is disabled'
+    script: '1.8.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 62
+    cis_id: '1.8.7'
+    description: '1.8.7 Ensure GDM disabling automatic mounting of removable media is not overridable'
+    script: '1.8.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 63
+    cis_id: '1.8.8'
+    description: '1.8.8 Ensure GDM autorun-never is enabled'
+    script: '1.8.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 64
+    cis_id: '1.8.9'
+    description: '1.8.9 Ensure GDM autorun-never cannot be overridden'
+    script: '1.8.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 65
+    cis_id: '1.8.10'
+    description: '1.8.10 Ensure XDCMP is not enabled'
+    script: '1.8.10.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 66
+    cis_id: '2.1.1'
+    description: '2.1.1 Ensure xinetd is not installed'
+    script: '2.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 67
+    cis_id: '2.1.2'
+    description: '2.1.2 Ensure xorg-x11-server-common is not installed'
+    script: '2.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 68
+    cis_id: '2.1.3'
+    description: '2.1.3 Ensure Avahi Server is not installed'
+    script: '2.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 69
+    cis_id: '2.1.4'
+    description: '2.1.4 Ensure CUPS is not installed'
+    script: '2.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 70
+    cis_id: '2.1.5'
+    description: '2.1.5 Ensure DHCP Server is not installed'
+    script: '2.1.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 71
+    cis_id: '2.1.6'
+    description: '2.1.6 Ensure DNS Server is not installed'
+    script: '2.1.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 72
+    cis_id: '2.1.7'
+    description: '2.1.7 Ensure FTP Server is not installed'
+    script: '2.1.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 73
+    cis_id: '2.1.8'
+    description: '2.1.8 Ensure Samba is not installed'
+    script: '2.1.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 74
+    cis_id: '2.1.9'
+    description: '2.1.9 Ensure nfs-utils is not installed or services are disabled'
+    script: '2.1.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 75
+    cis_id: '2.1.10'
+    description: '2.1.10 Ensure NIS Server is not installed'
+    script: '2.1.10.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 76
+    cis_id: '2.1.11'
+    description: '2.1.11 Ensure LDAP server is not installed'
+    script: '2.1.11.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 77
+    cis_id: '2.1.12'
+    description: '2.1.12 Ensure TFTP Server is not installed'
+    script: '2.1.12.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 78
+    cis_id: '2.1.13'
+    description: '2.1.13 Ensure web proxy server is not installed'
+    script: '2.1.13.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 79
+    cis_id: '2.1.14'
+    description: '2.1.14 Ensure net-snmp is not installed'
+    script: '2.1.14.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 80
+    cis_id: '2.1.15'
+    description: '2.1.15 Ensure telnet-server is not installed'
+    script: '2.1.15.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 81
+    cis_id: '2.1.16'
+    description: '2.1.16 Ensure rsh-server is not installed'
+    script: '2.1.16.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 82
+    cis_id: '2.1.17'
+    description: '2.1.17 Ensure talk server is not installed'
+    script: '2.1.17.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 83
+    cis_id: '2.1.18'
+    description: '2.1.18 Ensure rsyncd is not installed or not enabled'
+    script: '2.1.18.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 84
+    cis_id: '2.1.19'
+    description: '2.1.19 Ensure sftp-server is configured with chroot'
+    script: '2.1.19.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 85
+    cis_id: '2.1.21'
+    description: '2.1.21 Ensure mail transfer agent is configured for local-only mode'
+    script: '2.1.21.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 86
+    cis_id: '2.1.22'
+    description: '2.1.22 Ensure NIS Client is not installed'
+    script: '2.1.22.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 87
+    cis_id: '2.2.1'
+    description: '2.2.1 Ensure NIS Client is not installed'
+    script: '2.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 88
+    cis_id: '2.2.3'
+    description: '2.2.3 Ensure rsh client is not installed'
+    script: '2.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 89
+    cis_id: '2.2.4'
+    description: '2.2.4 Ensure telnet client is not installed'
+    script: '2.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 90
+    cis_id: '2.2.5'
+    description: '2.2.5 Ensure LDAP client is not installed'
+    script: '2.2.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 91
+    cis_id: '2.3.1'
+    description: '2.3.1 Ensure autofs services are not in use'
+    script: '2.3.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 92
+    cis_id: '2.3.2'
+    description: '2.3.2 Ensure USB storage is disabled'
+    script: '2.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 93
+    cis_id: '2.3.3'
+    description: '2.3.3 Ensure usb-storage module is not available'
+    script: '2.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 94
+    cis_id: '2.4.1.1'
+    description: '2.4.1.1 Ensure cron daemon is enabled and active'
+    script: '2.4.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 95
+    cis_id: '2.4.1.2'
+    description: '2.4.1.2 Ensure permissions on /etc/crontab are configured'
+    script: '2.4.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 96
+    cis_id: '2.4.1.3'
+    description: '2.4.1.3 Ensure permissions on /etc/cron.hourly are configured'
+    script: '2.4.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 97
+    cis_id: '2.4.1.4'
+    description: '2.4.1.4 Ensure permissions on /etc/cron.daily are configured'
+    script: '2.4.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 98
+    cis_id: '2.4.1.5'
+    description: '2.4.1.5 Ensure permissions on /etc/cron.weekly are configured'
+    script: '2.4.1.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 99
+    cis_id: '2.4.1.6'
+    description: '2.4.1.6 Ensure permissions on /etc/cron.monthly are configured'
+    script: '2.4.1.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 100
+    cis_id: '2.4.1.7'
+    description: '2.4.1.7 Ensure permissions on /etc/cron.d are configured'
+    script: '2.4.1.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 101
+    cis_id: '2.4.1.8'
+    description: '2.4.1.8 Ensure crontab is restricted to authorized users'
+    script: '2.4.1.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 102
+    cis_id: '2.4.2.1'
+    description: '2.4.2.1 Ensure at is restricted to authorized users'
+    script: '2.4.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 103
+    cis_id: '3.1.1'
+    description: '3.1.1 Ensure IPv6 status is identified'
+    script: '3.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 104
+    cis_id: '3.1.2'
+    description: '3.1.2 Ensure wireless interfaces are disabled'
+    script: '3.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 105
+    cis_id: '3.1.3'
+    description: '3.1.3 Ensure bluetooth services are not in use'
+    script: '3.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 106
+    cis_id: '3.3.1'
+    description: '3.3.1 Ensure IPv6 router advertisements are not accepted'
+    script: '3.3.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 107
+    cis_id: '3.3.2'
+    description: '3.3.2 Ensure IPv6 redirects are not accepted'
+    script: '3.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 108
+    cis_id: '3.3.3'
+    description: '3.3.3 Ensure secure ICMP redirects are not accepted'
+    script: '3.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 109
+    cis_id: '3.3.4'
+    description: '3.3.4 Ensure suspicious packets are logged'
+    script: '3.3.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 110
+    cis_id: '3.3.5'
+    description: '3.3.5 Ensure broadcast ICMP requests are ignored'
+    script: '3.3.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 111
+    cis_id: '3.3.6'
+    description: '3.3.6 Ensure bogus ICMP responses are ignored'
+    script: '3.3.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 112
+    cis_id: '3.3.7'
+    description: '3.3.7 Ensure Reverse Path Filtering is enabled'
+    script: '3.3.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 113
+    cis_id: '3.3.8'
+    description: '3.3.8 Ensure TCP SYN Cookies is enabled'
+    script: '3.3.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 114
+    cis_id: '3.3.9'
+    description: '3.3.9 Ensure source routed packets are not accepted'
+    script: '3.3.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 115
+    cis_id: '3.3.10'
+    description: '3.3.10 Ensure ICMP redirects are not accepted'
+    script: '3.3.10.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 116
+    cis_id: '3.3.11'
+    description: '3.3.11 Ensure IPv6 forwarding is disabled'
+    script: '3.3.11.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 117
+    cis_id: '4.1.1'
+    description: '4.1.1 Ensure a single time synchronization daemon is in use'
+    script: '4.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 118
+    cis_id: '4.1.2'
+    description: '4.1.2 Ensure systemd-timesyncd configured with authorized timeserver'
+    script: '4.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 119
+    cis_id: '4.2.1'
+    description: '4.2.1 Ensure chrony is configured with authorized timeserver'
+    script: '4.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 120
+    cis_id: '4.2.2'
+    description: '4.2.2 Ensure chrony is running as user chrony'
+    script: '4.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 121
+    cis_id: '4.3.1'
+    description: '4.3.1 Ensure systemd-timesyncd is enabled and active'
+    script: '4.3.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 122
+    cis_id: '4.3.2'
+    description: '4.3.2 Ensure systemd-timesyncd NTP server is configured'
+    script: '4.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 123
+    cis_id: '4.3.3'
+    description: '4.3.3 Ensure systemd-timesyncd is synchronized to NTP server'
+    script: '4.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 124
+    cis_id: '4.3.4'
+    description: '4.3.4 Ensure systemd-timesyncd is synchronized to NTP server'
+    script: '4.3.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 125
+    cis_id: '5.1.1'
+    description: '5.1.1 Ensure sshd is enabled and active'
+    script: '5.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 126
+    cis_id: '5.1.2'
+    description: '5.1.2 Ensure permissions on /etc/ssh/sshd_config are configured'
+    script: '5.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 127
+    cis_id: '5.1.3'
+    description: '5.1.3 Ensure permissions on SSH private host key files are configured'
+    script: '5.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 128
+    cis_id: '5.1.4'
+    description: '5.1.4 Ensure permissions on SSH public host key files are configured'
+    script: '5.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 129
+    cis_id: '5.1.5'
+    description: '5.1.5 Ensure sshd LogLevel is configured'
+    script: '5.1.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 130
+    cis_id: '5.1.6'
+    description: '5.1.6 Ensure sshd X11Forwarding is disabled'
+    script: '5.1.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 131
+    cis_id: '5.1.7'
+    description: '5.1.7 Ensure sshd MaxAuthTries is configured'
+    script: '5.1.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 132
+    cis_id: '5.1.8'
+    description: '5.1.8 Ensure sshd IgnoreUserKnownHosts is enabled'
+    script: '5.1.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 133
+    cis_id: '5.1.9'
+    description: '5.1.9 Ensure sshd HostbasedAuthentication is disabled'
+    script: '5.1.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 134
+    cis_id: '5.1.12'
+    description: '5.1.12 Ensure sshd PermitEmptyPasswords is disabled'
+    script: '5.1.12.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 135
+    cis_id: '5.1.13'
+    description: '5.1.13 Ensure sshd PermitUserEnvironment is disabled'
+    script: '5.1.13.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 136
+    cis_id: '5.1.14'
+    description: '5.1.14 Ensure sshd ClientAliveInterval is configured'
+    script: '5.1.14.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 137
+    cis_id: '5.1.15'
+    description: '5.1.15 Ensure sshd ClientAliveCountMax is configured'
+    script: '5.1.15.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 138
+    cis_id: '5.1.16'
+    description: '5.1.16 Ensure sshd LoginGraceTime is configured'
+    script: '5.1.16.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 139
+    cis_id: '5.1.17'
+    description: '5.1.17 Ensure sshd Banner is configured'
+    script: '5.1.17.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 140
+    cis_id: '5.1.18'
+    description: '5.1.18 Ensure sshd UsePAM is enabled'
+    script: '5.1.18.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 141
+    cis_id: '5.1.19'
+    description: '5.1.19 Ensure sshd AllowTcpForwarding is disabled'
+    script: '5.1.19.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 142
+    cis_id: '5.1.20'
+    description: '5.1.20 Ensure sshd MaxStartups is configured'
+    script: '5.1.20.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 143
+    cis_id: '5.1.21'
+    description: '5.1.21 Ensure sshd MaxSessions is configured'
+    script: '5.1.21.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 144
+    cis_id: '5.1.22'
+    description: '5.1.22 Ensure sshd Ciphers are configured'
+    script: '5.1.22.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 145
+    cis_id: '5.2.1'
+    description: '5.2.1 Ensure sudo is installed'
+    script: '5.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 146
+    cis_id: '5.2.2'
+    description: '5.2.2 Ensure sudo commands use pty'
+    script: '5.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 147
+    cis_id: '5.2.3'
+    description: '5.2.3 Ensure sudo log file exists'
+    script: '5.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 148
+    cis_id: '5.2.5'
+    description: '5.2.5 Ensure re-authentication for privilege escalation is not disabled globally'
+    script: '5.2.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 149
+    cis_id: '5.2.6'
+    description: '5.2.6 Ensure sudo authentication timeout is configured correctly'
+    script: '5.2.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 150
+    cis_id: '5.2.7'
+    description: '5.2.7 Ensure access to the su command is restricted'
+    script: '5.2.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 151
+    cis_id: '5.3.1.1'
+    description: '5.3.1.1 Ensure latest version of pam is installed'
+    script: '5.3.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 152
+    cis_id: '5.3.1.2'
+    description: '5.3.1.2 Ensure authselect is configured'
+    script: '5.3.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 153
+    cis_id: '5.3.1.3'
+    description: '5.3.1.3 Ensure authselect includes with-faillock'
+    script: '5.3.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 154
+    cis_id: '5.3.2.1'
+    description: '5.3.2.1 Ensure password failed attempts lockout is configured'
+    script: '5.3.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 155
+    cis_id: '5.3.2.2'
+    description: '5.3.2.2 Ensure password failed attempts lockout includes authfail'
+    script: '5.3.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 156
+    cis_id: '5.3.2.3'
+    description: '5.3.2.3 Ensure password lockout deny value is configured'
+    script: '5.3.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 157
+    cis_id: '5.3.2.4'
+    description: '5.3.2.4 Ensure password unlock time is configured'
+    script: '5.3.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 158
+    cis_id: '5.3.2.5'
+    description: '5.3.2.5 Ensure even_deny_root is set in faillock'
+    script: '5.3.2.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 159
+    cis_id: '5.3.3.1.1'
+    description: '5.3.3.1.1 Ensure pam_pwquality is configured'
+    script: '5.3.3.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 160
+    cis_id: '5.3.3.1.2'
+    description: '5.3.3.1.2 Ensure pam_pwquality does not have nullok'
+    script: '5.3.3.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 161
+    cis_id: '5.3.3.2.1'
+    description: '5.3.3.2.1 Ensure password minimum length is configured'
+    script: '5.3.3.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 162
+    cis_id: '5.3.3.2.2'
+    description: '5.3.3.2.2 Ensure password minimum complexity is configured'
+    script: '5.3.3.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 163
+    cis_id: '5.3.3.2.3'
+    description: '5.3.3.2.3 Ensure password includes digits'
+    script: '5.3.3.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 164
+    cis_id: '5.3.3.2.4'
+    description: '5.3.3.2.4 Ensure password includes uppercase characters'
+    script: '5.3.3.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 165
+    cis_id: '5.3.3.2.5'
+    description: '5.3.3.2.5 Ensure password includes special characters'
+    script: '5.3.3.2.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 166
+    cis_id: '5.3.3.2.6'
+    description: '5.3.3.2.6 Ensure password includes lowercase characters'
+    script: '5.3.3.2.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 167
+    cis_id: '5.3.3.2.7'
+    description: '5.3.3.2.7 Ensure password maximum repeat characters is configured'
+    script: '5.3.3.2.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 168
+    cis_id: '5.3.3.3.1'
+    description: '5.3.3.3.1 Ensure password history remember is configured'
+    script: '5.3.3.3.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 169
+    cis_id: '5.3.3.3.2'
+    description: '5.3.3.3.2 Ensure password history is enforced for the root user'
+    script: '5.3.3.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 170
+    cis_id: '5.3.3.3.3'
+    description: '5.3.3.3.3 Ensure pam_pwhistory includes use_authtok'
+    script: '5.3.3.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 171
+    cis_id: '5.3.3.4.1'
+    description: '5.3.3.4.1 Ensure password hashing algorithm is SHA-512'
+    script: '5.3.3.4.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 172
+    cis_id: '5.3.3.4.2'
+    description: '5.3.3.4.2 Ensure password hashing rounds are configured'
+    script: '5.3.3.4.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 173
+    cis_id: '5.3.3.4.3'
+    description: '5.3.3.4.3 Ensure password hashing uses SHA-512 in PAM'
+    script: '5.3.3.4.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 174
+    cis_id: '5.3.3.4.4'
+    description: '5.3.3.4.4 Ensure password hashing algorithm is sha512 in authselect'
+    script: '5.3.3.4.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 175
+    cis_id: '5.4.1.1'
+    description: '5.4.1.1 Ensure password expiration is 365 days or less'
+    script: '5.4.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 176
+    cis_id: '5.4.1.3'
+    description: '5.4.1.3 Ensure password expiration warning days is 7 or more'
+    script: '5.4.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 177
+    cis_id: '5.4.1.4'
+    description: '5.4.1.4 Ensure inactive password lock is 30 days or less'
+    script: '5.4.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 178
+    cis_id: '5.4.1.5'
+    description: '5.4.1.5 Ensure all users last password change date is in the past'
+    script: '5.4.1.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 179
+    cis_id: '5.4.1.6'
+    description: '5.4.1.6 Ensure password expiration is configured for all users'
+    script: '5.4.1.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 180
+    cis_id: '5.4.2.1'
+    description: '5.4.2.1 Ensure root is the only UID 0 account'
+    script: '5.4.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 181
+    cis_id: '5.4.2.2'
+    description: '5.4.2.2 Ensure root account access is controlled'
+    script: '5.4.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 182
+    cis_id: '5.4.2.3'
+    description: '5.4.2.3 Ensure system accounts are secured'
+    script: '5.4.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 183
+    cis_id: '5.4.2.4'
+    description: '5.4.2.4 Ensure no legacy + entries exist in /etc/passwd'
+    script: '5.4.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 184
+    cis_id: '5.4.2.5'
+    description: '5.4.2.5 Ensure no legacy + entries exist in /etc/shadow'
+    script: '5.4.2.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 185
+    cis_id: '5.4.2.6'
+    description: '5.4.2.6 Ensure no legacy + entries exist in /etc/group'
+    script: '5.4.2.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 186
+    cis_id: '5.4.2.7'
+    description: '5.4.2.7 Ensure root user PATH integrity'
+    script: '5.4.2.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 187
+    cis_id: '5.4.2.8'
+    description: '5.4.2.8 Ensure local interactive user home directories are configured'
+    script: '5.4.2.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 188
+    cis_id: '5.4.3.2'
+    description: '5.4.3.2 Ensure default user umask is configured'
+    script: '5.4.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 189
+    cis_id: '5.4.3.3'
+    description: '5.4.3.3 Ensure default user shell timeout is configured'
+    script: '5.4.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 190
+    cis_id: '6.1.1'
+    description: '6.1.1 Ensure no unowned or ungrouped files exist'
+    script: '6.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 191
+    cis_id: '6.1.2'
+    description: '6.1.2 Ensure no world writable files exist'
+    script: '6.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 192
+    cis_id: '6.1.3'
+    description: '6.1.3 Ensure no unowned files exist'
+    script: '6.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 193
+    cis_id: '6.2.1.1'
+    description: '6.2.1.1 Ensure rsyslog is installed'
+    script: '6.2.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 194
+    cis_id: '6.2.1.2'
+    description: '6.2.1.2 Ensure rsyslog service is enabled'
+    script: '6.2.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 195
+    cis_id: '6.2.1.3'
+    description: '6.2.1.3 Ensure rsyslog default file permissions are configured'
+    script: '6.2.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 196
+    cis_id: '6.2.1.4'
+    description: '6.2.1.4 Ensure logging is configured'
+    script: '6.2.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 197
+    cis_id: '6.2.2.1.1'
+    description: '6.2.2.1.1 Ensure rsyslog is configured to send logs to a remote host'
+    script: '6.2.2.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 198
+    cis_id: '6.2.2.1.2'
+    description: '6.2.2.1.2 Ensure rsyslog is configured to use TLS'
+    script: '6.2.2.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 199
+    cis_id: '6.2.2.1.3'
+    description: '6.2.2.1.3 Ensure rsyslog TLS CA certificate is configured'
+    script: '6.2.2.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 200
+    cis_id: '6.2.2.1.4'
+    description: '6.2.2.1.4 Ensure rsyslog TLS authentication mode is configured'
+    script: '6.2.2.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 201
+    cis_id: '6.2.2.2'
+    description: '6.2.2.2 Ensure rsyslog log rotation is configured'
+    script: '6.2.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 202
+    cis_id: '6.2.2.3'
+    description: '6.2.2.3 Ensure rsyslog is configured to forward logs'
+    script: '6.2.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 203
+    cis_id: '6.2.2.4'
+    description: '6.2.2.4 Ensure rsyslog is not configured to receive messages from a remote host'
+    script: '6.2.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 204
+    cis_id: '6.2.3.1'
+    description: '6.2.3.1 Ensure journald ForwardToSyslog is enabled'
+    script: '6.2.3.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 205
+    cis_id: '6.2.3.2'
+    description: '6.2.3.2 Ensure journald log compression is configured'
+    script: '6.2.3.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 206
+    cis_id: '6.2.3.3'
+    description: '6.2.3.3 Ensure journald log storage is persistent'
+    script: '6.2.3.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 207
+    cis_id: '6.2.3.4'
+    description: '6.2.3.4 Ensure journald SystemMaxUse is configured'
+    script: '6.2.3.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 208
+    cis_id: '6.2.3.5'
+    description: '6.2.3.5 Ensure journald SystemKeepFree is configured'
+    script: '6.2.3.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 209
+    cis_id: '6.2.3.6'
+    description: '6.2.3.6 Ensure journald MaxRetentionSec is configured'
+    script: '6.2.3.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 210
+    cis_id: '6.2.3.7'
+    description: '6.2.3.7 Ensure journald MaxFileSec is configured'
+    script: '6.2.3.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 211
+    cis_id: '6.2.3.8'
+    description: '6.2.3.8 Ensure journald is not configured to send logs to rsyslog'
+    script: '6.2.3.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 212
+    cis_id: '6.2.4.1'
+    description: '6.2.4.1 Ensure auditing is enabled'
+    script: '6.2.4.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 213
+    cis_id: '7.1.1'
+    description: '7.1.1 Ensure permissions on /etc/passwd are configured'
+    script: '7.1.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 214
+    cis_id: '7.1.2'
+    description: '7.1.2 Ensure permissions on /etc/passwd- are configured'
+    script: '7.1.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 215
+    cis_id: '7.1.3'
+    description: '7.1.3 Ensure permissions on /etc/group are configured'
+    script: '7.1.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 216
+    cis_id: '7.1.4'
+    description: '7.1.4 Ensure permissions on /etc/group- are configured'
+    script: '7.1.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 217
+    cis_id: '7.1.5'
+    description: '7.1.5 Ensure permissions on /etc/shadow are configured'
+    script: '7.1.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 218
+    cis_id: '7.1.6'
+    description: '7.1.6 Ensure permissions on /etc/shadow- are configured'
+    script: '7.1.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 219
+    cis_id: '7.1.7'
+    description: '7.1.7 Ensure permissions on /etc/gshadow are configured'
+    script: '7.1.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 220
+    cis_id: '7.1.8'
+    description: '7.1.8 Ensure permissions on /etc/gshadow- are configured'
+    script: '7.1.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 221
+    cis_id: '7.1.9'
+    description: '7.1.9 Ensure world writable directories have sticky bit set'
+    script: '7.1.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 222
+    cis_id: '7.1.10'
+    description: '7.1.10 Ensure no world writable files exist on the system'
+    script: '7.1.10.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 223
+    cis_id: '7.1.11'
+    description: '7.1.11 Ensure no unowned files or directories exist'
+    script: '7.1.11.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 224
+    cis_id: '7.1.12'
+    description: '7.1.12 Ensure no ungrouped files or directories exist'
+    script: '7.1.12.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 225
+    cis_id: '7.1.13'
+    description: '7.1.13 Audit SUID executables'
+    script: '7.1.13.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 226
+    cis_id: '7.2.1'
+    description: '7.2.1 Ensure accounts in /etc/passwd use shadowed passwords'
+    script: '7.2.1.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 227
+    cis_id: '7.2.2'
+    description: '7.2.2 Ensure /etc/shadow password fields are not empty'
+    script: '7.2.2.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 228
+    cis_id: '7.2.3'
+    description: '7.2.3 Ensure all groups in /etc/passwd exist in /etc/group'
+    script: '7.2.3.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 229
+    cis_id: '7.2.4'
+    description: '7.2.4 Ensure shadow group is empty'
+    script: '7.2.4.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 230
+    cis_id: '7.2.5'
+    description: '7.2.5 Ensure no duplicate UIDs exist'
+    script: '7.2.5.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 231
+    cis_id: '7.2.6'
+    description: '7.2.6 Ensure no duplicate GIDs exist'
+    script: '7.2.6.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 232
+    cis_id: '7.2.7'
+    description: '7.2.7 Ensure no duplicate usernames exist'
+    script: '7.2.7.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 233
+    cis_id: '7.2.8'
+    description: '7.2.8 Ensure no duplicate groupnames exist'
+    script: '7.2.8.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
+  - index: 234
+    cis_id: '7.2.9'
+    description: '7.2.9 Ensure local interactive user home directories exist'
+    script: '7.2.9.sh'
+    expect: '(?i)^\s*\**\s*pass:?\s*\**\s*$'
