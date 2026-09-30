@@ -1,32 +1,16 @@
 #!/bin/bash
-# 3.3.5 Ensure source routed packets are not accepted
+# 3.3.5 Ensure broadcast ICMP requests are ignored
 
 {
    l_output="" l_output2=""
-   l_val="$(sysctl net.ipv4.conf.all.accept_source_route 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "0" ]; then
-      l_output="$l_output\n - net.ipv4.conf.all.accept_source_route = $l_val"
+
+   l_val="$(sysctl net.ipv4.icmp_echo_ignore_broadcasts 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
+   if [ "$l_val" = "1" ]; then
+      l_output="$l_output\n - net.ipv4.icmp_echo_ignore_broadcasts = $l_val"
    else
-      l_output2="$l_output2\n - net.ipv4.conf.all.accept_source_route = ${l_val:-not set} (expected 0)"
+      l_output2="$l_output2\n - net.ipv4.icmp_echo_ignore_broadcasts = ${l_val:-not set} (expected 1)"
    fi
-   l_val="$(sysctl net.ipv4.conf.default.accept_source_route 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "0" ]; then
-      l_output="$l_output\n - net.ipv4.conf.default.accept_source_route = $l_val"
-   else
-      l_output2="$l_output2\n - net.ipv4.conf.default.accept_source_route = ${l_val:-not set} (expected 0)"
-   fi
-   l_val="$(sysctl net.ipv6.conf.all.accept_source_route 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "0" ]; then
-      l_output="$l_output\n - net.ipv6.conf.all.accept_source_route = $l_val"
-   else
-      l_output2="$l_output2\n - net.ipv6.conf.all.accept_source_route = ${l_val:-not set} (expected 0)"
-   fi
-   l_val="$(sysctl net.ipv6.conf.default.accept_source_route 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "0" ]; then
-      l_output="$l_output\n - net.ipv6.conf.default.accept_source_route = $l_val"
-   else
-      l_output2="$l_output2\n - net.ipv6.conf.default.accept_source_route = ${l_val:-not set} (expected 0)"
-   fi
+
    if [ -z "$l_output2" ]; then
       echo -e "\n- Audit Result:\n  ** PASS **\n$l_output\n"
    else

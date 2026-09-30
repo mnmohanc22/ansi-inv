@@ -1,14 +1,18 @@
 #!/bin/bash
-# 3.3.10 Ensure broadcast ICMP requests are ignored
+# 3.3.10 Ensure ICMP redirects are not accepted
 
 {
    l_output="" l_output2=""
-   l_val="$(sysctl net.ipv4.icmp_echo_ignore_broadcasts 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "1" ]; then
-      l_output="$l_output\n - net.ipv4.icmp_echo_ignore_broadcasts = $l_val"
-   else
-      l_output2="$l_output2\n - net.ipv4.icmp_echo_ignore_broadcasts = ${l_val:-not set} (expected 1)"
-   fi
+
+   for l_param in net.ipv4.conf.all.accept_redirects net.ipv4.conf.default.accept_redirects; do
+      l_val="$(sysctl "$l_param" 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
+      if [ "$l_val" = "0" ]; then
+         l_output="$l_output\n - $l_param = $l_val"
+      else
+         l_output2="$l_output2\n - $l_param = ${l_val:-not set} (expected 0)"
+      fi
+   done
+
    if [ -z "$l_output2" ]; then
       echo -e "\n- Audit Result:\n  ** PASS **\n$l_output\n"
    else

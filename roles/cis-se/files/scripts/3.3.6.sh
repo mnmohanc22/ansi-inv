@@ -1,20 +1,16 @@
 #!/bin/bash
-# 3.3.6 Ensure ICMP redirects are not accepted
+# 3.3.6 Ensure bogus ICMP responses are ignored
 
 {
    l_output="" l_output2=""
-   l_val="$(sysctl net.ipv4.conf.all.accept_redirects 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "0" ]; then
-      l_output="$l_output\n - net.ipv4.conf.all.accept_redirects = $l_val"
+
+   l_val="$(sysctl net.ipv4.icmp_ignore_bogus_error_responses 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
+   if [ "$l_val" = "1" ]; then
+      l_output="$l_output\n - net.ipv4.icmp_ignore_bogus_error_responses = $l_val"
    else
-      l_output2="$l_output2\n - net.ipv4.conf.all.accept_redirects = ${l_val:-not set} (expected 0)"
+      l_output2="$l_output2\n - net.ipv4.icmp_ignore_bogus_error_responses = ${l_val:-not set} (expected 1)"
    fi
-   l_val="$(sysctl net.ipv4.conf.default.accept_redirects 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "0" ]; then
-      l_output="$l_output\n - net.ipv4.conf.default.accept_redirects = $l_val"
-   else
-      l_output2="$l_output2\n - net.ipv4.conf.default.accept_redirects = ${l_val:-not set} (expected 0)"
-   fi
+
    if [ -z "$l_output2" ]; then
       echo -e "\n- Audit Result:\n  ** PASS **\n$l_output\n"
    else

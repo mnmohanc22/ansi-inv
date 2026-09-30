@@ -1,14 +1,18 @@
 #!/bin/bash
-# 3.3.9 Ensure bogus ICMP responses are ignored
+# 3.3.9 Ensure source routed packets are not accepted
 
 {
    l_output="" l_output2=""
-   l_val="$(sysctl net.ipv4.icmp_ignore_bogus_error_responses 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
-   if [ "$l_val" = "1" ]; then
-      l_output="$l_output\n - net.ipv4.icmp_ignore_bogus_error_responses = $l_val"
-   else
-      l_output2="$l_output2\n - net.ipv4.icmp_ignore_bogus_error_responses = ${l_val:-not set} (expected 1)"
-   fi
+
+   for l_param in net.ipv4.conf.all.accept_source_route net.ipv4.conf.default.accept_source_route net.ipv6.conf.all.accept_source_route net.ipv6.conf.default.accept_source_route; do
+      l_val="$(sysctl "$l_param" 2>/dev/null | awk -F= '{print $2}' | tr -d ' ')"
+      if [ "$l_val" = "0" ]; then
+         l_output="$l_output\n - $l_param = $l_val"
+      else
+         l_output2="$l_output2\n - $l_param = ${l_val:-not set} (expected 0)"
+      fi
+   done
+
    if [ -z "$l_output2" ]; then
       echo -e "\n- Audit Result:\n  ** PASS **\n$l_output\n"
    else
