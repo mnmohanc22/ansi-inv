@@ -1,0 +1,32 @@
+- name: "CIS 1.3.1.4 | Ensure SELinux is enabled"
+  block:
+    - name: "Check runtime SELinux mode"
+      ansible.builtin.command: getenforce
+      register: selinux_runtime
+      changed_when: false
+      failed_when: false
+      
+    - name: "Check persistent SELinux mode"
+      ansible.builtin.command: sestatus
+      register: sestatus_cmd_output
+      changed_when: false
+      failed_when: false  
+
+    - name: "Read persistent SELinux configuration"
+      ansible.builtin.slurp:
+        src: /etc/selinux/config
+      register: selinux_config
+
+    - name: "Parse persistent SELinux configuration"
+      ansible.builtin.set_fact:
+        selinux_config_content: "{{ selinux_config.content | b64decode }}"
+
+    - name: "Print SELinux summary"
+      ansible.builtin.debug:
+        msg: |
+          === SELinux Status Summary ===
+          Runtime mode  : {{ selinux_runtime.stdout }}
+          sestatus      : {{ sestatus_cmd_output.stdout_lines | join(', ') }}
+          Persistent cfg: {{ selinux_config_content | regex_findall('(?m)^SELINUX=.*') | join(', ') }}
+          Policy        : {{ selinux_config_content | regex_findall('(?m)^SELINUXTYPE=.*') | join(', ') }}
+
