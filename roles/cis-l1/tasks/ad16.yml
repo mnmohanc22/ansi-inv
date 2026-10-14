@@ -30,3 +30,25 @@
           Persistent cfg: {{ selinux_config_content | regex_findall('(?m)^SELINUX=.*') | join(', ') }}
           Policy        : {{ selinux_config_content | regex_findall('(?m)^SELINUXTYPE=.*') | join(', ') }}
 
+
+
+- name: "CIS 2.1.22 | Audit listening network services"
+  block:
+    - name: Collect listening TCP and UDP sockets with process details
+      ansible.builtin.command:
+        argv:
+          - ss
+          - -lntup
+      register: cis_listening_services
+      changed_when: false
+
+    - name: Display listening services for review
+      ansible.builtin.debug:
+        msg: "{{ cis_listening_services.stdout_lines }}"
+
+    - name: Report manual audit requirement
+      ansible.builtin.debug:
+        msg: >-
+          MANUAL REVIEW REQUIRED: Verify each listening service,
+          port, and bind address against the approved baseline
+          for this server.
