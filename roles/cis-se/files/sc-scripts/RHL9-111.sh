@@ -1,0 +1,38 @@
+#!/bin/bash
+# RHL9-111 | Ensure rsyslog is configured to send logs to a remote log host
+# Test Method: Manual
+
+{
+   echo -e "\n- Audit Result:\n  ** MANUAL REVIEW REQUIRED **"
+   echo -e "\n- Test Procedure:"
+   echo -e "  Review the \`/etc/rsyslog.conf\` and \`/etc/rsyslog.d/*.conf\` files and verify that logs are sent to a central host:"
+   echo -e "  "
+   echo -e "  **Note:** The **basic format** is intended for users that configured their file use \`@loghost.example.com\` The **advanced format** is a more modern format that will audit formatting similar to that found in the remediation."
+   echo -e "  "
+   echo -e "  **basic format**"
+   echo -e "  "
+   echo -e "  \`\`\`"
+   echo -e "  # grep \"^*.*[^I][^I]*@\" /etc/rsyslog.conf /etc/rsyslog.d/*.conf"
+   echo -e "  \`\`\`"
+   echo -e "  "
+   echo -e "  Output should include \`@@<FQDN or IP of remote loghost>\`:"
+   echo -e "  "
+   echo -e "  _Example:_"
+   echo -e "  \`\`\`"
+   echo -e "  *.* @@loghost.example.com"
+   echo -e "  \`\`\`"
+   echo -e "  "
+   echo -e "  **advanced format**"
+   echo -e "  "
+   echo -e "  \`\`\`"
+   echo -e "  # grep -Psi -- '^\s*([^#]+\s+)?action\(([^#]+\s+)?\btarget=\\"?[^#\"]+\\"?\b' /etc/rsyslog.conf /etc/rsyslog.d/*.conf"
+   echo -e "  \`\`\`"
+   echo -e "  "
+   echo -e "  Output should include \`target=<FQDN or IP of remote loghost>\`:"
+   echo -e "  "
+   echo -e "  _Example:_"
+   echo -e "  \`\`\`"
+   echo -e "  *.* action(type=\"omfwd\" target=\"loghost.example.com\" port=\"514\" protocol=\"tcp\""
+   echo -e "  \`\`\`"
+   echo ""
+}

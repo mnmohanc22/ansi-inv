@@ -1,0 +1,45 @@
+- name: Remove journal upload package and directory
+  block:
+    - name: Stop systemd-journal-upload service
+      ansible.builtin.systemd:
+        name: systemd-journal-upload.service
+        state: stopped
+        enabled: false
+      register: journal_upload_service
+      failed_when: false
+
+    - name: Print service stop result
+      ansible.builtin.debug:
+        msg: "systemd-journal-upload.service - stopped: {{ journal_upload_service.status.ActiveState | default('unknown') }}, enabled: {{ journal_upload_service.status.UnitFileState | default('unknown') }}"
+
+    - name: Remove systemd-journal-remote package
+      ansible.builtin.dnf:
+        name: systemd-journal-remote
+        state: absent
+      register: journal_pkg_remove
+
+    - name: Print package removal result
+      ansible.builtin.debug:
+        msg: "systemd-journal-remote package removal - changed: {{ journal_pkg_remove.changed }}"
+
+    - name: Remove journal-upload directory if it exists
+      ansible.builtin.file:
+        path: /var/lib/private/systemd/journal-upload
+        state: absent
+      register: journal_dir_remove
+
+    - name: Print directory removal result
+      ansible.builtin.debug:
+        msg: "journal-upload directory removal - changed: {{ journal_dir_remove.changed }}"
+
+    - name: Summary report
+      ansible.builtin.debug:
+        msg: |
+          === systemd-journal-upload Cleanup Summary ===
+          Host     : {{ inventory_hostname }}
+          Service  : stopped={{ journal_upload_service.changed }}, state={{ journal_upload_service.status.ActiveState | default('unknown') }}
+          Package  : removed={{ journal_pkg_remove.changed }}
+          Directory: removed={{ journal_dir_remove.changed }}
+
+
+
