@@ -91,3 +91,44 @@
 
 
 
+
+- name: Clean comments and trailing whitespace from useradd defaults
+  block:
+    - name: Check for comments in /etc/default/useradd
+      ansible.builtin.command:
+        argv:
+          - /bin/grep
+          - -cE
+          - '^[ \t]*#'
+          - /etc/default/useradd
+      register: useradd_comment_check
+      changed_when: false
+      failed_when: useradd_comment_check.rc not in [0, 1]
+
+    - name: Print comment check result
+      ansible.builtin.debug:
+        msg: "Comments found in /etc/default/useradd: {{ 'yes' if useradd_comment_check.rc == 0 else 'no' }} ({{ useradd_comment_check.stdout }} line(s))"
+
+    - name: Remove full-line comments
+      ansible.builtin.lineinfile:
+        path: /etc/default/useradd
+        regexp: '^[ \t]*#.*$'
+        state: absent
+        backup: true
+      register: useradd_comments_removed
+
+    - name: Print full-line comments removal result
+      ansible.builtin.debug:
+        msg: "Full-line comments removed from /etc/default/useradd: {{ useradd_comments_removed.changed }}"
+
+    - name: Remove trailing spaces and tabs
+      ansible.builtin.replace:
+        path: /etc/default/useradd
+        regexp: '[ \t]+$'
+        replace: ''
+        backup: true
+      register: useradd_trailing_removed
+
+    - name: Print trailing whitespace removal result
+      ansible.builtin.debug:
+        msg: "Trailing spaces/tabs removed from /etc/default/useradd: {{ useradd_trailing_removed.changed }}"
