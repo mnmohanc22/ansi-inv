@@ -132,3 +132,203 @@
     - name: Print trailing whitespace removal result
       ansible.builtin.debug:
         msg: "Trailing spaces/tabs removed from /etc/default/useradd: {{ useradd_trailing_removed.changed }}"
+
+- name: Remove eth0 from firewalld trusted zone if present
+  become: true
+  block:
+    - name: Check if eth0 is in the trusted zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --query-interface=eth0
+      register: eth0_trusted_check
+      changed_when: false
+      failed_when: eth0_trusted_check.rc not in [0, 1]
+
+    - name: Print eth0 trusted zone check result
+      ansible.builtin.debug:
+        msg: "eth0 is {{ 'in' if eth0_trusted_check.rc == 0 else 'not in' }} the trusted zone"
+
+    - name: Remove eth0 from trusted zone
+      ansible.builtin.shell: |
+        firewall-cmd --zone=trusted --remove-interface=eth0 --permanent
+        firewall-cmd --reload
+      when: eth0_trusted_check.rc == 0
+      register: eth0_trusted_remove
+
+    - name: Print eth0 removal result
+      ansible.builtin.debug:
+        msg: "eth0 removed from trusted zone: rc={{ eth0_trusted_remove.rc }}, stdout={{ eth0_trusted_remove.stdout }}"
+      when: eth0_trusted_check.rc == 0
+
+- name: Ensure firewalld loopback traffic is configured
+  become: true
+  block:
+    - name: Check if lo interface is in the trusted zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --query-interface=lo
+      register: lo_trusted_check
+      changed_when: false
+      failed_when: lo_trusted_check.rc not in [0, 1]
+
+    - name: Print lo trusted zone check result
+      ansible.builtin.debug:
+        msg: "lo interface is {{ 'already in' if lo_trusted_check.rc == 0 else 'not in' }} the trusted zone"
+
+    - name: Add lo interface to trusted zone
+      ansible.builtin.shell: |
+        firewall-cmd --zone=trusted --add-interface=lo --permanent
+        firewall-cmd --reload
+      when: lo_trusted_check.rc != 0
+      register: lo_trusted_add
+
+    - name: Print lo trusted zone add result
+      ansible.builtin.debug:
+        msg: "lo added to trusted zone: rc={{ lo_trusted_add.rc }}, stdout={{ lo_trusted_add.stdout }}"
+      when: lo_trusted_check.rc != 0
+
+    - name: Check rich rule for IPv4 loopback drop
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=public --list-rich-rules
+      register: fw_rich_rules
+      changed_when: false
+
+    - name: Print existing rich rules
+      ansible.builtin.debug:
+        msg: "Current public zone rich rules: {{ fw_rich_rules.stdout_lines }}"
+
+    - name: Add rich rule to drop IPv4 loopback spoofing
+      ansible.builtin.shell: >
+        firewall-cmd --permanent --zone=public
+        --add-rich-rule='rule family=ipv4 source address="127.0.0.0/8" destination not address="127.0.0.0/8" drop'
+      when: "'127.0.0.0/8' not in fw_rich_rules.stdout"
+      register: fw_ipv4_rule
+
+    - name: Print IPv4 loopback rule result
+      ansible.builtin.debug:
+        msg: "IPv4 loopback drop rule added: rc={{ fw_ipv4_rule.rc }}, stdout={{ fw_ipv4_rule.stdout }}"
+      when: "'127.0.0.0/8' not in fw_rich_rules.stdout"
+
+    - name: Add rich rule to drop IPv6 loopback spoofing
+      ansible.builtin.shell: >
+        firewall-cmd --permanent --zone=public
+        --add-rich-rule='rule family=ipv6 source address="::1" destination not address="::1" drop'
+      when: "'::1' not in fw_rich_rules.stdout"
+      register: fw_ipv6_rule
+
+    - name: Print IPv6 loopback rule result
+      ansible.builtin.debug:
+        msg: "IPv6 loopback drop rule added: rc={{ fw_ipv6_rule.rc }}, stdout={{ fw_ipv6_rule.stdout }}"
+      when: "'::1' not in fw_rich_rules.stdout"
+
+    - name: Reload firewalld to apply permanent rules
+      ansible.builtin.shell: firewall-cmd --reload
+      register: fw_reload
+
+    - name: Print firewalld reload result
+      ansible.builtin.debug:
+        msg: "firewalld reloaded: rc={{ fw_reload.rc }}, stdout={{ fw_reload.stdout }}"
+
+    - name: Verify final loopback configuration
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --list-interfaces
+      register: fw_trusted_interfaces
+      changed_when: false
+
+    - name: Print final loopback configuration
+      ansible.builtin.debug:
+        msg: "Trusted zone interfaces: {{ fw_trusted_interfaces.stdout }}"
+
+- name: Ensure loopback source addresses are assigned to trusted zone
+  become: true
+  block:
+    - name: Check if 127.0.0.1/8 source is in trusted zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --query-source=127.0.0.1/8
+      register: lo_ipv4_source_check
+      changed_when: false
+      failed_when: lo_ipv4_source_check.rc not in [0, 1]
+
+    - name: Print IPv4 loopback source check
+      ansible.builtin.debug:
+        msg: "127.0.0.1/8 source is {{ 'already in' if lo_ipv4_source_check.rc == 0 else 'not in' }} trusted zone"
+
+    - name: Add 127.0.0.1/8 source to trusted zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=trusted --add-source=127.0.0.1/8
+        firewall-cmd --reload
+      when: lo_ipv4_source_check.rc != 0
+      register: lo_ipv4_source_add
+
+    - name: Print IPv4 loopback source add result
+      ansible.builtin.debug:
+        msg: "127.0.0.1/8 added to trusted zone: rc={{ lo_ipv4_source_add.rc }}, stdout={{ lo_ipv4_source_add.stdout }}"
+      when: lo_ipv4_source_check.rc != 0
+
+    - name: Check if ::1 source is in trusted zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --query-source=::1
+      register: lo_ipv6_source_check
+      changed_when: false
+      failed_when: lo_ipv6_source_check.rc not in [0, 1]
+
+    - name: Print IPv6 loopback source check
+      ansible.builtin.debug:
+        msg: "::1 source is {{ 'already in' if lo_ipv6_source_check.rc == 0 else 'not in' }} trusted zone"
+
+    - name: Add ::1 source to trusted zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=trusted --add-source=::1
+        firewall-cmd --reload
+      when: lo_ipv6_source_check.rc != 0
+      register: lo_ipv6_source_add
+
+    - name: Print IPv6 loopback source add result
+      ansible.builtin.debug:
+        msg: "::1 added to trusted zone: rc={{ lo_ipv6_source_add.rc }}, stdout={{ lo_ipv6_source_add.stdout }}"
+      when: lo_ipv6_source_check.rc != 0
+
+    - name: Verify trusted zone sources
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --list-sources
+      register: fw_trusted_sources
+      changed_when: false
+
+    - name: Print trusted zone sources
+      ansible.builtin.debug:
+        msg: "Trusted zone sources: {{ fw_trusted_sources.stdout }}"
+
+- name: Ensure firewalld is installed and service is configured
+  become: true
+  block:
+    - name: Ensure firewalld package is installed
+      ansible.builtin.dnf:
+        name: firewalld
+        state: present
+      register: firewalld_pkg
+
+    - name: Print firewalld package install result
+      ansible.builtin.debug:
+        msg: "firewalld package installed: changed={{ firewalld_pkg.changed }}"
+
+    - name: Ensure firewalld.service is enabled and running
+      ansible.builtin.systemd:
+        name: firewalld.service
+        state: started
+        enabled: true
+      register: firewalld_service
+
+    - name: Print firewalld service status
+      ansible.builtin.debug:
+        msg: "firewalld.service - started={{ firewalld_service.status.ActiveState | default('unknown') }}, enabled={{ firewalld_service.status.UnitFileState | default('unknown') }}, changed={{ firewalld_service.changed }}"
+
+    - name: Verify firewalld is active and running
+      ansible.builtin.command:
+        cmd: firewall-cmd --state
+      register: fw_state
+      changed_when: false
+
+    - name: Print firewalld state
+      ansible.builtin.debug:
+        msg: "firewalld state: {{ fw_state.stdout }}"
+
+
+
