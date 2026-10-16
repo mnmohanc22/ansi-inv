@@ -43,3 +43,51 @@
 
 
 
+- name: Check INACTIVE setting in /etc/default/useradd
+  become: true
+  block:
+    - name: Check INACTIVE setting
+      ansible.builtin.command:
+        argv:
+          - /bin/grep
+          - -nE
+          - '^[[:space:]]*INACTIVE[[:space:]]*='
+          - /etc/default/useradd
+      register: useradd_inactive
+      changed_when: false
+      failed_when: useradd_inactive.rc not in [0, 1]
+
+    - name: Display INACTIVE setting
+      ansible.builtin.debug:
+        msg: "{{ useradd_inactive.stdout_lines if useradd_inactive.rc == 0 else 'INACTIVE setting not found' }}"
+
+    - name: Print full useradd_inactive output
+      ansible.builtin.debug:
+        var: useradd_inactive
+
+    - name: Read /etc/default/useradd content
+      ansible.builtin.slurp:
+        src: /etc/default/useradd
+      register: useradd_file
+
+    - name: Print /etc/default/useradd content
+      ansible.builtin.debug:
+        msg: "{{ useradd_file.content | b64decode }}"
+
+- name: Set INACTIVE=30 in /etc/default/useradd
+  become: true
+  block:
+    - name: Update INACTIVE setting to 30 days
+      ansible.builtin.lineinfile:
+        path: /etc/default/useradd
+        regexp: '^[[:space:]]*INACTIVE[[:space:]]*='
+        line: 'INACTIVE=30'
+        state: present
+      register: useradd_inactive_update
+
+    - name: Print INACTIVE update result
+      ansible.builtin.debug:
+        msg: "INACTIVE setting updated: changed={{ useradd_inactive_update.changed }}"
+
+
+
