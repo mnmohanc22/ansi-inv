@@ -330,5 +330,62 @@
       ansible.builtin.debug:
         msg: "firewalld state: {{ fw_state.stdout }}"
 
+- name: Ensure firewalld zones are configured 
+  become: true
+  block:
+    - name: Get current default zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --get-default-zone
+      register: fw_default_zone
+      changed_when: false
+
+    - name: Print current default zone
+      ansible.builtin.debug:
+        msg: "Current firewalld default zone: {{ fw_default_zone.stdout }}"
+
+    - name: Set default zone to public
+      ansible.builtin.command:
+        cmd: firewall-cmd --set-default-zone=public
+      when: fw_default_zone.stdout != 'public'
+      register: fw_set_zone
+
+    - name: Print default zone set result
+      ansible.builtin.debug:
+        msg: "Default zone set to public: changed={{ fw_set_zone.changed }}"
+      when: fw_default_zone.stdout != 'public'
+
+    - name: Assign lo interface to trusted zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=trusted --add-interface=lo
+        firewall-cmd --reload
+      register: lo_zone_assign
+      failed_when: lo_zone_assign.rc not in [0, 1]
+
+    - name: Print lo trusted zone assignment result
+      ansible.builtin.debug:
+        msg: "lo → trusted zone: rc={{ lo_zone_assign.rc }}, stdout={{ lo_zone_assign.stdout }}"
+
+    - name: Assign eth0 interface to public zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=public --add-interface=eth0
+        firewall-cmd --reload
+      register: eth0_zone_assign
+      failed_when: eth0_zone_assign.rc not in [0, 1]
+
+    - name: Print eth0 public zone assignment result
+      ansible.builtin.debug:
+        msg: "eth0 → public zone: rc={{ eth0_zone_assign.rc }}, stdout={{ eth0_zone_assign.stdout }}"
+
+    - name: Verify interface zone assignments
+      ansible.builtin.command:
+        cmd: firewall-cmd --get-active-zones
+      register: fw_active_zones
+      changed_when: false
+
+    - name: Print active zone assignments
+      ansible.builtin.debug:
+        msg: "Active firewalld zones:\n{{ fw_active_zones.stdout }}"
+
+
 
 
