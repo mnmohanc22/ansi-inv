@@ -133,30 +133,38 @@
       ansible.builtin.debug:
         msg: "Trailing spaces/tabs removed from /etc/default/useradd: {{ useradd_trailing_removed.changed }}"
 
-- name: Remove eth0 from firewalld trusted zone if present
+- name: Remove primary interface from firewalld trusted zone if present
   become: true
   block:
-    - name: Check if eth0 is in the trusted zone
+    - name: Set primary network interface fact
+      ansible.builtin.set_fact:
+        primary_iface: "{{ ansible_default_ipv4.interface }}"
+
+    - name: Print detected primary interface
+      ansible.builtin.debug:
+        msg: "Detected primary network interface: {{ primary_iface }}"
+
+    - name: Check if primary interface is in the trusted zone
       ansible.builtin.command:
-        cmd: firewall-cmd --zone=trusted --query-interface=eth0
+        cmd: firewall-cmd --zone=trusted --query-interface={{ primary_iface }}
       register: eth0_trusted_check
       changed_when: false
       failed_when: eth0_trusted_check.rc not in [0, 1]
 
-    - name: Print eth0 trusted zone check result
+    - name: Print primary interface trusted zone check result
       ansible.builtin.debug:
-        msg: "eth0 is {{ 'in' if eth0_trusted_check.rc == 0 else 'not in' }} the trusted zone"
+        msg: "{{ primary_iface }} is {{ 'in' if eth0_trusted_check.rc == 0 else 'not in' }} the trusted zone"
 
-    - name: Remove eth0 from trusted zone
+    - name: Remove primary interface from trusted zone
       ansible.builtin.shell: |
-        firewall-cmd --zone=trusted --remove-interface=eth0 --permanent
+        firewall-cmd --zone=trusted --remove-interface={{ primary_iface }} --permanent
         firewall-cmd --reload
       when: eth0_trusted_check.rc == 0
       register: eth0_trusted_remove
 
-    - name: Print eth0 removal result
+    - name: Print primary interface removal result
       ansible.builtin.debug:
-        msg: "eth0 removed from trusted zone: rc={{ eth0_trusted_remove.rc }}, stdout={{ eth0_trusted_remove.stdout }}"
+        msg: "{{ primary_iface }} removed from trusted zone: rc={{ eth0_trusted_remove.rc }}, stdout={{ eth0_trusted_remove.stdout }}"
       when: eth0_trusted_check.rc == 0
 
 - name: Ensure firewalld loopback traffic is configured
@@ -365,16 +373,47 @@
       ansible.builtin.debug:
         msg: "lo → trusted zone: rc={{ lo_zone_assign.rc }}, stdout={{ lo_zone_assign.stdout }}"
 
-    - name: Assign eth0 interface to public zone
+    - name: Set primary network interface fact
+      ansible.builtin.set_fact:
+        primary_iface: "{{ ansible_default_ipv4.interface }}"
+
+    - name: Print primary interface fact
+      ansible.builtin.debug:
+        msg: "Primary network interface: {{ primary_iface }}"
+
+    - name: Check if primary interface is in trusted zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --zone=trusted --query-interface={{ primary_iface }}
+      register: primary_iface_trusted_check
+      changed_when: false
+      failed_when: primary_iface_trusted_check.rc not in [0, 1]
+
+    - name: Print primary interface trusted zone check
+      ansible.builtin.debug:
+        msg: "{{ primary_iface }} is {{ 'in' if primary_iface_trusted_check.rc == 0 else 'not in' }} the trusted zone"
+
+    - name: Remove primary interface from trusted zone
       ansible.builtin.shell: |
-        firewall-cmd --permanent --zone=public --add-interface=eth0
+        firewall-cmd --permanent --zone=trusted --remove-interface={{ primary_iface }}
+        firewall-cmd --reload
+      when: primary_iface_trusted_check.rc == 0
+      register: primary_iface_trusted_remove
+
+    - name: Print primary interface trusted zone removal result
+      ansible.builtin.debug:
+        msg: "{{ primary_iface }} removed from trusted zone: rc={{ primary_iface_trusted_remove.rc }}, stdout={{ primary_iface_trusted_remove.stdout }}"
+      when: primary_iface_trusted_check.rc == 0
+
+    - name: Assign primary interface to public zone
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --zone=public --add-interface={{ primary_iface }}
         firewall-cmd --reload
       register: eth0_zone_assign
       failed_when: eth0_zone_assign.rc not in [0, 1]
 
-    - name: Print eth0 public zone assignment result
+    - name: Print primary interface public zone assignment result
       ansible.builtin.debug:
-        msg: "eth0 → public zone: rc={{ eth0_zone_assign.rc }}, stdout={{ eth0_zone_assign.stdout }}"
+        msg: "{{ primary_iface }} → public zone: rc={{ eth0_zone_assign.rc }}, stdout={{ eth0_zone_assign.stdout }}"
 
     - name: Verify interface zone assignments
       ansible.builtin.command:
