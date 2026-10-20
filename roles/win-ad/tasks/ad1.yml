@@ -119,18 +119,21 @@
               $uninstallString = $app.UninstallString
               if (-not $uninstallString) { continue }
 
-              if ($uninstallString -match 'uninstall\.exe') {
-                  $proc = Start-Process -FilePath $uninstallString `
-                      -ArgumentList '/S' -WindowStyle Hidden -PassThru
-              }
-              elseif ($uninstallString -match 'msiexec') {
+              # Strip surrounding quotes from the path if present
+              $exePath = $uninstallString.Trim('"').Split('"')[0].Trim()
+
+              if ($uninstallString -match 'msiexec') {
                   $guid = ($uninstallString -replace '.*\{', '{') -replace '\}.*', '}'
                   $proc = Start-Process -FilePath 'msiexec.exe' `
-                      -ArgumentList "/x `"$guid`" /qn /norestart" -WindowStyle Hidden -PassThru
+                      -ArgumentList "/x `"$guid`" /qn /norestart" `
+                      -WindowStyle Hidden -PassThru
               }
               else {
-                  $proc = Start-Process -FilePath $uninstallString `
-                      -ArgumentList '/quiet /norestart' -WindowStyle Hidden -PassThru
+                  # NSIS uninstaller: _?= prevents self-copy to %TEMP% which causes PID tracking loss
+                  $installDir = Split-Path -Parent $exePath
+                  $proc = Start-Process -FilePath $exePath `
+                      -ArgumentList "/S `"_?=$installDir`"" `
+                      -WindowStyle Hidden -PassThru
               }
 
               $timedOut = $false
