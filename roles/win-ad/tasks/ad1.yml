@@ -204,7 +204,7 @@
           Wireshark Uninstall Summary - REMOVED
           ========================================
           {% for host in ansible_play_hosts %}
-          {% if hostvars[host].get('wireshark_uninstall_summary') is defined and not hostvars[host]['wireshark_uninstall_summary']['still_installed'] %}
+          {% if 'wireshark_uninstall_summary' in hostvars[host] and not hostvars[host]['wireshark_uninstall_summary']['still_installed'] %}
           Host      : {{ hostvars[host]['wireshark_uninstall_summary']['hostname'] }}
           IP Address: {{ hostvars[host]['wireshark_uninstall_summary']['ip_address'] }}
           Packages  : {{ hostvars[host]['wireshark_uninstall_summary']['uninstall_results'] | map(attribute='name') | list | join(', ') }}
@@ -220,7 +220,7 @@
           Wireshark Uninstall Summary - STILL PRESENT
           ========================================
           {% for host in ansible_play_hosts %}
-          {% if hostvars[host].get('wireshark_uninstall_summary') is defined and hostvars[host]['wireshark_uninstall_summary']['still_installed'] %}
+          {% if 'wireshark_uninstall_summary' in hostvars[host] and hostvars[host]['wireshark_uninstall_summary']['still_installed'] %}
           Host      : {{ hostvars[host]['wireshark_uninstall_summary']['hostname'] }}
           IP Address: {{ hostvars[host]['wireshark_uninstall_summary']['ip_address'] }}
           Status    : FAILED TO REMOVE
