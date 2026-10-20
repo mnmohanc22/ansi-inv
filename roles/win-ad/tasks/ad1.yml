@@ -58,6 +58,8 @@
           wireshark_installed: "{{ wireshark_check.result.installed }}"
           installations: "{{ wireshark_check.result.installations }}"
 
+
+
     - name: Print installation status summary
       when: inventory_hostname == ansible_play_hosts[-1]
       block:
@@ -89,6 +91,8 @@
               ----------------------------------------
               {% endif %}
               {% endfor %}
+
+
 
     - name: Uninstall Wireshark if installed
       when: wireshark_check.result.installed
