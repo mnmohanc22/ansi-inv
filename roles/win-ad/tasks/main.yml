@@ -1,0 +1,6 @@
+---
+- name: Wireshark audit tasks
+  ansible.builtin.import_tasks: ad1.yml
+
+- name: Group policy update tasks
+  ansible.builtin.import_tasks: gupdate.yml

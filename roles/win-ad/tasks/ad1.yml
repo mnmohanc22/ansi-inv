@@ -1,0 +1,90 @@
+- name: Check Wireshark installation
+  when: package_name | lower == 'wireshark'
+  block:
+    - name: Check Windows uninstall registry for Wireshark
+      ansible.windows.win_powershell:
+        script: |
+          $Ansible.Changed = $false
+
+          $registryPaths = @(
+              'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+              'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+              'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+          )
+
+          $installations = @(
+              Get-ItemProperty -Path $registryPaths -ErrorAction SilentlyContinue |
+                  Where-Object { $_.DisplayName -like '*Wireshark*' } |
+                  Select-Object DisplayName, DisplayVersion, InstallLocation |
+                  Sort-Object DisplayName, DisplayVersion, InstallLocation -Unique
+          )
+
+          $Ansible.Result = @{
+              installed     = ($installations.Count -gt 0)
+              installations = $installations
+          }
+      register: wireshark_check
+
+    - name: Display Wireshark installation status
+      ansible.builtin.debug:
+        msg:
+          server: "{{ inventory_hostname }}"
+          wireshark_installed: "{{ wireshark_check.result.installed }}"
+          installations: "{{ wireshark_check.result.installations }}"
+
+    - name: Check Wireshark executable exists
+      ansible.windows.win_stat:
+        path: "{{ item.InstallLocation }}\\Wireshark.exe"
+      loop: "{{ wireshark_check.result.installations }}"
+      register: wireshark_exe_check
+      when: wireshark_check.result.installed
+
+    - name: Print Wireshark executable check result
+      ansible.builtin.debug:
+        msg: "Wireshark.exe found at {{ item.item.InstallLocation }}: {{ item.stat.exists }}"
+      loop: "{{ wireshark_exe_check.results }}"
+      when: wireshark_check.result.installed
+
+    - name: Print Wireshark not installed
+      ansible.builtin.debug:
+        msg: "Wireshark is NOT installed on {{ inventory_hostname }}"
+      when: not wireshark_check.result.installed
+
+    - name: Collect host summary fact
+      ansible.builtin.set_fact:
+        wireshark_host_summary:
+          hostname: "{{ inventory_hostname }}"
+          ip_address: "{{ ansible_host | default(inventory_hostname) }}"
+          wireshark_installed: "{{ wireshark_check.result.installed }}"
+          installations: "{{ wireshark_check.result.installations }}"
+
+    - name: Print hosts where Wireshark IS installed
+      run_once: true
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Wireshark INSTALLED
+          ========================================
+          {% for host in ansible_play_hosts %}
+          {% if hostvars[host]['wireshark_host_summary']['wireshark_installed'] %}
+          Host      : {{ hostvars[host]['wireshark_host_summary']['hostname'] }}
+          IP Address: {{ hostvars[host]['wireshark_host_summary']['ip_address'] }}
+          Versions  : {{ hostvars[host]['wireshark_host_summary']['installations'] | map(attribute='DisplayVersion') | list | join(', ') }}
+          ----------------------------------------
+          {% endif %}
+          {% endfor %}
+
+    - name: Print hosts where Wireshark is NOT installed
+      run_once: true
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Wireshark NOT INSTALLED
+          ========================================
+          {% for host in ansible_play_hosts %}
+          {% if not hostvars[host]['wireshark_host_summary']['wireshark_installed'] %}
+          Host      : {{ hostvars[host]['wireshark_host_summary']['hostname'] }}
+          IP Address: {{ hostvars[host]['wireshark_host_summary']['ip_address'] }}
+          ----------------------------------------
+          {% endif %}
+          {% endfor %}
