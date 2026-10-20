@@ -101,6 +101,7 @@
       ansible.windows.win_powershell:
         script: |
           $Ansible.Changed = $false
+          $timeoutSeconds = 120
 
           $registryPaths = @(
               'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
@@ -120,27 +121,37 @@
 
               if ($uninstallString -match 'uninstall\.exe') {
                   $proc = Start-Process -FilePath $uninstallString `
-                      -ArgumentList '/S' -Wait -PassThru
+                      -ArgumentList '/S' -WindowStyle Hidden -PassThru
               }
               elseif ($uninstallString -match 'msiexec') {
                   $guid = ($uninstallString -replace '.*\{', '{') -replace '\}.*', '}'
                   $proc = Start-Process -FilePath 'msiexec.exe' `
-                      -ArgumentList "/x `"$guid`" /qn /norestart" -Wait -PassThru
+                      -ArgumentList "/x `"$guid`" /qn /norestart" -WindowStyle Hidden -PassThru
               }
               else {
                   $proc = Start-Process -FilePath $uninstallString `
-                      -ArgumentList '/quiet /norestart' -Wait -PassThru
+                      -ArgumentList '/quiet /norestart' -WindowStyle Hidden -PassThru
+              }
+
+              $timedOut = $false
+              $proc | Wait-Process -Timeout $timeoutSeconds -ErrorAction SilentlyContinue
+              if (-not $proc.HasExited) {
+                  $proc.Kill()
+                  $timedOut = $true
               }
 
               $results += @{
                   name      = $app.DisplayName
                   version   = $app.DisplayVersion
-                  exit_code = $proc.ExitCode
+                  exit_code = if ($timedOut) { -1 } else { $proc.ExitCode }
+                  timed_out = $timedOut
               }
               $Ansible.Changed = $true
           }
 
           $Ansible.Result = @{ uninstall_results = $results }
+      async: 300
+      poll: 15
       register: wireshark_uninstall
 
     - name: Print uninstall result
