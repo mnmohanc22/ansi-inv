@@ -59,9 +59,9 @@
           installations: "{{ wireshark_check.result.installations }}"
 
     - name: Print installation status summary
+      when: inventory_hostname == ansible_play_hosts[-1]
       block:
         - name: Print hosts where Wireshark IS installed
-          run_once: true
           ansible.builtin.debug:
             msg: |
               ========================================
@@ -77,7 +77,6 @@
               {% endfor %}
 
         - name: Print hosts where Wireshark is NOT installed
-          run_once: true
           ansible.builtin.debug:
             msg: |
               ========================================
