@@ -58,33 +58,154 @@
           wireshark_installed: "{{ wireshark_check.result.installed }}"
           installations: "{{ wireshark_check.result.installations }}"
 
-    - name: Print hosts where Wireshark IS installed
-      run_once: true
-      ansible.builtin.debug:
-        msg: |
-          ========================================
-          Wireshark INSTALLED
-          ========================================
-          {% for host in ansible_play_hosts %}
-          {% if hostvars[host]['wireshark_host_summary']['wireshark_installed'] %}
-          Host      : {{ hostvars[host]['wireshark_host_summary']['hostname'] }}
-          IP Address: {{ hostvars[host]['wireshark_host_summary']['ip_address'] }}
-          Versions  : {{ hostvars[host]['wireshark_host_summary']['installations'] | map(attribute='DisplayVersion') | list | join(', ') }}
-          ----------------------------------------
-          {% endif %}
-          {% endfor %}
+    - name: Print installation status summary
+      block:
+        - name: Print hosts where Wireshark IS installed
+          run_once: true
+          ansible.builtin.debug:
+            msg: |
+              ========================================
+              Wireshark INSTALLED
+              ========================================
+              {% for host in ansible_play_hosts %}
+              {% if hostvars[host]['wireshark_host_summary']['wireshark_installed'] %}
+              Host      : {{ hostvars[host]['wireshark_host_summary']['hostname'] }}
+              IP Address: {{ hostvars[host]['wireshark_host_summary']['ip_address'] }}
+              Versions  : {{ hostvars[host]['wireshark_host_summary']['installations'] | map(attribute='DisplayVersion') | list | join(', ') }}
+              ----------------------------------------
+              {% endif %}
+              {% endfor %}
 
-    - name: Print hosts where Wireshark is NOT installed
-      run_once: true
-      ansible.builtin.debug:
-        msg: |
-          ========================================
-          Wireshark NOT INSTALLED
-          ========================================
-          {% for host in ansible_play_hosts %}
-          {% if not hostvars[host]['wireshark_host_summary']['wireshark_installed'] %}
-          Host      : {{ hostvars[host]['wireshark_host_summary']['hostname'] }}
-          IP Address: {{ hostvars[host]['wireshark_host_summary']['ip_address'] }}
-          ----------------------------------------
-          {% endif %}
-          {% endfor %}
+        - name: Print hosts where Wireshark is NOT installed
+          run_once: true
+          ansible.builtin.debug:
+            msg: |
+              ========================================
+              Wireshark NOT INSTALLED
+              ========================================
+              {% for host in ansible_play_hosts %}
+              {% if not hostvars[host]['wireshark_host_summary']['wireshark_installed'] %}
+              Host      : {{ hostvars[host]['wireshark_host_summary']['hostname'] }}
+              IP Address: {{ hostvars[host]['wireshark_host_summary']['ip_address'] }}
+              ----------------------------------------
+              {% endif %}
+              {% endfor %}
+
+    - name: Uninstall Wireshark if installed
+      when: wireshark_check.result.installed
+      block:
+        - name: Run Wireshark uninstaller via registry uninstall string
+          ansible.windows.win_powershell:
+            script: |
+              $Ansible.Changed = $false
+
+              $registryPaths = @(
+                  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+              )
+
+              $apps = @(
+                  Get-ItemProperty -Path $registryPaths -ErrorAction SilentlyContinue |
+                      Where-Object { $_.DisplayName -like '*Wireshark*' }
+              )
+
+              $results = @()
+              foreach ($app in $apps) {
+                  $uninstallString = $app.UninstallString
+                  if (-not $uninstallString) { continue }
+
+                  # NSIS installer — append silent flags
+                  if ($uninstallString -match 'uninstall\.exe') {
+                      $proc = Start-Process -FilePath $uninstallString `
+                          -ArgumentList '/S' -Wait -PassThru
+                  }
+                  # MSI-based installer
+                  elseif ($uninstallString -match 'msiexec') {
+                      $guid = ($uninstallString -replace '.*\{', '{') -replace '\}.*', '}'
+                      $proc = Start-Process -FilePath 'msiexec.exe' `
+                          -ArgumentList "/x `"$guid`" /qn /norestart" -Wait -PassThru
+                  }
+                  else {
+                      $proc = Start-Process -FilePath $uninstallString `
+                          -ArgumentList '/quiet /norestart' -Wait -PassThru
+                  }
+
+                  $results += @{
+                      name     = $app.DisplayName
+                      version  = $app.DisplayVersion
+                      exit_code = $proc.ExitCode
+                  }
+                  $Ansible.Changed = $true
+              }
+
+              $Ansible.Result = @{ uninstall_results = $results }
+          register: wireshark_uninstall
+
+        - name: Print uninstall result
+          ansible.builtin.debug:
+            msg: "Wireshark uninstall on {{ inventory_hostname }}: {{ wireshark_uninstall.result.uninstall_results }}"
+
+        - name: Verify Wireshark is no longer in registry
+          ansible.windows.win_powershell:
+            script: |
+              $Ansible.Changed = $false
+
+              $registryPaths = @(
+                  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+              )
+
+              $remaining = @(
+                  Get-ItemProperty -Path $registryPaths -ErrorAction SilentlyContinue |
+                      Where-Object { $_.DisplayName -like '*Wireshark*' }
+              )
+
+              $Ansible.Result = @{ still_installed = ($remaining.Count -gt 0) }
+          register: wireshark_verify
+
+        - name: Print uninstall verification result
+          ansible.builtin.debug:
+            msg: "{{ inventory_hostname }} - Wireshark still present after uninstall: {{ wireshark_verify.result.still_installed }}"
+
+        - name: Collect uninstall summary fact
+          ansible.builtin.set_fact:
+            wireshark_uninstall_summary:
+              hostname: "{{ inventory_hostname }}"
+              ip_address: "{{ ansible_host | default(inventory_hostname) }}"
+              uninstall_results: "{{ wireshark_uninstall.result.uninstall_results }}"
+              still_installed: "{{ wireshark_verify.result.still_installed }}"
+
+        - name: Print uninstall summary - successfully removed
+          run_once: true
+          ansible.builtin.debug:
+            msg: |
+              ========================================
+              Wireshark Uninstall Summary - REMOVED
+              ========================================
+              {% for host in ansible_play_hosts %}
+              {% if hostvars[host].get('wireshark_uninstall_summary') is defined and not hostvars[host]['wireshark_uninstall_summary']['still_installed'] %}
+              Host      : {{ hostvars[host]['wireshark_uninstall_summary']['hostname'] }}
+              IP Address: {{ hostvars[host]['wireshark_uninstall_summary']['ip_address'] }}
+              Packages  : {{ hostvars[host]['wireshark_uninstall_summary']['uninstall_results'] | map(attribute='name') | list | join(', ') }}
+              Status    : REMOVED
+              ----------------------------------------
+              {% endif %}
+              {% endfor %}
+
+        - name: Print uninstall summary - still present
+          run_once: true
+          ansible.builtin.debug:
+            msg: |
+              ========================================
+              Wireshark Uninstall Summary - STILL PRESENT
+              ========================================
+              {% for host in ansible_play_hosts %}
+              {% if hostvars[host].get('wireshark_uninstall_summary') is defined and hostvars[host]['wireshark_uninstall_summary']['still_installed'] %}
+              Host      : {{ hostvars[host]['wireshark_uninstall_summary']['hostname'] }}
+              IP Address: {{ hostvars[host]['wireshark_uninstall_summary']['ip_address'] }}
+              Status    : FAILED TO REMOVE
+              ----------------------------------------
+              {% endif %}
+              {% endfor %}
