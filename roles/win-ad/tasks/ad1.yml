@@ -153,8 +153,6 @@
           }
 
           $Ansible.Result = @{ uninstall_results = $results }
-      async: 300
-      poll: 15
       register: wireshark_uninstall
 
     - name: Print uninstall result
