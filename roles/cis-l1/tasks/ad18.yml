@@ -1,0 +1,148 @@
+- name: CIS | Local user password and account policy audit
+  become: true
+  block:
+    - name: Check local user password expiration
+      ansible.builtin.shell: |
+        awk -F: -v today="$(( $(date +%s) / 86400 ))" '
+          $2 ~ /^\$/ {
+            if ($3 == 0)
+              remaining = "Password change required"
+            else if ($5 == "" || $5 == -1 || $5 >= 99999)
+              remaining = "Never expires"
+            else
+              remaining = ($3 + $5 - today) " days"
+
+            printf "User=%s | Max_age=%s days | Remaining=%s\n",
+                   $1, $5, remaining
+          }
+        ' /etc/shadow
+      register: password_expiration
+      changed_when: false
+
+    - name: Display password expiration
+      ansible.builtin.debug:
+        var: password_expiration.stdout_lines
+
+    - name: Check per-user password aging details via chage
+      ansible.builtin.shell: |
+        awk -F: '$2 ~ /^\$/ { print $1 }' /etc/shadow | while read user; do
+          echo "--- $user ---"
+          chage -l "$user" 2>/dev/null
+        done
+      register: chage_output
+      changed_when: false
+
+    - name: Display chage password aging details
+      ansible.builtin.debug:
+        var: chage_output.stdout_lines
+
+    - name: Check /etc/login.defs password policy settings
+      ansible.builtin.shell: |
+        grep -E '^\s*(PASS_MAX_DAYS|PASS_MIN_DAYS|PASS_WARN_AGE)\s' /etc/login.defs
+      register: login_defs
+      changed_when: false
+      failed_when: login_defs.rc not in [0, 1]
+
+    - name: Display /etc/login.defs password policy
+      ansible.builtin.debug:
+        msg: "{{ login_defs.stdout_lines if login_defs.rc == 0 else 'No PASS_* settings found in /etc/login.defs' }}"
+
+    - name: Check default INACTIVE setting via useradd -D
+      ansible.builtin.command: useradd -D
+      register: useradd_defaults
+      changed_when: false
+
+    - name: Display useradd default INACTIVE setting
+      ansible.builtin.debug:
+        msg: "{{ useradd_defaults.stdout_lines | select('match', '^INACTIVE') | list }}"
+
+    - name: Check accounts with no password set
+      ansible.builtin.shell: |
+        awk -F: '($2 == "" || $2 == "!!" ) { print $1 }' /etc/shadow
+      register: no_password_accounts
+      changed_when: false
+
+    - name: Display accounts with no password
+      ansible.builtin.debug:
+        msg: "{{ no_password_accounts.stdout_lines if no_password_accounts.stdout_lines else ['No accounts found without a password'] }}"
+
+    - name: Print password policy summary
+      ansible.builtin.debug:
+        msg: |
+          === Password & Account Policy Summary ===
+          Host          : {{ inventory_hostname }}
+
+          /etc/login.defs:
+          {{ login_defs.stdout_lines | join('\n') }}
+
+          useradd defaults:
+          {{ useradd_defaults.stdout_lines | select('match', '^INACTIVE') | list | join('\n') }}
+
+          Accounts with no password:
+          {{ no_password_accounts.stdout_lines if no_password_accounts.stdout_lines else ['None'] | join('\n') }}
+
+- name: CIS | Check password expiry for specific users
+  become: true
+  block:
+    - name: Get password expiry details for each user
+      ansible.builtin.shell: |
+        user="{{ item }}"
+        if ! id "$user" &>/dev/null; then
+          echo "USER=$user|STATUS=NOT_FOUND|EXPIRY=N/A|REMAINING=N/A"
+          exit 0
+        fi
+
+        expiry_date=$(chage -l "$user" 2>/dev/null | awk -F': ' '/Password expires/ { print $2 }')
+
+        if [ "$expiry_date" = "never" ] || [ -z "$expiry_date" ]; then
+          echo "USER=$user|STATUS=ACTIVE|EXPIRY=never|REMAINING=never"
+          exit 0
+        fi
+
+        expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null)
+        today_epoch=$(date +%s)
+        remaining=$(( (expiry_epoch - today_epoch) / 86400 ))
+
+        if [ "$remaining" -lt 0 ]; then
+          status="EXPIRED"
+        else
+          status="ACTIVE"
+        fi
+
+        if [ "$remaining" -le 30 ]; then
+          trigger="YES"
+        else
+          trigger="NO"
+        fi
+
+        echo "USER=$user|STATUS=$status|EXPIRY=$expiry_date|REMAINING=${remaining} days|TRIGGER_EMAIL=$trigger"
+      loop: "{{ audit_users }}"
+      register: user_expiry_check
+      changed_when: false
+
+    - name: Print expiry details per user
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ user_expiry_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Print warning for expired passwords
+      ansible.builtin.debug:
+        msg: "WARNING: Password has EXPIRED for user '{{ item.item }}' on {{ inventory_hostname }} ({{ item.stdout | regex_search('REMAINING=[^|]+') }})"
+      loop: "{{ user_expiry_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.stdout is search('STATUS=EXPIRED')
+
+    - name: Set trigger_email flag if any user has 30 days or fewer remaining
+      ansible.builtin.set_fact:
+        trigger_email: true
+      when: user_expiry_check.results | selectattr('stdout', 'search', 'TRIGGER_EMAIL=YES') | list | length > 0
+
+    - name: Print trigger_email flag status
+      ansible.builtin.debug:
+        msg: "trigger_email={{ trigger_email | default(false) }} — {{ 'One or more users have password expiring within 30 days or already expired' if trigger_email | default(false) else 'All passwords are valid beyond 30 days' }}"
+
+
+#audit_users=['alice','bob']")

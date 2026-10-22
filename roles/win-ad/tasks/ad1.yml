@@ -119,20 +119,25 @@
               $uninstallString = $app.UninstallString
               if (-not $uninstallString) { continue }
 
-              # Strip surrounding quotes from the path if present
-              $exePath = $uninstallString.Trim('"').Split('"')[0].Trim()
+              # Extract exe path: handles both `"C:\path\exe"` and `"C:\path\exe" /args`
+              if ($uninstallString -match '^"([^"]+)"') {
+                  $exePath = $Matches[1]
+              } else {
+                  $exePath = $uninstallString.Split(' ')[0]
+              }
 
               if ($uninstallString -match 'msiexec') {
-                  $guid = ($uninstallString -replace '.*\{', '{') -replace '\}.*', '}'
+                  $guid = ($uninstallString -replace '.*(\{[^}]+\}).*', '$1')
                   $proc = Start-Process -FilePath 'msiexec.exe' `
-                      -ArgumentList "/x `"$guid`" /qn /norestart" `
+                      -ArgumentList "/x $guid /qn /norestart" `
                       -WindowStyle Hidden -PassThru
               }
               else {
-                  # NSIS uninstaller: _?= prevents self-copy to %TEMP% which causes PID tracking loss
+                  # _?= must NOT be quoted — NSIS parses it as a raw token to prevent
+                  # self-copy to %TEMP%, keeping the PID trackable
                   $installDir = Split-Path -Parent $exePath
                   $proc = Start-Process -FilePath $exePath `
-                      -ArgumentList "/S `"_?=$installDir`"" `
+                      -ArgumentList "/S _?=$installDir" `
                       -WindowStyle Hidden -PassThru
               }
 
@@ -144,10 +149,11 @@
               }
 
               $results += @{
-                  name      = $app.DisplayName
-                  version   = $app.DisplayVersion
-                  exit_code = if ($timedOut) { -1 } else { $proc.ExitCode }
-                  timed_out = $timedOut
+                  name        = $app.DisplayName
+                  version     = $app.DisplayVersion
+                  exe_path    = $exePath
+                  exit_code   = if ($timedOut) { -1 } else { $proc.ExitCode }
+                  timed_out   = $timedOut
               }
               $Ansible.Changed = $true
           }
