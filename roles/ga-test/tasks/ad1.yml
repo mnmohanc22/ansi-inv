@@ -1,0 +1,40 @@
+- name: Check Docker installation on RHEL
+  become: true
+  block:
+    - name: Check if docker binary exists
+      ansible.builtin.command: which docker
+      register: docker_binary
+      changed_when: false
+      failed_when: false
+
+    - name: Check docker package via rpm
+      ansible.builtin.command: rpm -q docker-ce
+      register: docker_rpm
+      changed_when: false
+      failed_when: false
+
+    - name: Get docker version if installed
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: false
+      when: docker_binary.rc == 0
+
+    - name: Check docker service status
+      ansible.builtin.systemd:
+        name: docker
+      register: docker_service
+      changed_when: false
+      failed_when: false
+      when: docker_binary.rc == 0
+
+    - name: Print Docker status summary
+      ansible.builtin.debug:
+        msg: |
+          === Docker Installation Summary ===
+          Host            : {{ inventory_hostname }}
+          Binary found    : {{ 'YES' if docker_binary.rc == 0 else 'NO' }}
+          Package (rpm)   : {{ docker_rpm.stdout if docker_rpm.rc == 0 else 'not installed' }}
+          Version         : {{ docker_version.stdout if docker_binary.rc == 0 else 'N/A' }}
+          Service state   : {{ docker_service.status.ActiveState | default('N/A') }}
+          Service enabled : {{ docker_service.status.UnitFileState | default('N/A') }}
