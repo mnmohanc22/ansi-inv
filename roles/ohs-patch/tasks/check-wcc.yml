@@ -107,6 +107,20 @@
           {{ wcc_ucm_proc.stdout }}
       when: wcc_ucm_proc.rc == 0
 
+    - name: Check managed server processes matching *_MS1 pattern
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -E "_MS1[^0-9]|_MS1$"
+      register: wcc_ms1_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Print managed server *_MS1 process details
+      ansible.builtin.debug:
+        msg: |
+          === Managed Server (*_MS1) Process Details ===
+          {{ wcc_ms1_proc.stdout }}
+      when: wcc_ms1_proc.rc == 0
+
     - name: Check WCC managed server directory (UCM_server1)
       ansible.builtin.stat:
         path: "{{ wcc_domain_home }}/servers/UCM_server1"
@@ -163,6 +177,7 @@
           NodeManager       : {{ 'RUNNING' if wcc_nodemanager.rc == 0 else 'NOT RUNNING' }}
           AdminServer       : {{ 'RUNNING' if wcc_adminserver_proc.rc == 0 else 'NOT RUNNING' }}
           UCM_server1       : {{ 'RUNNING' if wcc_ucm_proc.rc == 0 else 'NOT RUNNING' }}
+          *_MS1 servers     : {{ 'RUNNING -> ' + wcc_ms1_proc.stdout_lines | join(', ') if wcc_ms1_proc.rc == 0 else 'NOT RUNNING' }}
 
           --- Version Info ---
           {{ wcc_version_info.stdout if wcc_version_info.stdout else 'Version info not found' }}
