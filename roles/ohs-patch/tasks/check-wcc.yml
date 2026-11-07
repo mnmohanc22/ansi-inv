@@ -81,7 +81,7 @@
 
     - name: Check WCC AdminServer process for this domain
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}"
+        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name=AdminServer"
       register: wcc_adminserver_proc
       changed_when: false
       failed_when: false
@@ -109,17 +109,66 @@
 
     - name: Check managed server processes matching *_MS1 pattern
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -E "_MS1[^0-9]|_MS1$"
+        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -v "Dweblogic.Name=AdminServer"
       register: wcc_ms1_proc
       changed_when: false
       failed_when: false
 
-    - name: Print managed server *_MS1 process details
+    - name: Print managed server process details with names
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -v "Dweblogic.Name=AdminServer" | \
+        awk '{
+          pid = $1
+          name = ""
+          for (i=2; i<=NF; i++) {
+            if ($i ~ /^-Dweblogic\.Name=/) {
+              split($i, a, "=")
+              name = a[2]
+            }
+          }
+          print "PID: " pid "  Server Name: " name
+        }'
+      register: wcc_ms1_named
+      changed_when: false
+      failed_when: false
+      when: wcc_ms1_proc.rc == 0
+
+    - name: Print managed server (*_MS1) process details
       ansible.builtin.debug:
         msg: |
-          === Managed Server (*_MS1) Process Details ===
-          {{ wcc_ms1_proc.stdout }}
+          === Managed Server Process Details ===
+          {{ wcc_ms1_named.stdout }}
       when: wcc_ms1_proc.rc == 0
+
+    - name: Set fact for WCC process IDs
+      ansible.builtin.set_fact:
+        wcc_nodemanager_pid: "{{ wcc_nodemanager.stdout.split()[0] if wcc_nodemanager.rc == 0 else '' }}"
+        wcc_adminserver_pid: "{{ wcc_adminserver_proc.stdout.split()[0] if wcc_adminserver_proc.rc == 0 else '' }}"
+        wcc_ucm_server_pid: "{{ wcc_ucm_proc.stdout.split()[0] if wcc_ucm_proc.rc == 0 else '' }}"
+        wcc_ms1_pids: "{{ wcc_ms1_proc.stdout_lines | map('split') | map('first') | list if wcc_ms1_proc.rc == 0 else [] }}"
+        wcc_ms1_names: "{{ wcc_ms1_named.stdout_lines | default([]) }}"
+
+    - name: Check process for managed server - {{ managed_server_name | default('undefined') }}
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -F "Dweblogic.Name={{ managed_server_name }}"
+      register: wcc_target_ms_proc
+      changed_when: false
+      failed_when: false
+      when: managed_server_name is defined
+
+    - name: Print process details for managed server - {{ managed_server_name | default('undefined') }}
+      ansible.builtin.debug:
+        msg: |
+          === Managed Server Process Details ===
+          Server Name : {{ managed_server_name }}
+          {{ wcc_target_ms_proc.stdout if wcc_target_ms_proc.rc == 0 else 'Process NOT RUNNING' }}
+      when: managed_server_name is defined
+
+    - name: Set fact for managed server process ID - {{ managed_server_name | default('undefined') }}
+      ansible.builtin.set_fact:
+        wcc_target_ms_pid: "{{ wcc_target_ms_proc.stdout.split()[0] if wcc_target_ms_proc.rc == 0 else '' }}"
+        wcc_target_ms_running: "{{ wcc_target_ms_proc.rc == 0 }}"
+      when: managed_server_name is defined
 
     - name: Check WCC managed server directory (UCM_server1)
       ansible.builtin.stat:
@@ -174,10 +223,10 @@
           ucm oracle dir    : {{ 'YES' if wcc_ucm_home_dir.stat.exists | default(false) else 'NO' }}
 
           --- Running Processes ---
-          NodeManager       : {{ 'RUNNING' if wcc_nodemanager.rc == 0 else 'NOT RUNNING' }}
-          AdminServer       : {{ 'RUNNING' if wcc_adminserver_proc.rc == 0 else 'NOT RUNNING' }}
-          UCM_server1       : {{ 'RUNNING' if wcc_ucm_proc.rc == 0 else 'NOT RUNNING' }}
-          *_MS1 servers     : {{ 'RUNNING -> ' + wcc_ms1_proc.stdout_lines | join(', ') if wcc_ms1_proc.rc == 0 else 'NOT RUNNING' }}
+          NodeManager       : {{ 'RUNNING (PID: ' + wcc_nodemanager_pid + ')' if wcc_nodemanager.rc == 0 else 'NOT RUNNING' }}
+          AdminServer       : {{ 'RUNNING (PID: ' + wcc_adminserver_pid + ')' if wcc_adminserver_proc.rc == 0 else 'NOT RUNNING' }}
+          UCM_server1       : {{ 'RUNNING (PID: ' + wcc_ucm_server_pid + ')' if wcc_ucm_proc.rc == 0 else 'NOT RUNNING' }}
+          *_MS1 servers     : {{ 'RUNNING (PIDs: ' + wcc_ms1_pids | join(', ') + ')' if wcc_ms1_proc.rc == 0 else 'NOT RUNNING' }}
 
           --- Version Info ---
           {{ wcc_version_info.stdout if wcc_version_info.stdout else 'Version info not found' }}
