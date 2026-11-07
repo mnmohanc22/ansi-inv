@@ -39,6 +39,34 @@
       changed_when: false
       failed_when: false
 
+    - name: Read config.xml content
+      ansible.builtin.slurp:
+        src: "{{ ohs_domain_home }}/config/config.xml"
+      register: config_xml_content
+      when: domain_config_xml.stat.exists | default(false)
+      failed_when: false
+
+    - name: Extract AdminServer listen port from config.xml
+      ansible.builtin.shell: |
+        grep -A5 '<name>AdminServer</name>' \
+          "{{ ohs_domain_home }}/config/config.xml" \
+          | grep -o '<listen-port>[0-9]*</listen-port>' \
+          | grep -o '[0-9]*'
+      register: adminserver_port
+      changed_when: false
+      failed_when: false
+      when: domain_config_xml.stat.exists | default(false)
+
+    - name: Extract OHS HTTP listen port from httpd.conf
+      ansible.builtin.shell: |
+        grep -E '^\s*Listen\s+[0-9]+' \
+          "{{ ohs_domain_home }}/config/fmwconfig/components/OHS/{{ ohs_component_name }}/httpd.conf" \
+          | awk '{print $2}'
+      register: ohs_http_port
+      changed_when: false
+      failed_when: false
+      when: domain_httpd_conf.stat.exists | default(false)
+
     - name: Set OHS domain type fact
       ansible.builtin.set_fact:
         ohs_domain_type: >-
@@ -60,6 +88,10 @@
           Domain Home       : {{ ohs_domain_home }}
           Oracle Home       : {{ ohs_oracle_home }}
           OHS Component     : {{ ohs_component_name }}
+
+          --- Ports ---
+          AdminServer port  : {{ adminserver_port.stdout | default('N/A') }}
+          OHS HTTP port     : {{ ohs_http_port.stdout | default('N/A') }}
 
           --- Indicators ---
           config.xml        : {{ 'YES' if domain_config_xml.stat.exists | default(false) else 'NO' }}
