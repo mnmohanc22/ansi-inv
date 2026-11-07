@@ -56,8 +56,10 @@
       when: domain_config_xml.stat.exists | default(false)
       failed_when: false
 
-
-
+    - name: Print config.xml content
+      ansible.builtin.debug:
+        msg: "{{ config_xml_content.content | b64decode }}"
+      when: domain_config_xml.stat.exists | default(false) and config_xml_content.content is defined
 
     - name: Extract AdminServer listen port from config.xml
       ansible.builtin.shell: |
