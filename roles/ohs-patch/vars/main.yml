@@ -7,6 +7,14 @@ ohs_oracle_home: /u01/app/oracle/product/fmw
 ohs_domain_home: /u01/app/oracle/config/domains/base_domain
 ohs_component_name: ohs1
 
+wcc_oracle_home: /u01/app/oracle/product/fmw
+wcc_domain_home: /u01/app/oracle/config/domains/wcc_domain
+
+ohs_domain_homes:
+  - /u01/app/oracle/config/domains/base_domain
+  - /u01/app/oracle/config/domains/ohs_domain2
+  - /u01/app/oracle/config/domains/wcc_domain
+
 patch_stage_dir: /u01/patches/ohs
 #patch_zip: p12345678_122140_Generic.zip
 #patch_id: "12345678"

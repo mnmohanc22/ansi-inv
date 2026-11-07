@@ -1,0 +1,70 @@
+- name: Check OHS domain type - Standalone or WebLogic domain
+  become: true
+  block:
+    - name: Check for config.xml in domain home
+      ansible.builtin.stat:
+        path: "{{ ohs_domain_home }}/config/config.xml"
+      register: domain_config_xml
+      failed_when: false
+
+    - name: Check for httpd.conf in domain home
+      ansible.builtin.stat:
+        path: "{{ ohs_domain_home }}/config/fmwconfig/components/OHS/{{ ohs_component_name }}/httpd.conf"
+      register: domain_httpd_conf
+      failed_when: false
+
+    - name: Check for NodeManager process belonging to this OHS domain
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.NodeManager" | grep -F "{{ ohs_domain_home }}"
+      register: wls_nodemanager
+      changed_when: false
+      failed_when: false  
+
+    - name: Check for AdminServer process belonging to this OHS domain
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -F "{{ ohs_domain_home }}"
+      register: wls_adminserver
+      changed_when: false
+      failed_when: false
+
+    - name: Check for wlserver directory under oracle home
+      ansible.builtin.stat:
+        path: "{{ ohs_oracle_home }}/wlserver"
+      register: wlserver_dir
+      failed_when: false
+
+    - name: Check OHS httpd process
+      ansible.builtin.command: pgrep -a -f "httpd"
+      register: ohs_process
+      changed_when: false
+      failed_when: false
+
+    - name: Set OHS domain type fact
+      ansible.builtin.set_fact:
+        ohs_domain_type: >-
+          {{
+            'WebLogic Domain' if (
+              domain_config_xml.stat.exists | default(false) or
+              wls_nodemanager.rc == 0 or
+              wls_adminserver.rc == 0 or
+              wlserver_dir.stat.exists | default(false)
+            ) else 'Standalone OHS Domain'
+          }}
+
+    - name: Print OHS domain type summary
+      ansible.builtin.debug:
+        msg: |
+          === OHS Domain Type Summary ===
+          Host              : {{ inventory_hostname }}
+          Domain Type       : {{ ohs_domain_type }}
+          Domain Home       : {{ ohs_domain_home }}
+          Oracle Home       : {{ ohs_oracle_home }}
+          OHS Component     : {{ ohs_component_name }}
+
+          --- Indicators ---
+          config.xml        : {{ 'YES' if domain_config_xml.stat.exists | default(false) else 'NO' }}
+          httpd.conf        : {{ 'YES' if domain_httpd_conf.stat.exists | default(false) else 'NO' }}
+          NodeManager proc  : {{ 'RUNNING' if wls_nodemanager.rc == 0 else 'NOT FOUND' }}
+          AdminServer proc  : {{ 'RUNNING' if wls_adminserver.rc == 0 else 'NOT FOUND' }}
+          wlserver dir      : {{ 'FOUND' if wlserver_dir.stat.exists | default(false) else 'NOT FOUND' }}
+          OHS process       : {{ 'RUNNING' if ohs_process.rc == 0 else 'NOT FOUND' }}

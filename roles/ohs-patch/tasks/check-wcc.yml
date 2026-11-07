@@ -1,0 +1,92 @@
+- name: Check WCC domain details
+  become: true
+  block:
+    - name: Check WCC domain config.xml exists
+      ansible.builtin.stat:
+        path: "{{ wcc_domain_home }}/config/config.xml"
+      register: wcc_config_xml
+      failed_when: false
+
+    - name: Read WCC domain config.xml
+      ansible.builtin.slurp:
+        src: "{{ wcc_domain_home }}/config/config.xml"
+      register: wcc_config_content
+      when: wcc_config_xml.stat.exists | default(false)
+
+    - name: Check WCC managed server directory (UCM_server1)
+      ansible.builtin.stat:
+        path: "{{ wcc_domain_home }}/servers/UCM_server1"
+      register: wcc_ucm_server_dir
+      failed_when: false
+
+    - name: Check WCC AdminServer directory
+      ansible.builtin.stat:
+        path: "{{ wcc_domain_home }}/servers/AdminServer"
+      register: wcc_adminserver_dir
+      failed_when: false
+
+    - name: Check WCC NodeManager process for this domain
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.NodeManager" | grep -F "{{ wcc_domain_home }}"
+      register: wcc_nodemanager
+      changed_when: false
+      failed_when: false
+
+    - name: Check WCC AdminServer process for this domain
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}"
+      register: wcc_adminserver_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Check UCM_server1 managed server process
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -i "UCM_server"
+      register: wcc_ucm_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Check WCC content server config
+      ansible.builtin.find:
+        paths: "{{ wcc_domain_home }}"
+        patterns: "contentserver.cfg"
+        recurse: true
+      register: wcc_contentserver_cfg
+      failed_when: false
+
+    - name: Check WCC Oracle Home for ucm directory
+      ansible.builtin.stat:
+        path: "{{ wcc_oracle_home }}/ucm"
+      register: wcc_ucm_home_dir
+      failed_when: false
+
+    - name: Check WCC version from ucm component
+      ansible.builtin.shell: |
+        grep -r "build\|version\|Version" \
+          "{{ wcc_domain_home }}/ucm/cs/bin/intradoc.cfg" 2>/dev/null | head -5
+      register: wcc_version_info
+      changed_when: false
+      failed_when: false
+
+    - name: Print WCC domain summary
+      ansible.builtin.debug:
+        msg: |
+          === WCC Domain Summary ===
+          Host              : {{ inventory_hostname }}
+          WCC Domain Home   : {{ wcc_domain_home }}
+          WCC Oracle Home   : {{ wcc_oracle_home }}
+
+          --- Domain Config ---
+          config.xml        : {{ 'YES' if wcc_config_xml.stat.exists | default(false) else 'NO' }}
+          UCM_server1 dir   : {{ 'YES' if wcc_ucm_server_dir.stat.exists | default(false) else 'NO' }}
+          AdminServer dir   : {{ 'YES' if wcc_adminserver_dir.stat.exists | default(false) else 'NO' }}
+          contentserver.cfg : {{ 'YES -> ' + wcc_contentserver_cfg.files[0].path if wcc_contentserver_cfg.files | default([]) | length > 0 else 'NO' }}
+          ucm oracle dir    : {{ 'YES' if wcc_ucm_home_dir.stat.exists | default(false) else 'NO' }}
+
+          --- Running Processes ---
+          NodeManager       : {{ 'RUNNING' if wcc_nodemanager.rc == 0 else 'NOT RUNNING' }}
+          AdminServer       : {{ 'RUNNING' if wcc_adminserver_proc.rc == 0 else 'NOT RUNNING' }}
+          UCM_server1       : {{ 'RUNNING' if wcc_ucm_proc.rc == 0 else 'NOT RUNNING' }}
+
+          --- Version Info ---
+          {{ wcc_version_info.stdout if wcc_version_info.stdout else 'Version info not found' }}
