@@ -12,6 +12,100 @@
         src: "{{ wcc_domain_home }}/config/config.xml"
       register: wcc_config_content
       when: wcc_config_xml.stat.exists | default(false)
+      failed_when: false
+
+    - name: Print WCC config.xml content
+      ansible.builtin.debug:
+        msg: "{{ wcc_config_content.content | b64decode }}"
+      when: wcc_config_xml.stat.exists | default(false) and wcc_config_content.content is defined
+
+    - name: Extract all server stanzas from WCC config.xml
+      ansible.builtin.shell: |
+        python3 - <<'EOF'
+        import re
+        with open("{{ wcc_domain_home }}/config/config.xml") as f:
+            content = f.read()
+        servers = re.findall(r'<server\b[^>]*>.*?</server>', content, re.DOTALL)
+        for block in servers:
+            name  = re.search(r'<name>(.*?)</name>', block)
+            port  = re.search(r'<listen-port>(\d+)</listen-port>', block)
+            addr  = re.search(r'<listen-address>(.*?)</listen-address>', block)
+            print("--- Server Block ---")
+            print("  Name         : " + (name.group(1) if name else 'N/A'))
+            print("  Listen Port  : " + (port.group(1) if port else '7001 (default)'))
+            print("  Listen Addr  : " + (addr.group(1) if addr and addr.group(1) else 'all interfaces'))
+        EOF
+      register: wcc_config_xml_servers
+      changed_when: false
+      failed_when: false
+      when: wcc_config_xml.stat.exists | default(false)
+
+    - name: Print WCC server stanzas from config.xml
+      ansible.builtin.debug:
+        msg: |
+          === WCC config.xml Server Stanzas ===
+          {{ wcc_config_xml_servers.stdout if wcc_config_xml_servers.stdout | default('') else 'No server blocks found' }}
+      when: wcc_config_xml.stat.exists | default(false)
+
+    - name: Extract AdminServer listen port from WCC config.xml
+      ansible.builtin.shell: |
+        python3 - <<'EOF'
+        import re
+        with open("{{ wcc_domain_home }}/config/config.xml") as f:
+            content = f.read()
+        admin_block = re.search(r'<server\b[^>]*>.*?<name>AdminServer</name>.*?</server>', content, re.DOTALL)
+        if admin_block:
+            port = re.search(r'<listen-port>(\d+)</listen-port>', admin_block.group())
+            print(port.group(1) if port else '7001')
+        else:
+            print('7001')
+        EOF
+      register: wcc_adminserver_port
+      changed_when: false
+      failed_when: false
+      when: wcc_config_xml.stat.exists | default(false)
+
+    - name: Check WCC NodeManager process for this domain
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.NodeManager" | grep -F "{{ wcc_domain_home }}"
+      register: wcc_nodemanager
+      changed_when: false
+      failed_when: false
+
+    - name: Print WCC NodeManager process details
+      ansible.builtin.debug:
+        msg: |
+          === WCC NodeManager Process Details ===
+          {{ wcc_nodemanager.stdout }}
+      when: wcc_nodemanager.rc == 0
+
+    - name: Check WCC AdminServer process for this domain
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}"
+      register: wcc_adminserver_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Print WCC AdminServer process details
+      ansible.builtin.debug:
+        msg: |
+          === WCC AdminServer Process Details ===
+          {{ wcc_adminserver_proc.stdout }}
+      when: wcc_adminserver_proc.rc == 0
+
+    - name: Check UCM_server1 managed server process
+      ansible.builtin.shell: |
+        pgrep -a -f "weblogic.Server" | grep -i "UCM_server"
+      register: wcc_ucm_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Print UCM_server1 process details
+      ansible.builtin.debug:
+        msg: |
+          === UCM_server1 Process Details ===
+          {{ wcc_ucm_proc.stdout }}
+      when: wcc_ucm_proc.rc == 0
 
     - name: Check WCC managed server directory (UCM_server1)
       ansible.builtin.stat:
@@ -23,27 +117,6 @@
       ansible.builtin.stat:
         path: "{{ wcc_domain_home }}/servers/AdminServer"
       register: wcc_adminserver_dir
-      failed_when: false
-
-    - name: Check WCC NodeManager process for this domain
-      ansible.builtin.shell: |
-        pgrep -a -f "weblogic.NodeManager" | grep -F "{{ wcc_domain_home }}"
-      register: wcc_nodemanager
-      changed_when: false
-      failed_when: false
-
-    - name: Check WCC AdminServer process for this domain
-      ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}"
-      register: wcc_adminserver_proc
-      changed_when: false
-      failed_when: false
-
-    - name: Check UCM_server1 managed server process
-      ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -i "UCM_server"
-      register: wcc_ucm_proc
-      changed_when: false
       failed_when: false
 
     - name: Check WCC content server config
@@ -60,7 +133,7 @@
       register: wcc_ucm_home_dir
       failed_when: false
 
-    - name: Check WCC version from ucm component
+    - name: Check WCC version from intradoc.cfg
       ansible.builtin.shell: |
         grep -r "build\|version\|Version" \
           "{{ wcc_domain_home }}/ucm/cs/bin/intradoc.cfg" 2>/dev/null | head -5
@@ -75,6 +148,9 @@
           Host              : {{ inventory_hostname }}
           WCC Domain Home   : {{ wcc_domain_home }}
           WCC Oracle Home   : {{ wcc_oracle_home }}
+
+          --- Ports ---
+          AdminServer port  : {{ wcc_adminserver_port.stdout | default('N/A') }}
 
           --- Domain Config ---
           config.xml        : {{ 'YES' if wcc_config_xml.stat.exists | default(false) else 'NO' }}
