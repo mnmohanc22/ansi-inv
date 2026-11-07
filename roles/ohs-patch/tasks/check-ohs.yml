@@ -27,6 +27,16 @@
       changed_when: false
       failed_when: false
 
+
+      
+
+    - name: Print AdminServer process details
+      ansible.builtin.debug:
+        msg: |
+          === AdminServer Process Details ===
+          {{ wls_adminserver.stdout }}
+      when: wls_adminserver.rc == 0
+
     - name: Check for wlserver directory under oracle home
       ansible.builtin.stat:
         path: "{{ ohs_oracle_home }}/wlserver"
@@ -46,16 +56,53 @@
       when: domain_config_xml.stat.exists | default(false)
       failed_when: false
 
+
+
+
     - name: Extract AdminServer listen port from config.xml
       ansible.builtin.shell: |
-        grep -A5 '<name>AdminServer</name>' \
-          "{{ ohs_domain_home }}/config/config.xml" \
-          | grep -o '<listen-port>[0-9]*</listen-port>' \
-          | grep -o '[0-9]*'
+        python3 - <<'EOF'
+        import re
+        with open("{{ ohs_domain_home }}/config/config.xml") as f:
+            content = f.read()
+        admin_block = re.search(r'<server\b[^>]*>.*?<name>AdminServer</name>.*?</server>', content, re.DOTALL)
+        if admin_block:
+            port = re.search(r'<listen-port>(\d+)</listen-port>', admin_block.group())
+            print(port.group(1) if port else '7001')
+        else:
+            print('7001')
+        EOF
       register: adminserver_port
       changed_when: false
       failed_when: false
       when: domain_config_xml.stat.exists | default(false)
+
+    - name: Extract all server stanzas from config.xml
+      ansible.builtin.shell: |
+        python3 - <<'EOF'
+        import re
+        with open("{{ ohs_domain_home }}/config/config.xml") as f:
+            content = f.read()
+        servers = re.findall(r'<server\b[^>]*>.*?</server>', content, re.DOTALL)
+        for block in servers:
+            name  = re.search(r'<name>(.*?)</name>', block)
+            port  = re.search(r'<listen-port>(\d+)</listen-port>', block)
+            addr  = re.search(r'<listen-address>(.*?)</listen-address>', block)
+            print("--- Server Block ---")
+            print("  Name         : " + (name.group(1) if name else 'N/A'))
+            print("  Listen Port  : " + (port.group(1) if port else '7001 (default)'))
+            print("  Listen Addr  : " + (addr.group(1) if addr and addr.group(1) else 'all interfaces'))
+        EOF
+      register: config_xml_servers
+      changed_when: false
+      failed_when: false
+      when: domain_config_xml.stat.exists | default(false)
+
+    - name: Print server stanzas from config.xml
+      ansible.builtin.debug:
+        msg: |
+          === config.xml Server Stanzas ===
+          {{ config_xml_servers.stdout if config_xml_servers.stdout | default('') else 'No server blocks found or config.xml not present' }}
 
     - name: Extract OHS HTTP listen port from httpd.conf
       ansible.builtin.shell: |
