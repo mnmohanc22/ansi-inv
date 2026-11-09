@@ -67,6 +67,20 @@
         msg: "{{ containerd_config_content.content | b64decode }}"
       when: containerd_config_toml.stat.exists | default(false) and containerd_config_content.content is defined
 
+    - name: Print containerd default config (config.toml not found)
+      ansible.builtin.command: containerd config default
+      register: containerd_default_config
+      changed_when: false
+      failed_when: false
+      when: not (containerd_config_toml.stat.exists | default(false)) and containerd_rpm.rc == 0
+
+    - name: Display containerd default config
+      ansible.builtin.debug:
+        msg: |
+          === containerd default config (no config.toml present) ===
+          {{ containerd_default_config.stdout }}
+      when: not (containerd_config_toml.stat.exists | default(false)) and containerd_rpm.rc == 0
+
     - name: Get containerd data directory from config.toml
       ansible.builtin.shell: |
         grep -E '^\s*root\s*=' /etc/containerd/config.toml | head -1 | awk -F'"' '{print $2}'
