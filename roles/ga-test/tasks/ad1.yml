@@ -36,11 +36,36 @@
       failed_when: false
       when: docker_binary.rc == 0
 
+    - name: Check containerd package via rpm
+      ansible.builtin.command: rpm -q containerd.io
+      register: containerd_rpm
+      changed_when: false
+      failed_when: false
+
+    - name: Get containerd version
+      ansible.builtin.command: containerd --version
+      register: containerd_version
+      changed_when: false
+      failed_when: false
+      when: containerd_rpm.rc == 0
+
     - name: Check if /etc/containerd/config.toml exists
       ansible.builtin.stat:
         path: /etc/containerd/config.toml
       register: containerd_config_toml
       failed_when: false
+
+    - name: Read /etc/containerd/config.toml
+      ansible.builtin.slurp:
+        src: /etc/containerd/config.toml
+      register: containerd_config_content
+      when: containerd_config_toml.stat.exists | default(false)
+      failed_when: false
+
+    - name: Print /etc/containerd/config.toml content
+      ansible.builtin.debug:
+        msg: "{{ containerd_config_content.content | b64decode }}"
+      when: containerd_config_toml.stat.exists | default(false) and containerd_config_content.content is defined
 
     - name: Get containerd data directory from config.toml
       ansible.builtin.shell: |
@@ -71,10 +96,13 @@
       ansible.builtin.debug:
         msg: |
           === Docker & containerd Data Directories ===
+          containerd package   : {{ containerd_rpm.stdout | default('not installed') }}
+          containerd version   : {{ containerd_version.stdout | default('N/A') }}
+          containerd config    : {{ 'EXISTS' if containerd_config_toml.stat.exists | default(false) else 'NOT FOUND (using defaults)' }}
+          containerd data dir  : {{ containerd_data_dir_raw.stdout | default('') | trim or '/var/lib/containerd (default)' }}
+          containerd dir size  : {{ containerd_du.stdout | default('N/A') }}
           Docker data dir      : {{ docker_data_dir.stdout | default('/var/lib/docker') | trim }}
           Docker data dir size : {{ docker_du.stdout | default('N/A') }}
-          containerd data dir  : {{ containerd_data_dir_raw.stdout | default('/var/lib/containerd') | trim or '/var/lib/containerd' }}
-          containerd dir size  : {{ containerd_du.stdout | default('N/A') }}
 
     - name: Print Docker status summary
       ansible.builtin.debug:
