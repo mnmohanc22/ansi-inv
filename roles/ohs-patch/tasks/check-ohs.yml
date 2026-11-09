@@ -15,7 +15,7 @@
 
     - name: Check for NodeManager process belonging to this OHS domain
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.NodeManager" | grep -F "{{ ohs_domain_home }}"
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ ohs_domain_home }}"
       register: wls_nodemanager
       changed_when: false
       failed_when: false  
@@ -29,7 +29,7 @@
 
     - name: Check for AdminServer process belonging to this OHS domain
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "{{ ohs_domain_home }}"
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ ohs_domain_home }}" | grep -F "Dweblogic.Name=AdminServer"
       register: wls_adminserver
       changed_when: false
       failed_when: false
@@ -48,10 +48,36 @@
       failed_when: false
 
     - name: Check OHS httpd process
-      ansible.builtin.command: pgrep -a -f "httpd"
+      ansible.builtin.shell: |
+        pgrep -a -f "[h]ttpd"
       register: ohs_process
       changed_when: false
       failed_when: false
+
+    - name: Print OHS httpd process details
+      ansible.builtin.debug:
+        msg: |
+          === OHS httpd Process Details ===
+          {{ ohs_process.stdout }}
+      when: ohs_process.rc == 0
+
+    - name: Set fact for OHS process IDs
+      ansible.builtin.set_fact:
+        ohs_httpd_pid: >-
+          {{ (ohs_process.stdout | default('')).split() | first | default('')
+             if ohs_process is defined and ohs_process.rc | default(1) == 0
+             else '' }}
+        ohs_nodemanager_pid: >-
+          {{ (wls_nodemanager.stdout | default('')).split() | first | default('')
+             if wls_nodemanager is defined and wls_nodemanager.rc | default(1) == 0
+             else '' }}
+
+    - name: Print OHS process IDs
+      ansible.builtin.debug:
+        msg: |
+          === OHS Process IDs ===
+          httpd PID       : {{ ohs_httpd_pid if ohs_httpd_pid else 'NOT RUNNING' }}
+          NodeManager PID : {{ ohs_nodemanager_pid if ohs_nodemanager_pid else 'NOT RUNNING' }}
 
     - name: Read config.xml content
       ansible.builtin.slurp:

@@ -67,7 +67,7 @@
 
     - name: Check WCC NodeManager process for this domain
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.NodeManager" | grep -F "{{ wcc_domain_home }}"
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ wcc_domain_home }}"
       register: wcc_nodemanager
       changed_when: false
       failed_when: false
@@ -81,7 +81,7 @@
 
     - name: Check WCC AdminServer process for this domain
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name=AdminServer"
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name=AdminServer"
       register: wcc_adminserver_proc
       changed_when: false
       failed_when: false
@@ -95,7 +95,7 @@
 
     - name: Check UCM_server1 managed server process
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -i "UCM_server"
+        pgrep -a -f "[w]eblogic.Server" | grep -i "UCM_server"
       register: wcc_ucm_proc
       changed_when: false
       failed_when: false
@@ -109,14 +109,14 @@
 
     - name: Check managed server processes matching *_MS1 pattern
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -v "Dweblogic.Name=AdminServer"
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -v "Dweblogic.Name=AdminServer"
       register: wcc_ms1_proc
       changed_when: false
       failed_when: false
 
     - name: Print managed server process details with names
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -v "Dweblogic.Name=AdminServer" | \
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -v "Dweblogic.Name=AdminServer" | \
         awk '{
           pid = $1
           name = ""
@@ -142,15 +142,27 @@
 
     - name: Set fact for WCC process IDs
       ansible.builtin.set_fact:
-        wcc_nodemanager_pid: "{{ wcc_nodemanager.stdout.split()[0] if wcc_nodemanager.rc == 0 else '' }}"
-        wcc_adminserver_pid: "{{ wcc_adminserver_proc.stdout.split()[0] if wcc_adminserver_proc.rc == 0 else '' }}"
-        wcc_ucm_server_pid: "{{ wcc_ucm_proc.stdout.split()[0] if wcc_ucm_proc.rc == 0 else '' }}"
-        wcc_ms1_pids: "{{ wcc_ms1_proc.stdout_lines | map('split') | map('first') | list if wcc_ms1_proc.rc == 0 else [] }}"
+        wcc_nodemanager_pid: >-
+          {{ (wcc_nodemanager.stdout | default('')).split() | first | default('')
+             if wcc_nodemanager is defined and wcc_nodemanager.rc | default(1) == 0
+             else '' }}
+        wcc_adminserver_pid: >-
+          {{ (wcc_adminserver_proc.stdout | default('')).split() | first | default('')
+             if wcc_adminserver_proc is defined and wcc_adminserver_proc.rc | default(1) == 0
+             else '' }}
+        wcc_ucm_server_pid: >-
+          {{ (wcc_ucm_proc.stdout | default('')).split() | first | default('')
+             if wcc_ucm_proc is defined and wcc_ucm_proc.rc | default(1) == 0
+             else '' }}
+        wcc_ms1_pids: >-
+          {{ wcc_ms1_proc.stdout_lines | map('split') | map('first') | list
+             if wcc_ms1_proc is defined and wcc_ms1_proc.rc | default(1) == 0
+             else [] }}
         wcc_ms1_names: "{{ wcc_ms1_named.stdout_lines | default([]) }}"
 
     - name: Check process for managed server - {{ managed_server_name | default('undefined') }}
       ansible.builtin.shell: |
-        pgrep -a -f "weblogic.Server" | grep -F "Dweblogic.Name={{ managed_server_name }}"
+        pgrep -a -f "[w]eblogic.Server" | grep -F "Dweblogic.Name={{ managed_server_name }}"
       register: wcc_target_ms_proc
       changed_when: false
       failed_when: false
