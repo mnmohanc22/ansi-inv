@@ -118,7 +118,71 @@
           Docker data dir      : {{ docker_data_dir.stdout | default('/var/lib/docker') | trim }}
           Docker data dir size : {{ docker_du.stdout | default('N/A') }}
 
-    - name: Print Docker status summary
+- name: Install Docker CE on RHEL
+  become: true
+  when: docker_binary.rc != 0
+  block:
+    - name: Add Docker CE yum repository
+      ansible.builtin.yum_repository:
+        name: docker-ce
+        description: Docker CE Stable
+        baseurl: https://download.docker.com/linux/rhel/$releasever/$basearch/stable
+        gpgcheck: true
+        gpgkey: https://download.docker.com/linux/rhel/gpg
+        enabled: true
+
+    - name: Install docker-ce, docker-ce-cli, containerd.io
+      ansible.builtin.dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    - name: Deploy Docker daemon.json from template
+      ansible.builtin.template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart docker
+
+    - name: Ensure /etc/containerd directory exists
+      ansible.builtin.file:
+        path: /etc/containerd
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy containerd config.toml from template
+      ansible.builtin.template:
+        src: containerd_config.toml.j2
+        dest: /etc/containerd/config.toml
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart containerd
+
+    - name: Start and enable docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Verify docker installed after install
+      ansible.builtin.command: docker --version
+      register: docker_version_post
+      changed_when: false
+
+    - name: Print Docker install result
+      ansible.builtin.debug:
+        msg: |
+          === Docker CE Install Result ===
+          {{ docker_version_post.stdout }}
+
+- name: Print Docker status summary
       ansible.builtin.debug:
         msg: |
           === Docker Installation Summary ===

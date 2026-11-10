@@ -1,3 +1,11 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for ga-test
+
+docker_data_root: /var/lib/docker
+
+containerd_data_root: /var/lib/containerd
+containerd_state_dir: /run/containerd
+containerd_snapshotter: overlayfs
+containerd_systemd_cgroup: true
+containerd_sandbox_image: registry.k8s.io/pause:3.9
