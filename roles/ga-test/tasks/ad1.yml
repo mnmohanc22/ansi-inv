@@ -139,19 +139,21 @@
           - containerd.io
         state: present
 
-    - name: Deploy Docker daemon.json from template
-      ansible.builtin.template:
-        src: daemon.json.j2
-        dest: /etc/docker/daemon.json
+    - name: Ensure containerd data directory exists
+      ansible.builtin.file:
+        path: "{{ containerd_data_root }}"
+        state: directory
         owner: root
         group: root
-        mode: '0644'
+        mode: '0711'
 
-    - name: Restart and enable docker service
-      ansible.builtin.systemd:
-        name: docker
-        state: restarted
-        enabled: true
+    - name: Ensure Docker data directory exists
+      ansible.builtin.file:
+        path: "{{ docker_data_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0711'
 
     - name: Ensure /etc/containerd directory exists
       ansible.builtin.file:
@@ -172,6 +174,20 @@
     - name: Restart and enable containerd service
       ansible.builtin.systemd:
         name: containerd
+        state: restarted
+        enabled: true
+
+    - name: Deploy Docker daemon.json from template
+      ansible.builtin.template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart and enable docker service
+      ansible.builtin.systemd:
+        name: docker
         state: restarted
         enabled: true
 
