@@ -1,16 +1,20 @@
+- name: Set oracle user fact
+  ansible.builtin.set_fact:
+    oracle_user: "{{ ohs_oracle_user | default('oracle') }}"
+
 - name: Get OHS user login environment
   become: true
   block:
     - name: Get the OHS owner's login environment
       ansible.builtin.command: /usr/bin/env
-      become_user: oracle
+      become_user: "{{ oracle_user }}"
       become_flags: "-i"
       register: ohs_user_environment
       changed_when: false
       check_mode: false
 
     - name: Get oracle user home directory
-      ansible.builtin.command: getent passwd oracle
+      ansible.builtin.command: getent passwd {{ oracle_user }}
       register: oracle_passwd_entry
       changed_when: false
       failed_when: false
@@ -70,7 +74,7 @@
     - name: Check stored Node Manager credential files
       ansible.builtin.stat:
         path: "~/.wlst/{{ item }}-{{ ohs_domain_name }}.props"
-      become_user: oracle
+      become_user: "{{ oracle_user }}"
       become_flags: "-i"
       loop:
         - nm-key

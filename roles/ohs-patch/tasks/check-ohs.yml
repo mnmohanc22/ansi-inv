@@ -49,7 +49,7 @@
 
     - name: Check OHS httpd process
       ansible.builtin.shell: |
-        pgrep -a -f "[h]ttpd"
+        ps -eo pid,ppid,args | grep "[h]ttpd" | awk '$2 == 1 {print $1, $3}'
       register: ohs_process
       changed_when: false
       failed_when: false
@@ -60,6 +60,11 @@
           === OHS httpd Process Details ===
           {{ ohs_process.stdout }}
       when: ohs_process.rc == 0
+
+    - name: Print OHS httpd master process ID
+      ansible.builtin.debug:
+        msg: "OHS httpd master PID: {{ ohs_process.stdout.split() | first }}"
+      when: ohs_process.rc == 0 and ohs_process.stdout | default('') | length > 0
 
     - name: Set fact for OHS process IDs
       ansible.builtin.set_fact:
