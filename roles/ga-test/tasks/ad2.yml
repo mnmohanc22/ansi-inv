@@ -1,0 +1,154 @@
+- name: Get OHS user login environment
+  become: true
+  block:
+    - name: Get the OHS owner's login environment
+      ansible.builtin.command: /usr/bin/env
+      become_user: oracle
+      become_flags: "-i"
+      register: ohs_user_environment
+      changed_when: false
+      check_mode: false
+
+    - name: Get oracle user home directory
+      ansible.builtin.command: getent passwd oracle
+      register: oracle_passwd_entry
+      changed_when: false
+      failed_when: false
+
+    - name: Set oracle home dir fact
+      ansible.builtin.set_fact:
+        oracle_home_dir: "{{ oracle_passwd_entry.stdout.split(':')[5] }}"
+      when: oracle_passwd_entry.rc == 0
+
+    - name: Read oracle .bash_profile
+      ansible.builtin.slurp:
+        src: "{{ oracle_home_dir }}/.bash_profile"
+      register: oracle_bash_profile
+      failed_when: false
+      when: oracle_home_dir is defined
+
+    - name: Read oracle .bashrc
+      ansible.builtin.slurp:
+        src: "{{ oracle_home_dir }}/.bashrc"
+      register: oracle_bashrc
+      failed_when: false
+      when: oracle_home_dir is defined
+
+    - name: Print oracle .bash_profile content
+      ansible.builtin.debug:
+        msg: |
+          === {{ oracle_home_dir }}/.bash_profile ===
+          {{ oracle_bash_profile.content | b64decode }}
+      when: oracle_home_dir is defined and oracle_bash_profile.content is defined
+
+    - name: Print oracle .bashrc content
+      ansible.builtin.debug:
+        msg: |
+          === {{ oracle_home_dir }}/.bashrc ===
+          {{ oracle_bashrc.content | b64decode }}
+      when: oracle_home_dir is defined and oracle_bashrc.content is defined
+
+    - name: Print full OHS user environment
+      ansible.builtin.debug:
+        msg: |
+          === Full oracle user environment ===
+          {{ ohs_user_environment.stdout }}
+
+    - name: Display Oracle environment variables
+      ansible.builtin.debug:
+        msg: >-
+          {{ ohs_user_environment.stdout_lines
+             | select('match', '^(ORACLE_HOME|MW_HOME|WL_HOME|DOMAIN_HOME|JAVA_HOME|PATH|LD_LIBRARY_PATH)=')
+             | list }}
+
+
+
+
+- name: Check Node Manager credential files
+  become: true
+  block:
+    - name: Check stored Node Manager credential files
+      ansible.builtin.stat:
+        path: "~/.wlst/{{ item }}-{{ ohs_domain_name }}.props"
+      become_user: oracle
+      become_flags: "-i"
+      loop:
+        - nm-key
+        - nm-cfg
+      register: nm_credential_files
+
+    - name: Display file availability
+      ansible.builtin.debug:
+        msg: "{{ item.stat.path | default(item.item) }} exists={{ item.stat.exists }}"
+      loop: "{{ nm_credential_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+- name: Print last 100 lines of NodeManager, OHS and nohup logs
+  become: true
+  block:
+    - name: Tail NodeManager log
+      ansible.builtin.shell: |
+        tail -100 "{{ ohs_domain_home }}/nodemanager/nodemanager.log" 2>/dev/null || echo "File not found"
+      register: nm_log_tail
+      changed_when: false
+      failed_when: false
+
+    - name: Print NodeManager log
+      ansible.builtin.debug:
+        msg: |
+          === NodeManager Log (last 100 lines) ===
+          {{ nm_log_tail.stdout }}
+
+    - name: Tail OHS component log
+      ansible.builtin.shell: |
+        tail -100 "{{ ohs_domain_home }}/config/fmwconfig/components/OHS/{{ ohs_component_name }}/logs/{{ ohs_component_name }}.log" 2>/dev/null || echo "File not found"
+      register: ohs_log_tail
+      changed_when: false
+      failed_when: false
+
+    - name: Print OHS component log
+      ansible.builtin.debug:
+        msg: |
+          === OHS Component Log (last 100 lines) ===
+          {{ ohs_log_tail.stdout }}
+
+    - name: Tail OHS error log
+      ansible.builtin.shell: |
+        tail -100 "{{ ohs_domain_home }}/config/fmwconfig/components/OHS/{{ ohs_component_name }}/logs/{{ ohs_component_name }}_error.log" 2>/dev/null || echo "File not found"
+      register: ohs_error_log_tail
+      changed_when: false
+      failed_when: false
+
+    - name: Print OHS error log
+      ansible.builtin.debug:
+        msg: |
+          === OHS Error Log (last 100 lines) ===
+          {{ ohs_error_log_tail.stdout }}
+
+    - name: Find nohup.out files under domain home
+      ansible.builtin.find:
+        paths: "{{ ohs_domain_home }}"
+        patterns: "nohup.out"
+        recurse: true
+      register: nohup_files
+      failed_when: false
+
+    - name: Tail each nohup.out file
+      ansible.builtin.shell: |
+        tail -100 "{{ item.path }}" 2>/dev/null || echo "File not found"
+      loop: "{{ nohup_files.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: nohup_log_tails
+      changed_when: false
+      failed_when: false
+
+    - name: Print nohup.out file contents
+      ansible.builtin.debug:
+        msg: |
+          === nohup.out: {{ item.item.path }} (last 100 lines) ===
+          {{ item.stdout }}
+      loop: "{{ nohup_log_tails.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.path }}"
