@@ -1,0 +1,40 @@
+- name: Start Node Manager
+  become: true
+  block:
+    - name: Start Node Manager in the background
+      ansible.builtin.shell: |
+        set -e
+        test -x {{ ohs_domain_home }}/bin/startNodeManager.sh
+        test -w {{ ohs_domain_home }}/nodemanager
+
+        nohup {{ ohs_domain_home }}/bin/startNodeManager.sh \
+          >> {{ ohs_domain_home }}/nodemanager/nodemanager.out \
+          2>&1 < /dev/null &
+      args:
+        executable: /bin/bash
+        chdir: "{{ ohs_domain_home }}/bin"
+      become_user: "{{ oracle_user | default('oracle') }}"
+      become_flags: "-i"
+      changed_when: true
+
+    - name: Wait for NodeManager to start
+      ansible.builtin.wait_for:
+        path: "{{ ohs_domain_home }}/nodemanager/nodemanager.log"
+        search_regex: "Node Manager started"
+        timeout: 60
+        delay: 5
+      failed_when: false
+
+    - name: Check NodeManager process after start
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ ohs_domain_home }}"
+      register: nm_proc_after_start
+      changed_when: false
+      failed_when: false
+
+    - name: Print NodeManager start result
+      ansible.builtin.debug:
+        msg: |
+          === NodeManager Start Result ===
+          Status  : {{ 'RUNNING (PID: ' + nm_proc_after_start.stdout.split()[0] + ')' if nm_proc_after_start.rc == 0 and nm_proc_after_start.stdout else 'NOT RUNNING - check nodemanager.out' }}
+          Log     : {{ ohs_domain_home }}/nodemanager/nodemanager.out
