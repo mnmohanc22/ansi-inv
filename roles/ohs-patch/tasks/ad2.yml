@@ -156,3 +156,121 @@
       loop: "{{ nohup_log_tails.results | default([]) }}"
       loop_control:
         label: "{{ item.item.path }}"
+
+- name: Stop OHS Server
+  become: true
+  block:
+    - name: Check OHS httpd process before stop
+      ansible.builtin.shell: |
+        ps -eo pid,ppid,args | grep "[h]ttpd" | awk '$2 == 1 {print $1, $3}'
+      register: ohs_proc_before_stop
+      changed_when: false
+      failed_when: false
+
+    - name: Print OHS process before stop
+      ansible.builtin.debug:
+        msg: |
+          === OHS Process Before Stop ===
+          {{ ohs_proc_before_stop.stdout if ohs_proc_before_stop.stdout else 'OHS not running' }}
+
+    - name: Stop OHS component via stopComponent.sh
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/stopComponent.sh {{ ohs_component_name }}
+      args:
+        executable: /bin/bash
+        chdir: "{{ ohs_domain_home }}/bin"
+      become_user: "{{ oracle_user | default('oracle') }}"
+      become_flags: "-i"
+      register: ohs_stop_output
+      changed_when: true
+      failed_when: false
+      when: ohs_proc_before_stop.stdout | default('') | length > 0
+
+    - name: Print OHS stop output
+      ansible.builtin.debug:
+        msg: |
+          === OHS Stop Output ===
+          {{ ohs_stop_output.stdout | default('') }}
+          {{ ohs_stop_output.stderr | default('') }}
+      when: ohs_proc_before_stop.stdout | default('') | length > 0
+
+    - name: Wait for OHS httpd process to exit
+      ansible.builtin.shell: |
+        ps -eo pid,ppid,args | grep "[h]ttpd" | awk '$2 == 1 {print $1}'
+      register: ohs_proc_check
+      changed_when: false
+      failed_when: false
+      retries: 6
+      delay: 5
+      until: ohs_proc_check.stdout | default('') | length == 0
+      when: ohs_proc_before_stop.stdout | default('') | length > 0
+
+    - name: Kill OHS httpd master if still running after stop
+      ansible.builtin.shell: |
+        ps -eo pid,ppid,args | grep "[h]ttpd" | awk '$2 == 1 {print $1}' | xargs -r kill -9
+      register: ohs_kill_output
+      changed_when: ohs_kill_output.rc == 0
+      failed_when: false
+      when: ohs_proc_before_stop.stdout | default('') | length > 0 and ohs_proc_check.stdout | default('') | length > 0
+
+    - name: Print OHS stop result
+      ansible.builtin.debug:
+        msg: |
+          === OHS Stop Result ===
+          Was running : {{ 'YES' if ohs_proc_before_stop.stdout | default('') | length > 0 else 'NO - already stopped' }}
+          Status      : {{ 'STOPPED' if ohs_proc_check.stdout | default('') | length == 0 else 'KILLED (force)' if ohs_kill_output is defined and ohs_kill_output.rc == 0 else 'UNKNOWN' }}
+
+- name: Start OHS Server
+  become: true
+  block:
+    - name: Check OHS httpd process before start
+      ansible.builtin.shell: |
+        ps -eo pid,ppid,args | grep "[h]ttpd" | awk '$2 == 1 {print $1, $3}'
+      register: ohs_proc_before_start
+      changed_when: false
+      failed_when: false
+
+    - name: Print OHS process before start
+      ansible.builtin.debug:
+        msg: |
+          === OHS Process Before Start ===
+          {{ ohs_proc_before_start.stdout if ohs_proc_before_start.stdout else 'OHS not running' }}
+
+    - name: Start OHS component via startComponent.sh
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/startComponent.sh {{ ohs_component_name }}
+      args:
+        executable: /bin/bash
+        chdir: "{{ ohs_domain_home }}/bin"
+      become_user: "{{ oracle_user | default('oracle') }}"
+      become_flags: "-i"
+      register: ohs_start_output
+      changed_when: true
+      failed_when: false
+      when: ohs_proc_before_start.stdout | default('') | length == 0
+
+    - name: Print OHS start output
+      ansible.builtin.debug:
+        msg: |
+          === OHS Start Output ===
+          {{ ohs_start_output.stdout | default('') }}
+          {{ ohs_start_output.stderr | default('') }}
+      when: ohs_proc_before_start.stdout | default('') | length == 0
+
+    - name: Wait for OHS httpd master process to appear
+      ansible.builtin.shell: |
+        ps -eo pid,ppid,args | grep "[h]ttpd" | awk '$2 == 1 {print $1}'
+      register: ohs_proc_after_start
+      changed_when: false
+      failed_when: false
+      retries: 6
+      delay: 5
+      until: ohs_proc_after_start.stdout | default('') | length > 0
+      when: ohs_proc_before_start.stdout | default('') | length == 0
+
+    - name: Print OHS start result
+      ansible.builtin.debug:
+        msg: |
+          === OHS Start Result ===
+          Was running : {{ 'YES - already running (PID: ' + ohs_proc_before_start.stdout.split()[0] + ')' if ohs_proc_before_start.stdout | default('') | length > 0 else 'NO' }}
+          Status      : {{ 'RUNNING (PID: ' + ohs_proc_after_start.stdout | default('') | trim + ')' if ohs_proc_after_start.stdout | default('') | length > 0 else 'FAILED to start - check logs' }}
