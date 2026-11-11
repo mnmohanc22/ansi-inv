@@ -47,3 +47,60 @@
           === NodeManager Start Result ===
           Status  : {{ 'RUNNING (PID: ' + nm_proc_after_start.stdout.split()[0] + ')' if nm_proc_after_start.rc == 0 and nm_proc_after_start.stdout else 'NOT RUNNING - check nodemanager.out' }}
           Log     : {{ ohs_domain_home }}/nodemanager/nodemanager.out
+
+- name: Stop Node Manager
+  become: true
+  block:
+    - name: Check NodeManager process before stop
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ ohs_domain_home }}"
+      register: nm_proc_before_stop
+      changed_when: false
+      failed_when: false
+
+    - name: Stop NodeManager via stopNodeManager.sh
+      ansible.builtin.shell: |
+        {{ ohs_domain_home }}/bin/stopNodeManager.sh
+      args:
+        executable: /bin/bash
+        chdir: "{{ ohs_domain_home }}/bin"
+      become_user: "{{ oracle_user | default('oracle') }}"
+      become_flags: "-i"
+      register: nm_stop_output
+      changed_when: true
+      when: nm_proc_before_stop.rc == 0
+      failed_when: false
+
+    - name: Print NodeManager stop output
+      ansible.builtin.debug:
+        msg: |
+          === NodeManager Stop Output ===
+          {{ nm_stop_output.stdout | default('') }}
+          {{ nm_stop_output.stderr | default('') }}
+      when: nm_proc_before_stop.rc == 0
+
+    - name: Wait for NodeManager process to exit
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ ohs_domain_home }}"
+      register: nm_proc_check
+      changed_when: false
+      failed_when: false
+      retries: 6
+      delay: 5
+      until: nm_proc_check.rc != 0
+      when: nm_proc_before_stop.rc == 0
+
+    - name: Kill NodeManager if still running after stop
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ ohs_domain_home }}" | awk '{print $1}' | xargs -r kill -9
+      register: nm_kill_output
+      changed_when: nm_kill_output.rc == 0
+      failed_when: false
+      when: nm_proc_before_stop.rc == 0 and nm_proc_check.rc | default(1) == 0
+
+    - name: Print NodeManager stop result
+      ansible.builtin.debug:
+        msg: |
+          === NodeManager Stop Result ===
+          Was running : {{ 'YES' if nm_proc_before_stop.rc == 0 else 'NO - already stopped' }}
+          Status      : {{ 'STOPPED' if nm_proc_check.rc | default(1) != 0 else 'KILLED (force)' if nm_kill_output is defined else 'UNKNOWN' }}
