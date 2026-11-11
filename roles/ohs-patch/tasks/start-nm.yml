@@ -10,12 +10,21 @@
         nohup {{ ohs_domain_home }}/bin/startNodeManager.sh \
           >> {{ ohs_domain_home }}/nodemanager/nodemanager.out \
           2>&1 < /dev/null &
+        echo "NodeManager launched with PID: $!"
       args:
         executable: /bin/bash
         chdir: "{{ ohs_domain_home }}/bin"
       become_user: "{{ oracle_user | default('oracle') }}"
       become_flags: "-i"
+      register: nm_start_output
       changed_when: true
+
+    - name: Print NodeManager start output
+      ansible.builtin.debug:
+        msg: |
+          === NodeManager Launch Output ===
+          {{ nm_start_output.stdout }}
+          {{ nm_start_output.stderr if nm_start_output.stderr | default('') else '' }}
 
     - name: Wait for NodeManager to start
       ansible.builtin.wait_for:
