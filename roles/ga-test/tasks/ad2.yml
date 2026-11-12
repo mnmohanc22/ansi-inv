@@ -205,5 +205,50 @@
           PID       : {{ keyfactor_after_restart.status.MainPID | default('N/A') }}
           Status    : {{ 'SUCCESS' if keyfactor_after_restart.status.ActiveState | default('') == 'active' else 'FAILED - check service logs' }}
 
+- name: List and print Keyfactor systemd unit files
+  become: true
+  block:
+    - name: Find keyfactor* unit files in systemd paths
+      ansible.builtin.find:
+        paths:
+          - /etc/systemd/system
+          - /usr/lib/systemd/system
+          - /lib/systemd/system
+        patterns: "keyfactor*.service"
+        recurse: false
+      register: keyfactor_unit_files
+      failed_when: false
+
+    - name: Print list of found unit files
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor systemd Unit Files Found ===
+          {% if keyfactor_unit_files.files | default([]) | length > 0 %}
+          {% for f in keyfactor_unit_files.files %}
+          {{ f.path }}  (owner={{ f.pw_name | default('N/A') }}  size={{ f.size }} bytes)
+          {% endfor %}
+          {% else %}
+          No keyfactor*.service unit files found
+          {% endif %}
+
+    - name: Read each keyfactor unit file
+      ansible.builtin.slurp:
+        src: "{{ item.path }}"
+      loop: "{{ keyfactor_unit_files.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: keyfactor_unit_contents
+      failed_when: false
+
+    - name: Print content of each keyfactor unit file
+      ansible.builtin.debug:
+        msg: |
+          === {{ item.item.path }} ===
+          {{ item.content | b64decode }}
+      loop: "{{ keyfactor_unit_contents.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      when: item.content is defined
+
 
 
