@@ -9,6 +9,8 @@ ohs_component_name: ohs1
 
 wcc_oracle_home: /u01/app/oracle/product/fmw
 wcc_domain_home: /u01/app/oracle/config/domains/wcc_domain
+wcc_admin_server: AdminServer
+wcc_managed_server: UCM_server1
 
 ohs_domain_homes:
   - /u01/app/oracle/config/domains/base_domain

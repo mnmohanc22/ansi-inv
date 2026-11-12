@@ -1,13 +1,22 @@
 - name: Check WCC domain boot identity and server readiness
   become: true
   block:
+    - name: Set WCC server name facts
+      ansible.builtin.set_fact:
+        wcc_admin_server_name: "{{ wcc_admin_server | default('AdminServer') }}"
+        wcc_managed_server_name: "{{ wcc_managed_server | default('UCM_server1') }}"
+
+    - name: Set WCC servers list fact
+      ansible.builtin.set_fact:
+        wcc_servers:
+          - "{{ wcc_admin_server_name }}"
+          - "{{ wcc_managed_server_name }}"
+
     - name: Check WebLogic boot identity files
       ansible.builtin.stat:
         path: "{{ wcc_domain_home }}/servers/{{ item }}/security/boot.properties"
       become_user: "{{ oracle_user | default('oracle') }}"
-      loop:
-        - AdminServer
-        - UCM_server1
+      loop: "{{ wcc_servers }}"
       register: boot_files
       failed_when: false
 
@@ -133,7 +142,7 @@
 
     - name: Check WCC UCM_server1 process
       ansible.builtin.shell: |
-        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name=UCM_server1"
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name={{ wcc_managed_server_name }}"
       register: wcc_ucm_proc
       changed_when: false
       failed_when: false

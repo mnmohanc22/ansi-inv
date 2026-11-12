@@ -1,0 +1,66 @@
+- name: List directories under /opt with ownership
+  become: true
+  block:
+    - name: Get directory listing under /opt with ownership
+      ansible.builtin.shell: |
+        find /opt -maxdepth 1 -mindepth 1 -type d -exec stat --format="%n %U %G %A" {} \;
+      register: opt_dirs
+      changed_when: false
+      failed_when: false
+
+    - name: Print /opt directory listing with ownership
+      ansible.builtin.debug:
+        msg: |
+          === Directories under /opt ===
+          {% for line in opt_dirs.stdout_lines %}
+          {{ line }}
+          {% endfor %}
+      when: opt_dirs.stdout | default('') | length > 0
+
+- name: Change ownership of Keyfactor directory
+  become: true
+  block:
+    - name: Check Keyfactor directory exists
+      ansible.builtin.stat:
+        path: "/opt/{{ keyfactor_dir | default('keyfactor') }}"
+      register: keyfactor_dir_stat
+      failed_when: false
+
+    - name: Print Keyfactor directory current ownership
+      ansible.builtin.shell: |
+        stat --format="%n  owner=%U  group=%G  perms=%A" "/opt/{{ keyfactor_dir | default('keyfactor') }}"
+      register: keyfactor_dir_before
+      changed_when: false
+      failed_when: false
+      when: keyfactor_dir_stat.stat.exists | default(false)
+
+    - name: Print current ownership before change
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Directory Before ===
+          {{ keyfactor_dir_before.stdout | default('Directory not found: /opt/' + (keyfactor_dir | default('keyfactor'))) }}
+
+    - name: Change ownership of Keyfactor directory
+      ansible.builtin.file:
+        path: "/opt/{{ keyfactor_dir | default('keyfactor') }}"
+        owner: "{{ keyfactor_owner }}"
+        group: "{{ keyfactor_group }}"
+        recurse: true
+      when: keyfactor_dir_stat.stat.exists | default(false)
+
+    - name: Verify ownership after change
+      ansible.builtin.shell: |
+        stat --format="%n  owner=%U  group=%G  perms=%A" "/opt/{{ keyfactor_dir | default('keyfactor') }}"
+      register: keyfactor_dir_after
+      changed_when: false
+      failed_when: false
+      when: keyfactor_dir_stat.stat.exists | default(false)
+
+    - name: Print ownership after change
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Directory After ===
+          {{ keyfactor_dir_after.stdout | default('N/A') }}
+
+
+
