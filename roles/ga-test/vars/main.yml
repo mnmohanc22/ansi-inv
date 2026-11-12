@@ -4,6 +4,13 @@
 
 ohs_oracle_user: oracle
 
+opt_chown_list:
+  - dir: keyfactor
+  - dir: splunkforwarder
+  - dir: puppet
+  - dir: cisco
+  - dir: nessus
+
 docker_data_root: /var/lib/docker
 
 containerd_data_root: /var/lib/containerd

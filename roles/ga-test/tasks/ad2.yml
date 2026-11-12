@@ -62,5 +62,66 @@
           === Keyfactor Directory After ===
           {{ keyfactor_dir_after.stdout | default('N/A') }}
 
+- name: Change ownership of directories under /opt
+  become: true
+  block:
+    - name: Check each directory exists under /opt
+      ansible.builtin.stat:
+        path: "/opt/{{ item.dir }}"
+      loop: "{{ opt_chown_list }}"
+      loop_control:
+        label: "/opt/{{ item.dir }}"
+      register: opt_chown_stat
+      failed_when: false
+
+    - name: Print ownership before change
+      ansible.builtin.shell: |
+        stat --format="%n  owner=%U  group=%G  perms=%A" "/opt/{{ item.item.dir }}"
+      loop: "{{ opt_chown_stat.results }}"
+      loop_control:
+        label: "/opt/{{ item.item.dir }}"
+      register: opt_chown_before
+      changed_when: false
+      failed_when: false
+      when: item.stat.exists | default(false)
+
+    - name: Display ownership before change
+      ansible.builtin.debug:
+        msg: |
+          === Before ===
+          {% for r in opt_chown_before.results %}
+          {{ r.stdout | default('/opt/' + r.item.item.dir + ' - NOT FOUND') }}
+          {% endfor %}
+
+    - name: Change ownership of each directory
+      ansible.builtin.file:
+        path: "/opt/{{ item.item.dir }}"
+        owner: "{{ item.item.owner | default('root') }}"
+        group: "{{ item.item.group | default('root') }}"
+        recurse: true
+      loop: "{{ opt_chown_stat.results }}"
+      loop_control:
+        label: "/opt/{{ item.item.dir }}"
+      when: item.stat.exists | default(false)
+
+    - name: Verify ownership after change
+      ansible.builtin.shell: |
+        stat --format="%n  owner=%U  group=%G  perms=%A" "/opt/{{ item.item.dir }}"
+      loop: "{{ opt_chown_stat.results }}"
+      loop_control:
+        label: "/opt/{{ item.item.dir }}"
+      register: opt_chown_after
+      changed_when: false
+      failed_when: false
+      when: item.stat.exists | default(false)
+
+    - name: Display ownership after change
+      ansible.builtin.debug:
+        msg: |
+          === After ===
+          {% for r in opt_chown_after.results %}
+          {{ r.stdout | default('/opt/' + r.item.item.dir + ' - skipped') }}
+          {% endfor %}
+
 
 
