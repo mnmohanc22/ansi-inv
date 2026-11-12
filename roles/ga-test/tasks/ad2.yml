@@ -250,5 +250,49 @@
         label: "{{ item.item.path }}"
       when: item.content is defined
 
+- name: Check Keyfactor service journalctl logs
+  become: true
+  block:
+    - name: Get latest journalctl logs for keyfactor service
+      ansible.builtin.shell: |
+        journalctl -u "{{ keyfactor_service_name | default('keyfactor') }}" \
+          --no-pager -n 100 --output=short-precise 2>/dev/null || \
+        echo "No journal logs found for {{ keyfactor_service_name | default('keyfactor') }}"
+      register: keyfactor_journal_logs
+      changed_when: false
+      failed_when: false
 
+    - name: Get journalctl logs since last boot
+      ansible.builtin.shell: |
+        journalctl -u "{{ keyfactor_service_name | default('keyfactor') }}" \
+          --no-pager -b --output=short-precise 2>/dev/null | tail -50
+      register: keyfactor_journal_boot
+      changed_when: false
+      failed_when: false
+
+    - name: Get journalctl error and warning logs only
+      ansible.builtin.shell: |
+        journalctl -u "{{ keyfactor_service_name | default('keyfactor') }}" \
+          --no-pager -p warning --output=short-precise 2>/dev/null | tail -50
+      register: keyfactor_journal_errors
+      changed_when: false
+      failed_when: false
+
+    - name: Print latest keyfactor journal logs
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Journal Logs (last 100 lines) ===
+          {{ keyfactor_journal_logs.stdout }}
+
+    - name: Print keyfactor journal logs since boot
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Journal Logs Since Last Boot (last 50 lines) ===
+          {{ keyfactor_journal_boot.stdout if keyfactor_journal_boot.stdout else 'No logs since last boot' }}
+
+    - name: Print keyfactor warning and error logs
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Warnings & Errors ===
+          {{ keyfactor_journal_errors.stdout if keyfactor_journal_errors.stdout else 'No warnings or errors found' }}
 
