@@ -123,5 +123,87 @@
           {{ r.stdout | default('/opt/' + r.item.item.dir + ' - skipped') }}
           {% endfor %}
 
+- name: Check Keyfactor service status
+  become: true
+  block:
+    - name: Check Keyfactor service status via systemctl
+      ansible.builtin.systemd:
+        name: "{{ keyfactor_service_name | default('keyfactor') }}"
+      register: keyfactor_service
+      failed_when: false
+
+    - name: Check Keyfactor process
+      ansible.builtin.shell: |
+        pgrep -a -f "[k]eyfactor" || echo "No keyfactor process found"
+      register: keyfactor_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Check Keyfactor version
+      ansible.builtin.shell: |
+        find /opt/{{ keyfactor_dir | default('keyfactor') }} -name "*.version" -o -name "version.txt" \
+          2>/dev/null | head -1 | xargs cat 2>/dev/null || echo "Version file not found"
+      register: keyfactor_version
+      changed_when: false
+      failed_when: false
+
+    - name: Print Keyfactor service status summary
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Service Status ===
+          Host            : {{ inventory_hostname }}
+          Service Name    : {{ keyfactor_service_name | default('keyfactor') }}
+          Service State   : {{ keyfactor_service.status.ActiveState | default('N/A') }}
+          Service Sub     : {{ keyfactor_service.status.SubState | default('N/A') }}
+          Enabled         : {{ keyfactor_service.status.UnitFileState | default('N/A') }}
+          PID             : {{ keyfactor_service.status.MainPID | default('N/A') }}
+          Install Dir     : /opt/{{ keyfactor_dir | default('keyfactor') }}
+          Version         : {{ keyfactor_version.stdout | default('N/A') }}
+
+          --- Process ---
+          {{ keyfactor_proc.stdout }}
+
+- name: Restart Keyfactor service
+  become: true
+  block:
+    - name: Check Keyfactor service state before restart
+      ansible.builtin.systemd:
+        name: "{{ keyfactor_service_name | default('keyfactor') }}"
+      register: keyfactor_before_restart
+      failed_when: false
+
+    - name: Print service state before restart
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Before Restart ===
+          State   : {{ keyfactor_before_restart.status.ActiveState | default('N/A') }}
+          PID     : {{ keyfactor_before_restart.status.MainPID | default('N/A') }}
+
+    - name: Restart Keyfactor service
+      ansible.builtin.systemd:
+        name: "{{ keyfactor_service_name | default('keyfactor') }}"
+        state: restarted
+      register: keyfactor_restart
+      failed_when: false
+
+    - name: Wait for Keyfactor service to become active
+      ansible.builtin.systemd:
+        name: "{{ keyfactor_service_name | default('keyfactor') }}"
+      register: keyfactor_after_restart
+      retries: 6
+      delay: 5
+      until: keyfactor_after_restart.status.ActiveState == 'active'
+      failed_when: false
+
+    - name: Print Keyfactor restart result
+      ansible.builtin.debug:
+        msg: |
+          === Keyfactor Restart Result ===
+          Service   : {{ keyfactor_service_name | default('keyfactor') }}
+          State     : {{ keyfactor_after_restart.status.ActiveState | default('N/A') }}
+          Sub State : {{ keyfactor_after_restart.status.SubState | default('N/A') }}
+          PID       : {{ keyfactor_after_restart.status.MainPID | default('N/A') }}
+          Status    : {{ 'SUCCESS' if keyfactor_after_restart.status.ActiveState | default('') == 'active' else 'FAILED - check service logs' }}
+
 
 
