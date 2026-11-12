@@ -1,0 +1,310 @@
+- name: Check WCC domain boot identity and server readiness
+  become: true
+  block:
+    - name: Check WebLogic boot identity files
+      ansible.builtin.stat:
+        path: "{{ wcc_domain_home }}/servers/{{ item }}/security/boot.properties"
+      become_user: "{{ oracle_user | default('oracle') }}"
+      loop:
+        - AdminServer
+        - UCM_server1
+      register: boot_files
+      failed_when: false
+
+    - name: Display boot identity file status
+      ansible.builtin.debug:
+        msg:
+          server: "{{ item.item }}"
+          path: "{{ item.stat.path | default('N/A') }}"
+          exists: "{{ item.stat.exists }}"
+          readable: "{{ item.stat.readable | default(false) }}"
+          owner: "{{ item.stat.pw_name | default('N/A') }}"
+          permissions: "{{ item.stat.mode | default('N/A') }}"
+      loop: "{{ boot_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read boot.properties for each server
+      ansible.builtin.slurp:
+        src: "{{ wcc_domain_home }}/servers/{{ item.item }}/security/boot.properties"
+      loop: "{{ boot_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: boot_props_content
+      failed_when: false
+      when: item.stat.exists | default(false)
+
+    - name: Print boot.properties content
+      ansible.builtin.debug:
+        msg: |
+          === {{ item.item.item }}/security/boot.properties ===
+          {{ item.content | b64decode }}
+      loop: "{{ boot_props_content.results }}"
+      loop_control:
+        label: "{{ item.item.item }}"
+      when: item.content is defined
+
+    - name: Fail if boot identity file is missing or unreadable
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.isreg | default(false)
+          - item.stat.readable | default(false)
+        fail_msg: >-
+          {{ item.item }} boot.properties is missing,
+          is not a regular file, or is unreadable by {{ oracle_user | default('oracle') }}.
+        success_msg: "{{ item.item }} boot.properties exists and is readable."
+      loop: "{{ boot_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check WCC domain config.xml exists
+      ansible.builtin.stat:
+        path: "{{ wcc_domain_home }}/config/config.xml"
+      register: wcc_config_xml
+      failed_when: false
+
+    - name: Read WCC config.xml via slurp
+      ansible.builtin.slurp:
+        src: "{{ wcc_domain_home }}/config/config.xml"
+      register: wcc_config_xml_content
+      when: wcc_config_xml.stat.exists | default(false)
+      failed_when: false
+
+    - name: Print WCC config.xml raw content
+      ansible.builtin.debug:
+        msg: "{{ wcc_config_xml_content.content | b64decode }}"
+      when: wcc_config_xml.stat.exists | default(false) and wcc_config_xml_content.content is defined
+
+    - name: Extract server stanzas from WCC config.xml
+      ansible.builtin.shell: |
+        python3 - <<'EOF'
+        import re
+        with open("{{ wcc_domain_home }}/config/config.xml") as f:
+            content = f.read()
+
+        domain = re.search(r'<name>(.*?)</name>', content)
+        print("Domain Name : " + (domain.group(1) if domain else 'N/A'))
+        print("")
+
+        servers = re.findall(r'<server\b[^>]*>.*?</server>', content, re.DOTALL)
+        print("Total Servers : " + str(len(servers)))
+        print("")
+        for block in servers:
+            name    = re.search(r'<name>(.*?)</name>', block)
+            port    = re.search(r'<listen-port>(\d+)</listen-port>', block)
+            addr    = re.search(r'<listen-address>(.*?)</listen-address>', block)
+            ssl     = re.search(r'<ssl-listen-port>(\d+)</ssl-listen-port>', block)
+            enabled = re.search(r'<ssl-enabled>(.*?)</ssl-enabled>', block)
+            cluster = re.search(r'<cluster>(.*?)</cluster>', block)
+            print("--- Server ---")
+            print("  Name         : " + (name.group(1) if name else 'N/A'))
+            print("  Listen Port  : " + (port.group(1) if port else '7001 (default)'))
+            print("  Listen Addr  : " + (addr.group(1) if addr and addr.group(1) else 'all interfaces'))
+            print("  SSL Port     : " + (ssl.group(1) if ssl else 'N/A'))
+            print("  SSL Enabled  : " + (enabled.group(1) if enabled else 'false'))
+            print("  Cluster      : " + (cluster.group(1) if cluster else 'N/A'))
+        EOF
+      register: wcc_config_xml_summary
+      changed_when: false
+      failed_when: false
+      when: wcc_config_xml.stat.exists | default(false)
+
+    - name: Print WCC config.xml server summary
+      ansible.builtin.debug:
+        msg: |
+          === WCC config.xml Summary ===
+          {{ wcc_config_xml_summary.stdout if wcc_config_xml_summary.stdout | default('') else 'No data extracted' }}
+      when: wcc_config_xml.stat.exists | default(false)
+
+    - name: Check WCC NodeManager process
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.NodeManager" | grep -F "{{ wcc_domain_home }}"
+      register: wcc_nodemanager_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Check WCC AdminServer process
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name=AdminServer"
+      register: wcc_adminserver_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Check WCC UCM_server1 process
+      ansible.builtin.shell: |
+        pgrep -a -f "[w]eblogic.Server" | grep -F "{{ wcc_domain_home }}" | grep -F "Dweblogic.Name=UCM_server1"
+      register: wcc_ucm_proc
+      changed_when: false
+      failed_when: false
+
+    - name: Set fact for WCC process IDs
+      ansible.builtin.set_fact:
+        wcc_nodemanager_pid: >-
+          {{ (wcc_nodemanager_proc.stdout | default('')).split() | first | default('')
+             if wcc_nodemanager_proc.rc | default(1) == 0
+             else '' }}
+        wcc_adminserver_pid: >-
+          {{ (wcc_adminserver_proc.stdout | default('')).split() | first | default('')
+             if wcc_adminserver_proc.rc | default(1) == 0
+             else '' }}
+        wcc_ucm_server_pid: >-
+          {{ (wcc_ucm_proc.stdout | default('')).split() | first | default('')
+             if wcc_ucm_proc.rc | default(1) == 0
+             else '' }}
+
+    - name: Print WCC domain readiness summary
+      ansible.builtin.debug:
+        msg: |
+          === WCC Domain Readiness Summary ===
+          Host              : {{ inventory_hostname }}
+          WCC Domain Home   : {{ wcc_domain_home }}
+
+          --- Boot Identity Files ---
+          AdminServer       : {{ 'OK' if boot_files.results[0].stat.exists | default(false) else 'MISSING' }}
+          UCM_server1       : {{ 'OK' if boot_files.results[1].stat.exists | default(false) else 'MISSING' }}
+
+          --- config.xml ---
+          config.xml        : {{ 'EXISTS' if wcc_config_xml.stat.exists | default(false) else 'NOT FOUND' }}
+
+          --- Running Processes ---
+          NodeManager       : {{ 'RUNNING (PID: ' + wcc_nodemanager_pid + ')' if wcc_nodemanager_pid else 'NOT RUNNING' }}
+          AdminServer       : {{ 'RUNNING (PID: ' + wcc_adminserver_pid + ')' if wcc_adminserver_pid else 'NOT RUNNING' }}
+          UCM_server1       : {{ 'RUNNING (PID: ' + wcc_ucm_server_pid + ')' if wcc_ucm_server_pid else 'NOT RUNNING' }}
+
+- name: Read last 100 lines of WCC domain logs
+  become: true
+  block:
+    - name: Tail NodeManager log
+      ansible.builtin.shell: |
+        tail -100 "{{ wcc_domain_home }}/nodemanager/nodemanager.log" 2>/dev/null || echo "File not found"
+      register: wcc_nm_log
+      changed_when: false
+      failed_when: false
+
+    - name: Print NodeManager log
+      ansible.builtin.debug:
+        msg: |
+          === NodeManager Log (last 100 lines) ===
+          {{ wcc_nm_log.stdout }}
+
+    - name: Tail AdminServer log
+      ansible.builtin.shell: |
+        tail -100 "{{ wcc_domain_home }}/servers/AdminServer/logs/AdminServer.log" 2>/dev/null || echo "File not found"
+      register: wcc_admin_log
+      changed_when: false
+      failed_when: false
+
+    - name: Print AdminServer log
+      ansible.builtin.debug:
+        msg: |
+          === AdminServer Log (last 100 lines) ===
+          {{ wcc_admin_log.stdout }}
+
+    - name: Tail AdminServer out file
+      ansible.builtin.shell: |
+        tail -100 "{{ wcc_domain_home }}/servers/AdminServer/logs/AdminServer.out" 2>/dev/null || echo "File not found"
+      register: wcc_admin_out
+      changed_when: false
+      failed_when: false
+
+    - name: Print AdminServer out file
+      ansible.builtin.debug:
+        msg: |
+          === AdminServer.out (last 100 lines) ===
+          {{ wcc_admin_out.stdout }}
+
+    - name: Tail UCM_server1 log
+      ansible.builtin.shell: |
+        tail -100 "{{ wcc_domain_home }}/servers/UCM_server1/logs/UCM_server1.log" 2>/dev/null || echo "File not found"
+      register: wcc_ucm_log
+      changed_when: false
+      failed_when: false
+
+    - name: Print UCM_server1 log
+      ansible.builtin.debug:
+        msg: |
+          === UCM_server1 Log (last 100 lines) ===
+          {{ wcc_ucm_log.stdout }}
+
+    - name: Tail UCM_server1 out file
+      ansible.builtin.shell: |
+        tail -100 "{{ wcc_domain_home }}/servers/UCM_server1/logs/UCM_server1.out" 2>/dev/null || echo "File not found"
+      register: wcc_ucm_out
+      changed_when: false
+      failed_when: false
+
+    - name: Print UCM_server1 out file
+      ansible.builtin.debug:
+        msg: |
+          === UCM_server1.out (last 100 lines) ===
+          {{ wcc_ucm_out.stdout }}
+
+- name: Inspect Oracle inventory and registered homes
+  become: true
+  block:
+    - name: Read /etc/oraInst.loc
+      ansible.builtin.slurp:
+        src: /etc/oraInst.loc
+      register: ora_inst_loc_content
+      failed_when: false
+
+    - name: Print /etc/oraInst.loc content
+      ansible.builtin.debug:
+        msg: |
+          === /etc/oraInst.loc ===
+          {{ ora_inst_loc_content.content | b64decode }}
+      when: ora_inst_loc_content.content is defined
+
+    - name: Extract inventory_loc from /etc/oraInst.loc
+      ansible.builtin.set_fact:
+        oracle_inventory_loc: >-
+          {{ (ora_inst_loc_content.content | b64decode)
+             | regex_search('inventory_loc=(.+)', '\1')
+             | first | default('') | trim }}
+      when: ora_inst_loc_content.content is defined
+
+    - name: Read central inventory XML
+      ansible.builtin.slurp:
+        src: "{{ oracle_inventory_loc }}/ContentsXML/inventory.xml"
+      register: central_inventory_xml
+      failed_when: false
+      when: oracle_inventory_loc | default('') | length > 0
+
+    - name: Print registered Oracle homes from central inventory
+      ansible.builtin.shell: |
+        python3 - <<'EOF'
+        import re
+        with open("{{ oracle_inventory_loc }}/ContentsXML/inventory.xml") as f:
+            content = f.read()
+        homes = re.findall(r'<HOME\s[^/]*?NAME="([^"]+)"[^/]*?LOC="([^"]+)"[^/]*/>', content)
+        print("=== Registered Oracle Homes ===")
+        for name, loc in homes:
+            print("  Name : " + name)
+            print("  Loc  : " + loc)
+            print("")
+        EOF
+      register: ora_homes_list
+      changed_when: false
+      failed_when: false
+      when: oracle_inventory_loc | default('') | length > 0
+
+    - name: Print Oracle homes list
+      ansible.builtin.debug:
+        msg: "{{ ora_homes_list.stdout }}"
+      when: oracle_inventory_loc | default('') | length > 0
+
+    - name: Run opatch lsinventory -detail for WCC oracle home
+      ansible.builtin.shell: |
+        {{ wcc_oracle_home }}/OPatch/opatch lsinventory -detail -invPtrLoc /etc/oraInst.loc 2>&1
+      become_user: "{{ oracle_user | default('oracle') }}"
+      become_flags: "-i"
+      register: wcc_opatch_lsinventory
+      changed_when: false
+      failed_when: false
+
+    - name: Print opatch lsinventory output
+      ansible.builtin.debug:
+        msg: |
+          === opatch lsinventory -detail (WCC Oracle Home) ===
+          {{ wcc_opatch_lsinventory.stdout }}
